@@ -4,9 +4,8 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V70.1 (UI Separation):
-// - NEW MENU ITEM: Added "🗑️ 快速刪除分頁" under "Data Management Tool" to launch a standalone UI.
-// - This reverts the previous merge of the delete tool into the main settings page.
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 
@@ -27,7 +26,7 @@ const TRANSLATIONS = {
         // --- Items ---
         settingsItem: '⚙️ Open Settings',
         manageSettingsItem: '⚙️ Monitoring Management Settings',
-        quickDeleteItem: '🗑️ Quick Delete Sheets', // NEW
+        quickDeleteItem: '🗑️ Quick Delete Sheets',
         reportSettingsItem: '📊 Report Generation Settings',
         runImportItem: '▶️ Run Import (Sync)',
         stopImportItem: '⏹️ Stop Import',
@@ -46,7 +45,7 @@ const TRANSLATIONS = {
         privacyPolicyItem: 'Privacy Policy',
         // --- Guide Sub-menu Items (Placeholders) ---
         manufacturingGuide: 'Manufacturing Example',
-        manufacturingProductionTitle: 'Manufacturing Production', // NEW
+        manufacturingProductionTitle: 'Manufacturing Production',
         businessGuide: 'Business & Sales Example',
         // hrGuide: 'Human Resources Example',
         startBusinessGuide: '▶️ Start Interactive Guide (Sales)',
@@ -56,15 +55,61 @@ const TRANSLATIONS = {
         compareSettingsTitle: 'Data Comparison Settings',
         verifySettingsTitle: 'Data Validation Settings',
         manageSettingsTitle: 'Data Monitoring Management Settings',
-        quickDeleteTitle: 'Quick Delete Sheets', // NEW
+        quickDeleteTitle: 'Quick Delete Sheets',
         reportSettingsTitle: 'Report Generation Settings',
         sheetSelectionTitle: 'Select a Sheet',
+        privacyPolicyTitle: 'Privacy Policy',
+         // Privacy Policy Content
+        privacyLastUpdated: 'Last Updated: September 2, 2025',
+        privacyIntro: "Thank you for using MasterDataAnalyzer (hereinafter referred to as 'this add-on'). We are committed to protecting your privacy and ensuring you understand how your data is handled. All operations of this add-on are completed within your Google account. We do not collect, store, or share your personal information or document content with any third parties.",
+        privacyDataCollectionTitle: 'Data Collection and Use',
+        privacyDataCollectionP1: "This add-on is a tool built on Google Apps Script, designed to help you process data within Google Sheets.",
+        privacyDataCollectionL1: '**No Personal Information Collected**: We do not ask for, collect, or store any personally identifiable information, such as your name, email address, or contact details.',
+        privacyDataCollectionL2: '**Data Processing**: All data reading, processing, and writing operations occur directly within the Google Sheets, Google Docs, or Google Drive files you authorize. Data is not transmitted to our servers or any external services.',
+        privacyDataCollectionL3: "**Settings Storage**: The settings you configure for this add-on (e.g., data sources, field mappings) are stored using Google Apps Script's built-in `PropertiesService` as properties linked to your Google document. These settings are only accessible to the add-on for its operation within your account; we cannot access them externally.",
+        privacySecurityTitle: 'Security Statement and Permissions Explanation',
+        privacySecurityP1: 'To provide its full functionality, this add-on will request your authorization for the following Google services upon installation. These permissions are used exclusively for the specific functions described and will never be used for any other purpose.',
+        privacySecurityP2: 'The following is a detailed explanation based on the `oauthScopes` in your `appsscript.json` file:',
+        privacyScopeSpreadsheetsTitle: '`https://www.googleapis.com/auth/spreadsheets`',
+        privacyScopeSpreadsheetsPermission: 'Permission: View, edit, create, and delete your Google Sheets spreadsheets.',
+        privacyScopeSpreadsheetsPurpose: "Purpose: This is the core permission for the add-on. We need this to:",
+        privacyScopeSpreadsheetsUse1: 'Read data from your specified source spreadsheets.',
+        privacyScopeSpreadsheetsUse2: 'Write processed data into your target spreadsheets.',
+        privacyScopeSpreadsheetsUse3: 'Create new sheets for reports, sample data, etc.',
+        privacyScopeSpreadsheetsUse4: 'Execute the "Quick Delete Sheets" feature.',
+        privacyScopeDocumentsTitle: '`https://www.googleapis.com/auth/documents`',
+        privacyScopeDocumentsPermission: 'Permission: View, edit, create, and delete your Google Docs documents.',
+        privacyScopeDocumentsPurpose: 'Purpose: This permission is used solely for the "Export Report" feature. When you choose to export analysis results to a Google Doc, the add-on creates a new document and writes the report content into it.',
+        privacyScopeDriveTitle: '`https://www.googleapis.com/auth/drive`',
+        privacyScopeDrivePermission: 'Permission: View, edit, create, and delete specific files in your Google Drive.',
+        privacyScopeDrivePurpose: 'Purpose: This permission primarily supports the "Export Report" feature:',
+        privacyScopeDriveUse1: 'When exporting to Google Docs, this permission is needed to create the document in your Drive.',
+        privacyScopeDriveUse2: 'When exporting as a PDF, the add-on first creates a Google Doc, converts it to a PDF file saved in your Drive, and may delete the temporary document.',
+        privacyScopeGmailTitle: '`https://www.googleapis.com/auth/gmail.send`',
+        privacyScopeGmailPermission: 'Permission: Allow this add-on to send email on your behalf. **(Note: This add-on cannot read any of your emails)**',
+        privacyScopeGmailPurpose: 'Purpose: This permission is used only for the "Data Change Monitoring" feature. When a change occurs in a cell range you have configured for monitoring, the add-on will automatically send a notification email to the address you have specified.',
+        privacyScopeUITitle: '`https://www.googleapis.com/auth/script.container.ui`',
+        privacyScopeUIPermission: 'Permission: Display user interfaces in Google Sheets.',
+        privacyScopeUIPurpose: 'Purpose: This permission is required for the add-on to display all user interfaces, such as settings windows, sidebars, dialog boxes, and custom menus within your spreadsheet.',
+        privacyScopeScriptAppTitle: '`https://www.googleapis.com/auth/script.scriptapp`',
+        privacyScopeScriptAppPermission: 'Permission: Allow Apps Script to create and manage script triggers.',
+        privacyScopeScriptAppPurpose: 'Purpose: This permission is used to create an `onOpen` trigger to automatically generate the "MasterDataAnalyzer" menu when you open a spreadsheet. It is also used by the "Data Change Monitoring" feature to create triggers that detect worksheet changes.',
+        privacyScopeExternalRequestTitle: '`https://www.googleapis.com/auth/script.external_request`',
+        privacyScopeExternalRequestPermission: 'Permission: Allow Apps Script to connect to external services.',
+        privacyScopeExternalRequestPurpose: 'Purpose: In the current version, this add-on **does not** actively send requests or transmit your data to any non-Google external servers. This permission is included to allow for potential future feature enhancements (e.g., connecting to public API services) but is not currently in use.',
+        privacyScopeStorageTitle: '`https://www.googleapis.com/auth/script.storage`',
+        privacyScopeStoragePermission: 'Permission: Allow Apps Script to store a small amount of data.',
+        privacyScopeStoragePurpose: 'Purpose: As described in "Settings Storage" above, we use this permission to save your configurations for various features, so you do not need to re-enter them each time you use the add-on.',
+        privacyChangesTitle: 'Policy Changes',
+        privacyChangesP1: 'We may update this Privacy Policy from time to time. Any changes will be posted on this page, and we encourage you to review it periodically.',
+        privacyContactTitle: 'Contact Us',
+        privacyContactP1: 'If you have any questions about this Privacy Policy, please contact us at [tsengmercury@gmail.com].',
         // --- NEW: Dashboard Generator UI ---
-        sectionFieldMapping: 'Field Mapping', // NEW
-        regionColumnLabel: 'Region Field', // NEW
-        productColumnLabel: 'Product/Item Field', // NEW
-        salesColumnLabel: 'Sales Value Field', // NEW
-        generateReportButton: 'Generate Report', // NEW KEY
+        sectionFieldMapping: 'Field Mapping',
+        regionColumnLabel: 'Region Field',
+        productColumnLabel: 'Product/Item Field',
+        salesColumnLabel: 'Sales Value Field',
+        generateReportButton: 'Generate Report',
         step1Title: 'Step 1: Prepare Raw Data',
         step1Description: 'This is a typical sales ledger, containing information such as date, region, product, and sales amount.',
         // sourceSpreadsheetUrlLabel: 'Source Spreadsheet URL',
@@ -363,7 +408,7 @@ const TRANSLATIONS = {
         // --- Items ---
         settingsItem: '⚙️ 資料匯入設定',
         manageSettingsItem: '⚙️ 資料監控管理設定',
-        quickDeleteItem: '🗑️ 快速刪除分頁', // NEW
+        quickDeleteItem: '🗑️ 快速刪除分頁',
         reportSettingsItem: '📊 資料生成報表設定',
         runImportItem: '▶️ 資料匯入',
         stopImportItem: '⏹️ 終止執行匯入',
@@ -382,7 +427,7 @@ const TRANSLATIONS = {
         privacyPolicyItem: '隱私權政策',
         // --- Guide Sub-menu Items (Placeholders) ---
         manufacturingGuide: '生產製造範例',
-        manufacturingProductionTitle: '生產製造', // NEW
+        manufacturingProductionTitle: '生產製造',
         businessGuide: '業務統計範例',
         // hrGuide: '人資管理範例',
         startBusinessGuide: '▶️ 啟動互動教學 (業務統計)',
@@ -392,15 +437,61 @@ const TRANSLATIONS = {
         compareSettingsTitle: '資料比對設定',
         verifySettingsTitle: '資料驗證設定',
         manageSettingsTitle: '資料監控管理設定',
-        quickDeleteTitle: '快速刪除分頁', // NEW
+        quickDeleteTitle: '快速刪除分頁',
         reportSettingsTitle: '資料生成報表設定',
         sheetSelectionTitle: '選擇分頁',
+        privacyPolicyTitle: '隱私權政策',
+        // Privacy Policy Content
+        privacyLastUpdated: '最後更新日期：2025年9月2日',
+        privacyIntro: "感謝您使用 MasterDataAnalyzer (以下簡稱「本外掛」)。我們致力於保護您的隱私，並讓您清楚了解我們如何處理您的資料。本外掛的所有操作均在您的 Google 帳戶內部完成，我們不會收集、儲存或與任何第三方分享您的個人資訊或文件內容。",
+        privacyDataCollectionTitle: '資料收集與使用',
+        privacyDataCollectionP1: "本外掛是一個建立在 Google Apps Script 上的工具，旨在幫助您處理 Google Sheets 中的資料。",
+        privacyDataCollectionL1: '**不收集個人資訊**：我們不會要求、收集或儲存任何您的個人身份資訊，例如姓名、電子郵件地址或聯絡資訊。',
+        privacyDataCollectionL2: '**資料處理**：所有資料的讀取、處理與寫入操作，都直接在您授權的 Google Sheets、Google Docs 或 Google Drive 檔案中進行。資料不會被傳輸到我們的伺服器或任何外部服務。',
+        privacyDataCollectionL3: "**設定儲存**：您為本外掛所做的設定（例如資料來源、欄位對應等）會使用 Google Apps Script 內建的 `PropertiesService` 儲存在與您的 Google 文件綁定的屬性中。這些設定僅供本外掛在您的帳戶中運作時讀取，我們無法從外部存取。",
+        privacySecurityTitle: '安全性聲明與權限說明',
+        privacySecurityP1: '為了提供完整的功能，本外掛在安裝時會向您請求以下 Google 服務的授權。這些權限僅用於實現所述之特定功能，絕不會用於其他目的。',
+        privacySecurityP2: '以下是根據您 `appsscript.json` 檔案中 `oauthScopes` 的詳細說明：',
+        privacyScopeSpreadsheetsTitle: '`https://www.googleapis.com/auth/spreadsheets`',
+        privacyScopeSpreadsheetsPermission: '權限：查看、編輯、建立和刪除您的 Google Sheets 試算表。',
+        privacyScopeSpreadsheetsPurpose: "用途：這是本外掛的核心權限。我們需要此權限來：",
+        privacyScopeSpreadsheetsUse1: '讀取您指定的來源試算表資料。',
+        privacyScopeSpreadsheetsUse2: '將處理後的資料寫入您的目標試算表。',
+        privacyScopeSpreadsheetsUse3: '建立報表、範例資料等新分頁。',
+        privacyScopeSpreadsheetsUse4: '執行「快速刪除分頁」功能。',
+        privacyScopeDocumentsTitle: '`https://www.googleapis.com/auth/documents`',
+        privacyScopeDocumentsPermission: '權限：查看、編輯、建立和刪除您的 Google Docs 文件。',
+        privacyScopeDocumentsPurpose: '用途：此權限僅用於「匯出報表」功能。當您選擇將分析結果匯出為 Google 文件時，本外掛會建立一份新的 Google Doc 並將報表內容寫入其中。',
+        privacyScopeDriveTitle: '`https://www.googleapis.com/auth/drive`',
+        privacyScopeDrivePermission: '權限：查看、編輯、建立和刪除您 Google Drive 中的特定檔案。',
+        privacyScopeDrivePurpose: '用途：此權限主要支援「匯出報表」功能：',
+        privacyScopeDriveUse1: '當您選擇匯出為 Google 文件時，需要此權限在您的雲端硬碟中建立該文件。',
+        privacyScopeDriveUse2: '當您選擇匯出為 PDF 時，本外掛會先建立一份 Google 文件，然後將其轉換為 PDF 檔案儲存至您的雲端硬碟，並可能刪除過程中的暫存文件。',
+        privacyScopeGmailTitle: '`https://www.googleapis.com/auth/gmail.send`',
+        privacyScopeGmailPermission: '權限：允許本外掛代表您傳送電子郵件。**（注意：本外掛無法讀取您的任何郵件）**',
+        privacyScopeGmailPurpose: '用途：此權限僅用於「資料變更監控」功能。當您設定的儲存格範圍發生變更時，本外掛會依照您的設定，自動傳送通知郵件到您指定的信箱。',
+        privacyScopeUITitle: '`https://www.googleapis.com/auth/script.container.ui`',
+        privacyScopeUIPermission: '權限：在 Google Sheets 中顯示使用者介面。',
+        privacyScopeUIPurpose: '用途：本外掛需要此權限才能在您的試算表上顯示所有操作介面，例如設定視窗、側邊欄、對話框與自訂選單。',
+        privacyScopeScriptAppTitle: '`https://www.googleapis.com/auth/script.scriptapp`',
+        privacyScopeScriptAppPermission: '權限：允許 Apps Script 建立及管理指令碼觸發器。',
+        privacyScopeScriptAppPurpose: '用途：此權限用於建立 `onOpen` 觸發器，以便在您打開試算表時自動生成「MasterDataAnalyzer」選單。同時也用於「資料變更監控」功能，以建立偵測工作表變更的觸發器。',
+        privacyScopeExternalRequestTitle: '`https://www.googleapis.com/auth/script.external_request`',
+        privacyScopeExternalRequestPermission: '權限：允許 Apps Script 連接到外部網路服務。',
+        privacyScopeExternalRequestPurpose: '用途：目前版本中，本外掛**不會**主動向任何非 Google 的外部伺服器發送請求或傳輸您的資料。此權限是為了保留未來可能的功能擴充性（例如，連接至公開的 API 服務），但現階段並未使用。',
+        privacyScopeStorageTitle: '`https://www.googleapis.com/auth/script.storage`',
+        privacyScopeStoragePermission: '權限：允許 Apps Script 儲存少量資料。',
+        privacyScopeStoragePurpose: '用途：如前述「設定儲存」所述，我們使用此權限來保存您對各個功能的設定，以便您下次使用時無需重新輸入。',
+        privacyChangesTitle: '政策變更',
+        privacyChangesP1: '我們可能會不時更新本隱私權政策。任何變更都將發布在此頁面上，我們鼓勵您定期查看。',
+        privacyContactTitle: '聯絡我們',
+        privacyContactP1: '如果您對本隱私權政策有任何疑問，請透過 [tsengmercury@gmail.com] 與我們聯繫。',
         // --- NEW: Dashboard Generator UI ---
-        sectionFieldMapping: '欄位對應', // NEW
-        regionColumnLabel: '地區欄位', // NEW
-        productColumnLabel: '產品/項目欄位', // NEW
-        salesColumnLabel: '數值欄位 (銷售額)', // NEW
-        generateReportButton: '生成報表', // NEW KEY
+        sectionFieldMapping: '欄位對應',
+        regionColumnLabel: '地區欄位',
+        productColumnLabel: '產品/項目欄位',
+        salesColumnLabel: '數值欄位 (銷售額)',
+        generateReportButton: '生成報表',
         step1Title: '第一步：準備原始數據',
         step1Description: '這是一張典型的銷售流水帳，包含了日期、地區、產品和銷售額等資訊。',
         // sourceSpreadsheetUrlLabel: '來源資料表 URL',
@@ -738,7 +829,7 @@ function onOpen() {
     const managementSubMenu = ui.createMenu(T.manageMenuTitle)
         .addItem(T.manageSettingsItem, 'showManageSettingsSidebar')
         .addSeparator()
-        .addItem(T.quickDeleteItem, 'showQuickDeleteSheetUI') // NEW: Added this line
+        .addItem(T.quickDeleteItem, 'showQuickDeleteSheetUI')
         .addSeparator()
         .addSubMenu(monitorSubMenu)
         .addSeparator()
@@ -767,9 +858,17 @@ function onOpen() {
     mainMenu.addToUi();
 }
 
-// --- [NEW] Placeholder functions for the new menu items ---
 // function showHrGuide() { SpreadsheetApp.getUi().alert('人資管理範例即將推出！'); }
-function showPrivacyPolicy() { SpreadsheetApp.getUi().alert('隱私權政策即將推出！'); }
+/**
+ * Shows the Privacy Policy UI.
+ */
+function showPrivacyPolicy() {
+    const T = getTranslations();
+    const htmlTemplate = HtmlService.createTemplateFromFile('PrivacyPolicy.html');
+    htmlTemplate.T = T;
+    const htmlOutput = htmlTemplate.evaluate().setWidth(600).setHeight(500);
+    SpreadsheetApp.getUi().showModalDialog(htmlOutput, T.privacyPolicyTitle);
+}
 
 
 /**
@@ -1704,7 +1803,7 @@ function runCompareProcess() {
         if (resultsToWrite.length > 0) {
             targetSheet.getRange(targetStartRow, targetWriteColNum, resultsToWrite.length, 1).setValues(resultsToWrite);
 
-            // NEW: Logic to create internal or external links
+            // Logic to create internal or external links
            const isInternalLink = (targetSsId === sourceSsId);
            richTextTasks.forEach(task => {
             const cell = targetSheet.getRange(task.targetRow, task.targetCol);
@@ -1845,7 +1944,7 @@ function runImportProcess() {
                 const task = allTasks[i];
                 const currentRow = settings.targetStartRow + i;
 
-                // NEW: Logic to create internal or external links
+                //Logic to create internal or external links
                const isInternalLink = (targetSsId === sourceInfo.id);
 
                 task.richTextChecks.forEach(check => {
@@ -2183,7 +2282,7 @@ function fetchImportData(settings) {
         matrixValues,
         masterHeaderName,
         sourceInfo: {
-            id: sourceSpreadsheet.getId(), // NEW: Add source spreadsheet ID
+            id: sourceSpreadsheet.getId(),
             gid: sourceGid,
             url: sourceUrl,
             startRow: identifierStartRow,

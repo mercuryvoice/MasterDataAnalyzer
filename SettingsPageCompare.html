@@ -1,11 +1,12 @@
 <!--
+// @ts-check
+
 // =================================================================================================
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V52.0 (UI Hint Update):
-// - UI ENHANCEMENT: Added a dynamic hint to show which sheet the settings are for.
-//
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 -->
@@ -662,7 +663,7 @@
       function loadAndPopulateSettings() {
         google.script.run.withSuccessHandler(sheetName => {
           currentSheetName = sheetName;
-          // NEW: Populate the hint element with the current sheet name
+          //Populate the hint element with the current sheet name
           const hintElement = document.getElementById('current-sheet-hint');
           hintElement.textContent = '<?!= T.settingsForSheetHint ?>'.replace('{SHEET_NAME}', sheetName);
           

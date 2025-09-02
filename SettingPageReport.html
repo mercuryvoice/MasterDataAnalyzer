@@ -1,4 +1,15 @@
-<!-- VERSION 3.4 | FEATURE SUMMARY: Added validation message for export selection. -->
+<!--
+// @ts-check
+
+// =================================================================================================
+// =================================== VERSION & FEATURE SUMMARY ===================================
+// =================================================================================================
+//
+// V1.0 (Pre-release version):
+// - Noted.
+//
+// =================================================================================================
+-->
 <!DOCTYPE html>
 <html>
 <head>
@@ -931,7 +942,7 @@
             if (useLabels) {
                 options = { 
                     title: `${dimension} 分佈`,
-                    titleTextStyle: { fontSize: 16, bold: true }, 
+                    titleTextStyle: { fontSize: 20, bold: true }, 
                     pieHole: 0.4, 
                     pieSliceText: 'none', 
                     legend: { 
@@ -949,7 +960,7 @@
             } else {
                 options = { 
                     title: `${dimension} 分佈`,
-                    titleTextStyle: { fontSize: 16, bold: true },
+                    titleTextStyle: { fontSize: 20, bold: true },
                     pieHole: 0.4, 
                     pieSliceText: 'none',
                     legend: { 

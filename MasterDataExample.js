@@ -4,13 +4,8 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V2.20 (Data Correction):
-// - DATA FIX: Updated specific warehouse locations in the 'Source_Verify' sheet to 'China'
-//   as per user request.
-//
-// V2.19 (Manufacturing Data Correction):
-// - DATA FIX: Corrected the specific cell values in the 'Source_Verify' sheet according to the
-//   user's provided list and screenshot to ensure accurate tutorial data.
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 

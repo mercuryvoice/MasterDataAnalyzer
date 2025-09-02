@@ -4,10 +4,8 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V53.3 (UI Separation):
-// - Re-separated "Quick Delete Sheet" into its own UI and menu function.
-// - ADDED BACK function showQuickDeleteSheetUI() to launch the standalone tool.
-// - SettingsPageManage.html reverted to only handle notification settings.
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 

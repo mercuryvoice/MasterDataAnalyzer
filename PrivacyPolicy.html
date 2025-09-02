@@ -1,0 +1,172 @@
+<!--
+// @ts-check
+
+// =================================================================================================
+// =================================== VERSION & FEATURE SUMMARY ===================================
+// =================================================================================================
+//
+// V1.0 (Pre-release version):
+// - Noted.
+//
+// =================================================================================================
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans TC', sans-serif, Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px 30px;
+        color: #333;
+      }
+      h1 {
+        font-size: 1.5em;
+        color: #2c59a3;
+        border-bottom: 2px solid #2c59a3;
+        padding-bottom: 5px;
+        margin-top: 0;
+      }
+      h2 {
+        font-size: 1.2em;
+        color: #333;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+      p, li {
+        font-size: 0.95em;
+        color: #555;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      code {
+        background-color: #f0f0f0;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.9em;
+      }
+      strong {
+        color: #111;
+      }
+      .footer {
+        text-align: right;
+        margin-top: 40px;
+      }
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-family: 'Noto Sans TC', sans-serif;
+        background-color: #6c757d;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h1><?!= T.privacyPolicyTitle ?></h1>
+    <p><strong><?!= T.privacyLastUpdated ?></strong></p>
+    <p><?!= T.privacyIntro ?></p>
+
+    <h2><?!= T.privacyDataCollectionTitle ?></h2>
+    <p><?!= T.privacyDataCollectionP1 ?></p>
+    <ul>
+      <li><?!= T.privacyDataCollectionL1 ?></li>
+      <li><?!= T.privacyDataCollectionL2 ?></li>
+      <li><?!= T.privacyDataCollectionL3 ?></li>
+    </ul>
+
+    <h2><?!= T.privacySecurityTitle ?></h2>
+    <p><?!= T.privacySecurityP1 ?></p>
+    <p><?!= T.privacySecurityP2 ?></p>
+    
+    <ol>
+      <li>
+        <p><strong><?!= T.privacyScopeSpreadsheetsTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeSpreadsheetsPermission ?></li>
+          <li><?!= T.privacyScopeSpreadsheetsPurpose ?>
+            <ul>
+              <li><?!= T.privacyScopeSpreadsheetsUse1 ?></li>
+              <li><?!= T.privacyScopeSpreadsheetsUse2 ?></li>
+              <li><?!= T.privacyScopeSpreadsheetsUse3 ?></li>
+              <li><?!= T.privacyScopeSpreadsheetsUse4 ?></li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>
+        <p><strong><?!= T.privacyScopeDocumentsTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeDocumentsPermission ?></li>
+          <li><?!= T.privacyScopeDocumentsPurpose ?></li>
+        </ul>
+      </li>
+      <li>
+        <p><strong><?!= T.privacyScopeDriveTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeDrivePermission ?></li>
+          <li><?!= T.privacyScopeDrivePurpose ?>
+             <ul>
+              <li><?!= T.privacyScopeDriveUse1 ?></li>
+              <li><?!= T.privacyScopeDriveUse2 ?></li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>
+        <p><strong><?!= T.privacyScopeGmailTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeGmailPermission ?></li>
+          <li><?!= T.privacyScopeGmailPurpose ?></li>
+        </ul>
+      </li>
+       <li>
+        <p><strong><?!= T.privacyScopeUITitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeUIPermission ?></li>
+          <li><?!= T.privacyScopeUIPurpose ?></li>
+        </ul>
+      </li>
+       <li>
+        <p><strong><?!= T.privacyScopeScriptAppTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeScriptAppPermission ?></li>
+          <li><?!= T.privacyScopeScriptAppPurpose ?></li>
+        </ul>
+      </li>
+       <li>
+        <p><strong><?!= T.privacyScopeExternalRequestTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeExternalRequestPermission ?></li>
+          <li><?!= T.privacyScopeExternalRequestPurpose ?></li>
+        </ul>
+      </li>
+       <li>
+        <p><strong><?!= T.privacyScopeStorageTitle ?></strong></p>
+        <ul>
+          <li><?!= T.privacyScopeStoragePermission ?></li>
+          <li><?!= T.privacyScopeStoragePurpose ?></li>
+        </ul>
+      </li>
+    </ol>
+
+    <h2><?!= T.privacyChangesTitle ?></h2>
+    <p><?!= T.privacyChangesP1 ?></p>
+    
+    <h2><?!= T.privacyContactTitle ?></h2>
+    <p><?!= T.privacyContactP1 ?></p>
+    
+    <div class="footer">
+      <button onclick="google.script.host.close()">關閉</button>
+    </div>
+
+  </body>
+</html>

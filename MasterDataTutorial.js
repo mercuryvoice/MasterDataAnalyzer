@@ -4,14 +4,8 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V4.11 (UI & Translation Refinement):
-// - UI ENHANCEMENT: Added <code> tags to key phrases in the Business Tutorial (Task 3) for
-//   better visual emphasis, per user feedback.
-// - TRANSLATION FIX: Added new translation keys for the "Insert Formulas" button states
-//   (processing, success, error) to ensure they display correctly in all languages.
-//
-// V4.10 (Code Integrity Restoration):
-// - FIX: Restored the complete and correct code structure for the entire script.
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 
@@ -29,9 +23,9 @@ function getTutorialTranslations() {
           businessTask3Step2Instruction: "This time, use \"Product Name\" as the lookup key and select <code>\"Source | Product Targets\"</code> as the source sheet.<br>Set the \"Source Data Compare Range\" to <code>A2:B5</code>, and configure the field mapping as follows:<br>  - **Target Lookup Column**: <code>F</code> (Product Name)<br>  - **Source Compare Column**: <code>A</code> (Product Name)<br>  - **Source Return Column**: <code>B</code> (Monthly Target)<br>  - **Target Write Column**: <code>J</code> (Monthly Target)",
           businessFinalStepInstruction: "Then, run the <code>'Data Comparison'</code> again.\n\nAll data is now in place! You now have a clean, complete dataset ready for analysis.\n\nNext, you can manually enter or click the button below to insert formulas in the corresponding columns to complete the final calculations:\n- **Total Sales**: <code>=H2*I2</code> (Quantity * Unit Price)\n- **Achievement Rate**: <code>=G2/J2</code> (Total Sales / Monthly Target)",
           businessFinalStepButton: "Insert Formulas Automatically",
-          businessProcessingButton: "Processing...", // NEW
-          businessSuccessButton: "Formulas Inserted!", // NEW
-          businessErrorButton: "Error, please retry", // NEW
+          businessProcessingButton: "Processing...",  
+          businessSuccessButton: "Formulas Inserted!",  
+          businessErrorButton: "Error, please retry",  
           // ... (other keys)
         },
         'zh_TW': {
@@ -40,9 +34,9 @@ function getTutorialTranslations() {
           businessTask3Step2Instruction: "這次，請用 \"產品名稱\" 作為目標對比基準，並選擇 \"來源資料分頁名稱\" 為 <code>{SOURCE_SHEET_NAME}</code>。<br>\"來源資料比對範圍\" 請設定為 <code>A2:B5</code>，\"資料比對欄位對應\" 請依照下方順序逐一設定：<br>  - **目標查找欄位**: <code>F</code> (產品名稱)<br>  - **來源比對欄位**: <code>A</code> (產品名稱)<br>  - **來源返回欄位**: <code>B</code> (目標月銷售額)<br>  - **目標寫入欄位**: <code>J</code> (目標月銷售額)",
           businessFinalStepInstruction: "接著，請再次執行<code>「資料比對」</code>。\n\n所有資料都已到位！您現在擁有了一份乾淨、完整的數據。\n\n接下來，您可以手動或點擊下方按鈕，在對應的欄位中填入公式來完成最後的計算：\n- **總銷售額**: <code>=H2*I2</code> (數量 * 單價)\n- **業績達成率**: <code>=G2/J2</code> (總銷售額 / 目標月銷售額)",
           businessFinalStepButton: "自動帶入公式",
-          businessProcessingButton: "處理中...", // NEW
-          businessSuccessButton: "公式已成功帶入！", // NEW
-          businessErrorButton: "發生錯誤，請重試", // NEW
+          businessProcessingButton: "處理中...",  
+          businessSuccessButton: "公式已成功帶入！",  
+          businessErrorButton: "發生錯誤，請重試",  
           // ... (other keys)
         }
     };

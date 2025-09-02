@@ -1,16 +1,12 @@
 <!--
+// @ts-check
+
 // =================================================================================================
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V58.4 (UI Hint Update):
-// - UI ENHANCEMENT: Added a dynamic hint to show which sheet the settings are for,
-//   matching the UI of other settings pages.
-//
-// V58.3 (UI Wording & Formatting):
-// - UI ENHANCEMENT: Increased font size for auto-mapping results for better readability.
-// - UI ENHANCEMENT: Changed the format of mapping results to be more descriptive as requested.
-// - UI FIX: Added the correct title for the "Failed Matches" section in the auto-mapping modal.
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 -->
@@ -1003,7 +999,7 @@
 
       // --- Initial Load ---
       function loadSettingsForSheet(sheetName) {
-        // NEW: Populate the hint element with the current sheet name
+        //Populate the hint element with the current sheet name
         const hintElement = document.getElementById('current-sheet-hint');
         hintElement.textContent = '<?!= T.settingsForSheetHint ?>'.replace('{SHEET_NAME}', sheetName);
 

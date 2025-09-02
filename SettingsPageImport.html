@@ -1,12 +1,12 @@
 <!--
+// @ts-check
+
 // =================================================================================================
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V51.0 (UI Hint & Label Update):
-// - UI ENHANCEMENT: Added a new dynamic hint below the header.
-// - UI TEXT: Renamed the "Current Spreadsheet's Sheet Name" label.
-//
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 -->
@@ -42,17 +42,17 @@
         white-space: pre-line;
         line-height: 1.4;
       }
-      .current-sheet-hint { // NEW
-        font-size: 13px; // NEW
-        font-weight: bold; // NEW
-        color: #007bff; // NEW
-        background-color: #e7f3ff; // NEW
-        border: 1px solid #b3d7ff; // NEW
-        padding: 8px 12px; // NEW
-        border-radius: 4px; // NEW
-        margin-top: -10px; // NEW
-        margin-bottom: 15px; // NEW
-        text-align: center; // NEW
+      .current-sheet-hint {  
+        font-size: 13px;  
+        font-weight: bold;  
+        color: #007bff;  
+        background-color: #e7f3ff;  
+        border: 1px solid #b3d7ff;  
+        padding: 8px 12px;  
+        border-radius: 4px;  
+        margin-top: -10px;  
+        margin-bottom: 15px;  
+        text-align: center;  
       }
       .header-icons {
         display: flex;
@@ -949,7 +949,7 @@
       }
 
       function onSaveSuccess(result) {
-        // NEW: Check the success flag from the backend
+        //Check the success flag from the backend
         if (result.success) {
             statusDiv.textContent = result.message;
             saveBtn.disabled = false;

@@ -6,18 +6,8 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V68.0 (New Reset Logic):
-// - CRITICAL FIX & REWRITE: Replaced the problematic `runCleanup` function with a new, more
-//   robust `runReset` function.
-// - The new `resetValidationData` function iterates from the bottom of the sheet up.
-// - It deletes generated child rows ('MS', 'EX-') entirely.
-// - For parent rows, it only clears the content of specified output and mismatch columns,
-//   preserving all other data, formatting, and hyperlinks. This resolves the critical bug
-//   of accidental data deletion in other columns.
-//
-// V67.3 (Cleanup Preservation):
-// - FAILED ATTEMPT: The `cleanupWithMemoryMode` function was rewritten to preserve hyperlinks but
-//   introduced a critical bug that cleared data in non-target columns. This version is deprecated.
+// V1.0 (Pre-release version):
+// - Noted.
 //
 // =================================================================================================
 
@@ -790,17 +780,17 @@ function resetValidationData(settings) {
     let lastRow = sheet.getLastRow();
     if (lastRow < startRow) return; // Nothing to process.
 
-    // 1. Identify columns to clear (1-based index).
+    //Identify columns to clear (1-based index).
     const columnsToClear = settings.outputMappings.map(m => columnToNumber(m.targetCol));
     if (settings.mismatchColumn) {
         columnsToClear.push(columnToNumber(settings.mismatchColumn));
     }
     const uniqueColumnsToClear = [...new Set(columnsToClear)];
 
-    // 2. Get all the flag values in the first column at once for efficiency.
+    //Get all the flag values in the first column at once for efficiency.
     const flags = sheet.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
 
-    // 3. Iterate from the bottom up to safely delete rows.
+    //Iterate from the bottom up to safely delete rows.
     for (let i = flags.length - 1; i >= 0; i--) {
         const currentRowInSheet = startRow + i;
         const flag = flags[i][0].toString().trim();
