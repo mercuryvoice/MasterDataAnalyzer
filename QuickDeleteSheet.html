@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans TC', sans-serif;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        color: #333;
+        margin: 0;
+      }
+      .section h4 {
+        font-size: 1.1em;
+        font-weight: 500;
+        color: #007bff;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 5px;
+        margin-top: 0;
+        margin-bottom: 15px;
+      }
+      #sheet-list-container {
+        height: 320px;
+        display: flex;
+        flex-direction: column;
+      }
+      #sheet-list {
+        flex-grow: 1;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: white;
+      }
+      .sheet-item {
+        display: block;
+        margin-bottom: 8px;
+      }
+      .sheet-item label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-weight: normal;
+      }
+       .sheet-item input {
+        margin-right: 10px;
+      }
+      .button-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        border-top: 1px solid #ddd;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-family: 'Noto Sans TC', sans-serif;
+        margin-left: 10px;
+      }
+      #delete-btn { background-color: #dc3545; color: white; }
+      #close-btn { background-color: #6c757d; color: white; }
+      #status { margin-right: auto; font-size: 0.9em; }
+      button:disabled { background-color: #ccc; cursor: not-allowed; }
+      .loader {
+        display: inline-block;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        animation: spin 1s linear infinite;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="section">
+      <h4>勾選要刪除的分頁</h4>
+      <div id="sheet-list-container">
+        <div class="sheet-item" style="border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 8px;">
+          <label>
+            <input type="checkbox" id="select-all">
+            <strong>全選 / 取消全選</strong>
+          </label>
+        </div>
+        <div id="sheet-list">
+          <p>讀取分頁列表中...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-container">
+      <span id="status"></span>
+      <button id="close-btn">關閉</button>
+      <button id="delete-btn">刪除選取項目</button>
+    </div>
+
+    <script>
+      const deleteBtn = document.getElementById('delete-btn');
+      const closeBtn = document.getElementById('close-btn');
+      const statusDiv = document.getElementById('status');
+      const sheetListDiv = document.getElementById('sheet-list');
+      const selectAllCheckbox = document.getElementById('select-all');
+
+      // --- Initial Load ---
+      document.addEventListener('DOMContentLoaded', loadSheetList);
+      
+      function loadSheetList() {
+        statusDiv.innerHTML = '<div class="loader"></div>讀取中...';
+        google.script.run
+          .withSuccessHandler(populateSheetList)
+          .withFailureHandler(showError)
+          .getDeletableSheetNames();
+      }
+
+      function populateSheetList(sheetNames) {
+        statusDiv.textContent = '';
+        sheetListDiv.innerHTML = '';
+        if (sheetNames.length === 0) {
+          sheetListDiv.textContent = '沒有可刪除的分頁。';
+          deleteBtn.disabled = true;
+          selectAllCheckbox.disabled = true;
+          return;
+        }
+        
+        deleteBtn.disabled = false;
+        selectAllCheckbox.disabled = false;
+        selectAllCheckbox.checked = false;
+
+        sheetNames.forEach(name => {
+          const div = document.createElement('div');
+          div.className = 'sheet-item';
+          const safeName = name.replace(/"/g, '&quot;');
+          div.innerHTML = `<label><input type="checkbox" class="sheet-checkbox" value="${safeName}"> ${name}</label>`;
+          sheetListDiv.appendChild(div);
+        });
+      }
+
+      // --- Button Handlers ---
+      closeBtn.addEventListener('click', () => google.script.host.close());
+      deleteBtn.addEventListener('click', handleDelete);
+      selectAllCheckbox.addEventListener('change', handleSelectAll);
+      
+      function handleSelectAll(e) {
+        const isChecked = e.target.checked;
+        document.querySelectorAll('.sheet-checkbox').forEach(cb => {
+          cb.checked = isChecked;
+        });
+      }
+
+      function handleDelete() {
+        const selectedCheckboxes = document.querySelectorAll('.sheet-checkbox:checked');
+        const sheetNamesToDelete = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+        if (sheetNamesToDelete.length === 0) {
+          statusDiv.textContent = '請至少選擇一個分頁。';
+          statusDiv.style.color = '#dc3545';
+          setTimeout(() => {
+            statusDiv.textContent = '';
+            statusDiv.style.color = 'black';
+          }, 3000);
+          return;
+        }
+
+        // Simple confirmation by changing button text
+        if (deleteBtn.textContent.includes('確認')) {
+           performDelete(sheetNamesToDelete);
+        } else {
+          deleteBtn.textContent = `確認刪除 ${sheetNamesToDelete.length} 個分頁？`;
+          deleteBtn.style.backgroundColor = '#c82333'; // Darker red for confirmation
+          setTimeout(() => {
+             deleteBtn.textContent = '刪除選取項目';
+             deleteBtn.style.backgroundColor = '#dc3545';
+          }, 5000); // Reset button text after 5 seconds if not clicked
+        }
+      }
+
+      function performDelete(sheetNames) {
+        statusDiv.innerHTML = '<div class="loader"></div>刪除中...';
+        statusDiv.style.color = 'black';
+        deleteBtn.disabled = true;
+        closeBtn.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(onDeleteSuccess)
+          .withFailureHandler(showError)
+          .deleteSheets(sheetNames);
+      }
+      
+      function onDeleteSuccess(result) {
+        statusDiv.textContent = result.message;
+        statusDiv.style.color = result.success ? '#28a745' : '#dc3545';
+        deleteBtn.textContent = '刪除選取項目';
+        deleteBtn.style.backgroundColor = '#dc3545';
+        deleteBtn.disabled = false;
+        closeBtn.disabled = false;
+        
+        // Refresh the list after deletion
+        loadSheetList(); 
+        
+        setTimeout(() => {
+          statusDiv.textContent = '';
+          statusDiv.style.color = 'black';
+        }, 5000);
+      }
+
+      function showError(error) {
+        statusDiv.textContent = `錯誤: ${error.message}`;
+        statusDiv.style.color = '#dc3545';
+        deleteBtn.disabled = false;
+        closeBtn.disabled = false;
+      }
+
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans TC', sans-serif;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      .header {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding-bottom: 10px;
+        margin-bottom: 5px;
+      }
+      .drag-hint {
+        text-align: left;
+        font-size: 13px;
+        color: #888;
+        margin-top: -15px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 10px;
+        white-space: pre-line;
+        line-height: 1.4;
+      }
+      .header-icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .header-icons .material-icons {
+        cursor: pointer;
+        font-size: 24px;
+        color: #aaa;
+        transition: transform 0.2s ease, color 0.2s ease;
+      }
+      .header-icons .material-icons:hover {
+        transform: scale(1.1);
+      }
+      #pin-toggle.pinned {
+        color: #007bff;
+        transform: rotate(45deg);
+      }
+      #expand-toggle.expanded {
+        color: #007bff;
+      }
+      .section {
+        margin-bottom: 25px;
+      }
+      .section h4 {
+        font-size: 1em;
+        font-weight: 500;
+        color: #007bff;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+      }
+      input[type="text"], input[type="email"], textarea {
+        width: calc(100% - 20px);
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+        font-family: 'Noto Sans TC', sans-serif;
+      }
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      .help-text {
+        font-size: 0.8em;
+        color: #777;
+        margin-top: 3px;
+        margin-bottom: 10px;
+        white-space: pre-wrap;
+        line-height: 1.4;
+      }
+      .button-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        border-top: 1px solid #ddd;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-family: 'Noto Sans TC', sans-serif;
+        margin-left: 10px;
+      }
+      #save-btn { background-color: #007bff; color: white; }
+      #close-btn { background-color: #6c757d; color: white; }
+      #default-template-btn { background-color: #17a2b8; color: white; margin-right: auto; } /* New Style */
+      #status { margin-right: 10px; color: #28a745; font-size: 0.9em; }
+      button:disabled { background-color: #ccc; cursor: not-allowed; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-icons">
+        <span id="expand-toggle" class="material-icons" title="<?!= T.expandWindowTooltip ?>">open_in_full</span>
+        <span id="pin-toggle" class="material-icons" title="<?!= T.pinWindowTooltip ?>">push_pin</span>
+      </div>
+    </div>
+    <p class="drag-hint"><?!= T.dragAndActionHelp ?></p>
+
+    <div id="form-body" style="padding-bottom: 80px;">
+      <!-- Section: Data Management Settings -->
+      <div class="section">
+        <h4><?!= T.sectionDataManagement ?></h4>
+        
+        <label for="monitorRange"><?!= T.monitorRangeLabel ?></label>
+        <input type="text" id="monitorRange" name="monitorRange" placeholder="A2:E20">
+        <p class="help-text"><?!= T.monitorRangeHelp ?></p>
+
+        <label for="monitorRecipientEmail"><?!= T.monitorEmailLabel ?></label>
+        <input type="email" id="monitorRecipientEmail" name="monitorRecipientEmail" placeholder="manager@example.com">
+        <p class="help-text"><?!= T.monitorEmailHelp ?></p>
+
+        <label for="monitorSubject"><?!= T.monitorSubjectLabel ?></label>
+        <input type="text" id="monitorSubject" name="monitorSubject">
+        <p class="help-text"><?!= T.monitorSubjectHelp ?></p>
+
+        <label for="monitorBody"><?!= T.monitorBodyLabel ?></label>
+        <textarea id="monitorBody" name="monitorBody"></textarea>
+        <p class="help-text"><?!= T.monitorBodyHelp ?></p>
+
+      </div>
+    </div>
+
+    <div class="button-container">
+      <button id="default-template-btn"><?!= T.defaultTemplateButton ?></button>
+      <span id="status"></span>
+      <button id="close-btn"><?!= T.closeButton ?></button>
+      <button id="save-btn"><?!= T.saveButton ?></button>
+    </div>
+
+    <script>
+      let isPinned = false;
+      let isExpanded = false;
+      const pinToggle = document.getElementById('pin-toggle');
+      const expandToggle = document.getElementById('expand-toggle');
+      const saveBtn = document.getElementById('save-btn');
+      const closeBtn = document.getElementById('close-btn');
+      const statusDiv = document.getElementById('status');
+      
+      const monitorRangeInput = document.getElementById('monitorRange');
+      const monitorEmailInput = document.getElementById('monitorRecipientEmail');
+      const monitorSubjectInput = document.getElementById('monitorSubject');
+      const monitorBodyInput = document.getElementById('monitorBody');
+      const defaultTemplateBtn = document.getElementById('default-template-btn');
+
+      // --- Pinning & Expansion Logic ---
+      pinToggle.addEventListener('click', function() {
+        isPinned = !isPinned;
+        pinToggle.classList.toggle('pinned');
+        pinToggle.title = isPinned ? '<?!= T.unpinWindowTooltip ?>' : '<?!= T.pinWindowTooltip ?>';
+      });
+
+      expandToggle.addEventListener('click', function() {
+        isExpanded = !isExpanded;
+        expandToggle.classList.toggle('expanded');
+        if (isExpanded) {
+          google.script.host.setWidth(750);
+          expandToggle.textContent = 'close_fullscreen';
+          expandToggle.title = '<?!= T.collapseWindowTooltip ?>';
+        } else {
+          google.script.host.setWidth(450);
+          expandToggle.textContent = 'open_in_full';
+          expandToggle.title = '<?!= T.expandWindowTooltip ?>';
+        }
+      });
+
+      // --- Button Handlers ---
+      closeBtn.addEventListener('click', () => google.script.host.close());
+      saveBtn.addEventListener('click', handleSave);
+      
+      // --- New Button Handler for Default Template ---
+      defaultTemplateBtn.addEventListener('click', function() {
+        google.script.run
+          .withSuccessHandler(function(templates) {
+            monitorSubjectInput.value = templates.subject;
+            monitorBodyInput.value = templates.body;
+          })
+          .withFailureHandler(onSaveFailure) // Can reuse the same failure handler
+          .getNotificationDefaultTemplates();
+      });
+
+      function handleSave() {
+        statusDiv.textContent = '<?!= T.savingMessage ?>';
+        saveBtn.disabled = true;
+
+        const settings = {
+          monitorRange: monitorRangeInput.value,
+          monitorRecipientEmail: monitorEmailInput.value,
+          monitorSubject: monitorSubjectInput.value,
+          monitorBody: monitorBodyInput.value
+        };
+
+        google.script.run
+          .withSuccessHandler(onSaveSuccess)
+          .withFailureHandler(onSaveFailure)
+          .saveManageSettingsFromHtml(settings);
+      }
+
+      function onSaveSuccess(message) {
+        statusDiv.textContent = message;
+        saveBtn.disabled = false;
+        
+        setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+
+        if (!isPinned) {
+          setTimeout(() => { google.script.host.close(); }, 1000);
+        }
+      }
+
+      function onSaveFailure(error) {
+        statusDiv.textContent = error.message;
+        statusDiv.style.color = '#dc3545'; // Red for error
+        saveBtn.disabled = false;
+      }
+
+      // --- Initial Load ---
+      document.addEventListener('DOMContentLoaded', function() {
+        google.script.run.withSuccessHandler(function(settings) {
+          if (settings) {
+            monitorRangeInput.value = settings.monitorRange || '';
+            monitorEmailInput.value = settings.monitorRecipientEmail || '';
+            monitorSubjectInput.value = settings.monitorSubject || '';
+            monitorBodyInput.value = settings.monitorBody || '';
+          }
+        }).getManageSettingsForHtml();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            padding: 1rem;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        .step-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 1.25rem;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .step-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .step-instruction {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .step-instruction code {
+            background-color: #e2e8f0;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-size: 0.9em;
+            color: #475569;
+        }
+        .progress-bar-bg {
+            background-color: #e2e8f0;
+            border-radius: 9999px;
+            height: 0.5rem;
+            overflow: hidden;
+        }
+        .progress-bar-fg {
+            background-color: #3b82f6;
+            height: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+        .nav-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .choice-button {
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        #step-selector {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="tutorial-container" class="space-y-4">
+        <div>
+            <p id="progress-text" class="text-sm font-medium text-slate-500 mb-1"></p>
+            <div class="progress-bar-bg">
+                <div id="progress-bar" class="progress-bar-fg"></div>
+            </div>
+        </div>
+
+        <div class="mt-2">
+            <select id="step-selector" class="w-full p-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            </select>
+        </div>
+
+        <div id="step-content" class="step-card">
+        </div>
+
+        <div id="nav-buttons" class="flex justify-between items-center pt-2">
+            <button id="prev-btn" class="nav-button bg-slate-200 hover:bg-slate-300 text-slate-700"></button>
+            <button id="next-btn" class="nav-button bg-blue-600 hover:bg-blue-700 text-white"></button>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        let tutorialSteps = [];
+        let T;
+        let checkpointIndex = -1;
+        let checkpoint2Index = -1;
+        const tutorialType = "<?= tutorialType ?>"; 
+
+        try {
+            T = JSON.parse('<?= translations ?>');
+        } catch (e) {
+            console.error("無法解析翻譯資料:", e);
+            T = { tutorialPrev: "Previous", tutorialNext: "Next", tutorialClose: "Close", tutorialYes: "Yes", tutorialNo: "No", tutorialProgressText: "Step {CURRENT} / {TOTAL}" };
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTutorial();
+
+            document.getElementById('next-btn').addEventListener('click', () => {
+                const step = tutorialSteps[currentStep];
+                if (step && step.isFinal) {
+                    google.script.host.close();
+                    return;
+                }
+                if (currentStep < tutorialSteps.length - 1) {
+                    currentStep++;
+                    renderStep(currentStep);
+                }
+            });
+
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                if (currentStep > 0) {
+                    currentStep--;
+                    renderStep(currentStep);
+                }
+            });
+
+            document.getElementById('step-selector').addEventListener('change', (event) => {
+                const newStep = parseInt(event.target.value, 10);
+                if (!isNaN(newStep) && newStep !== currentStep) {
+                    currentStep = newStep;
+                    renderStep(currentStep);
+                }
+            });
+        });
+
+        function initializeTutorial() {
+            document.getElementById('prev-btn').textContent = T.tutorialPrev;
+            document.getElementById('next-btn').textContent = T.tutorialNext;
+            
+            defineTutorialSteps();
+            populateStepSelector();
+            renderStep(currentStep);
+        }
+
+        function populateStepSelector() {
+            const selector = document.getElementById('step-selector');
+            selector.innerHTML = '';
+            tutorialSteps.forEach((step, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = step.title;
+                selector.appendChild(option);
+            });
+        }
+
+        function defineTutorialSteps() {
+            if (tutorialType === 'business') {
+                defineBusinessSteps();
+            } else if (tutorialType === 'manufacturing') {
+                defineManufacturingSteps();
+            }
+        }
+        
+        function defineBusinessSteps() {
+            const importSteps = [
+                { title: T.businessWelcomeTitle, instruction: T.businessWelcomeInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                { title: T.businessTask1Step1Title, instruction: T.businessTask1Step1Instruction.replace('{SHEET_NAME}', T.exampleDashboardSheet_Sales).replace('{SOURCE_SHEET_NAME}', T.exampleSalesLogSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                { title: T.businessTask1Step2Title, instruction: T.businessTask1Step2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                { title: T.businessTask1Step3Title, instruction: T.businessTask1Step3Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleSalesLogSheet_Sales).replace('{TARGET_SHEET_NAME}', T.exampleDashboardSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleSalesLogSheet_Sales] } },
+                { title: T.businessTask1Step4Title, instruction: T.businessTask1Step4Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleSalesLogSheet_Sales] } },
+                { title: T.businessTask1Step5Title, instruction: T.businessTask1Step5Instruction.replace(/{PRODUCT_NAME}/g, T.productLaptop).replace('{HEADER_NAME}', T.headerProductName), action: { func: 'tutorial_highlightSheet', args: [T.exampleSalesLogSheet_Sales] } },
+                { title: T.businessTask1Step6Title, instruction: T.businessTask1Step6Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } }
+            ];
+            const checkpointStep = { isCheckpoint: true, title: T.businessCheckpointTitle, instruction: T.businessCheckpointInstruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "C:E"] } };
+            tutorialSteps = [...importSteps, checkpointStep];
+            checkpointIndex = tutorialSteps.findIndex(step => step.isCheckpoint);
+        }
+
+        function defineManufacturingSteps() {
+             const importSteps = [
+                { title: T.mfgWelcomeTitle, instruction: T.mfgWelcomeInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                { title: T.mfgTask1Step1Title, instruction: T.mfgTask1Step1Instruction.replace('{SHEET_NAME}', T.exampleTargetSheet).replace('{SOURCE_SHEET_NAME}', T.exampleImportSourceSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                { title: T.mfgTask1Step2Title, instruction: T.mfgTask1Step2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                { title: T.mfgTask1Step3Title, instruction: T.mfgTask1Step3Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleImportSourceSheet).replace('{TARGET_SHEET_NAME}', T.exampleTargetSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                { title: T.mfgTask1Step4Title, instruction: T.mfgTask1Step4Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleImportSourceSheet] } },
+                { title: T.mfgTask1Step5Title, instruction: T.mfgTask1Step5Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleImportSourceSheet] } },
+                { title: T.mfgTask1Step6Title, instruction: T.mfgTask1Step6Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleTargetSheet, "A:G"] } }
+            ];
+            const checkpointStep = { isCheckpoint: true, title: T.mfgCheckpointTitle, instruction: T.mfgCheckpointInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } };
+            tutorialSteps = [...importSteps, checkpointStep];
+            checkpointIndex = tutorialSteps.findIndex(step => step.isCheckpoint);
+        }
+
+        function continueTutorial() {
+            let nextSteps = [];
+            const currentCheckpoint = tutorialSteps[currentStep];
+
+            if (tutorialType === 'business') {
+                nextSteps = [
+                    { title: T.businessTask2Step1Title, instruction: T.businessTask2Step1Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "C:E"] } },
+                    { title: T.businessTask2Step2Title, instruction: T.businessTask2Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleCustomerMasterSheet_Sales).replace('{TARGET_SHEET_NAME}', T.exampleDashboardSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleCustomerMasterSheet_Sales] } },
+                    { title: T.businessTask2Step3Title, instruction: T.businessTask2Step3Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                    { title: T.businessTask3Step1Title, instruction: T.businessTask3Step1Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "J:J"] } },
+                    { title: T.businessTask3Step2Title, instruction: T.businessTask3Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleProductTargetsSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleProductTargetsSheet_Sales] } },
+                    { title: T.businessFinalStepTitle, instruction: T.businessFinalStepInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] }, isFinal: true }
+                ];
+            } else if (tutorialType === 'manufacturing') {
+                 if (currentCheckpoint.title === T.mfgCheckpointTitle) { 
+                    nextSteps = [
+                        { title: T.mfgTask2Step1Title, instruction: T.mfgTask2Step1Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                        { title: T.mfgTask2Step2Title, instruction: T.mfgTask2Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleVerifySourceSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                        { title: T.mfgTask2Step3Title, instruction: T.mfgTask2Step3Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleVerifySourceSheet] } },
+                        { title: T.mfgTask2Step4Title, instruction: T.mfgTask2Step4Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleTargetSheet, "H:J"] } },
+                        { title: T.mfgTask2FinalStepTitle, instruction: T.mfgTask2FinalStepInstruction, action: { func: 'tutorial_highlightRange', args: [T.exampleTargetSheet, "K:K"] } },
+                        { isCheckpoint: true, title: T.mfgCheckpoint2Title, instruction: T.mfgCheckpoint2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } }
+                    ];
+                 } else if (currentCheckpoint.title === T.mfgCheckpoint2Title) { 
+                    nextSteps = [
+                        { title: T.mfgTask3Step1Title, instruction: T.mfgTask3Step1Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleCompareSourceSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                        { title: T.mfgTask3Step2Title, instruction: T.mfgTask3Step2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
+                        { title: T.mfgTask3Step3Title, instruction: T.mfgTask3Step3Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleCompareSourceSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleCompareSourceSheet] } },
+                        { title: T.mfgFinalStepTitle, instruction: T.mfgFinalStepInstruction.replace('{SHEET_NAME}', T.exampleTargetSheet), action: { func: 'tutorial_highlightRange', args: [T.exampleTargetSheet, "L:L"] }, isFinal: true }
+                    ];
+                 }
+            }
+            
+            tutorialSteps.splice(currentStep, 1, ...nextSteps);
+
+            checkpointIndex = tutorialSteps.findIndex(step => step.title === T.mfgCheckpointTitle);
+            checkpoint2Index = tutorialSteps.findIndex(step => step.title === T.mfgCheckpoint2Title);
+            
+            populateStepSelector();
+            renderStep(currentStep);
+        }
+        
+        function returnToCheckpoint() {
+            if (checkpointIndex !== -1) {
+                currentStep = checkpointIndex;
+                renderStep(currentStep);
+            }
+        }
+
+        function endTutorial() {
+            const contentDiv = document.getElementById('step-content');
+            contentDiv.innerHTML = `
+                <h2 class="step-title">${T.endTutorialTitle}</h2>
+                <p class="step-instruction">${T.endTutorialInstruction.replace(/\n/g, '<br>')}</p>
+                <div class="mt-6 space-y-3">
+                    <button onclick="returnToCheckpoint()" class="choice-button bg-slate-200 hover:bg-slate-300 text-slate-700">${T.endTutorialReturnButton}</button>
+                </div>
+            `;
+            document.getElementById('nav-buttons').style.display = 'none';
+        }
+
+        function handleInsertFormulas() {
+            const btn = document.getElementById('insert-formulas-btn');
+            if(btn) {
+                btn.disabled = true;
+                btn.textContent = T.businessProcessingButton || 'Processing...';
+                google.script.run
+                    .withSuccessHandler(() => {
+                        btn.textContent = T.businessSuccessButton || 'Formulas Inserted!';
+                        google.script.run.tutorial_highlightRange(T.exampleDashboardSheet_Sales, "G:K");
+                    })
+                    .withFailureHandler((err) => {
+                        btn.textContent = T.businessErrorButton || 'Error, please retry';
+                        btn.disabled = false;
+                        alert(err);
+                    })
+                    .insertSalesMetricsFormulas();
+            }
+        }
+
+        function renderStep(stepIndex) {
+            const step = tutorialSteps[stepIndex];
+            if (!step) return;
+
+            const contentDiv = document.getElementById('step-content');
+            const navButtons = document.getElementById('nav-buttons');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const selector = document.getElementById('step-selector');
+            contentDiv.style.opacity = 0;
+
+            setTimeout(() => {
+                if (step.isCheckpoint) {
+                    contentDiv.innerHTML = `<h2 class="step-title">${step.title}</h2><p class="step-instruction">${step.instruction.replace(/\n/g, '<br>')}</p><div class="mt-6 space-y-3"><button onclick="continueTutorial()" class="choice-button bg-blue-600 hover:bg-blue-700 text-white">${T.tutorialYes}</button><button onclick="endTutorial()" class="choice-button bg-slate-200 hover:bg-slate-300 text-slate-700">${T.tutorialNo}</button></div>`;
+                    navButtons.style.display = 'none';
+                    selector.style.display = 'none';
+                } else {
+                    contentDiv.innerHTML = `<h2 class="step-title">${step.title}</h2><p class="step-instruction">${step.instruction.replace(/\n/g, '<br>')}</p>`;
+                    if (step.isFinal && tutorialType === 'business') {
+                         contentDiv.innerHTML += `<div class="mt-4"><button id="insert-formulas-btn" onclick="handleInsertFormulas()" class="choice-button bg-green-600 hover:bg-green-700 text-white">${T.businessFinalStepButton}</button></div>`;
+                    }
+                    navButtons.style.display = 'flex';
+                    selector.style.display = 'block';
+                }
+
+                if (step.isFinal) {
+                    nextBtn.textContent = T.tutorialClose;
+                    prevBtn.style.display = 'inline-flex';
+                } else {
+                    prevBtn.textContent = T.tutorialPrev;
+                    nextBtn.textContent = T.tutorialNext;
+                    prevBtn.style.display = 'inline-flex';
+                }
+
+                contentDiv.style.opacity = 1;
+            }, 200);
+
+            const progress = ((stepIndex + 1) / tutorialSteps.length) * 100;
+            document.getElementById('progress-bar').style.width = progress + '%';
+            
+            document.getElementById('progress-text').textContent = T.tutorialProgressText
+                .replace('{CURRENT}', stepIndex + 1)
+                .replace('{TOTAL}', tutorialSteps.length);
+
+            selector.value = stepIndex;
+
+            prevBtn.disabled = stepIndex === 0;
+            nextBtn.disabled = step.isCheckpoint;
+
+            if (step.action && step.action.func) {
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                selector.disabled = true;
+
+                const onActionComplete = () => {
+                    prevBtn.disabled = stepIndex === 0;
+                    nextBtn.disabled = step.isCheckpoint;
+                    selector.disabled = false;
+                };
+
+                const runner = google.script.run
+                    .withSuccessHandler(onActionComplete)
+                    .withFailureHandler(onActionComplete);
+
+                runner[step.action.func].apply(null, step.action.args || []);
+            }
+        }
+    </script>
+</body>
+</html>

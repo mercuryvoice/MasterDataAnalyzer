@@ -1,0 +1,1040 @@
+<!-- VERSION 3.4 | FEATURE SUMMARY: Added validation message for export selection. -->
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <!-- Feature Version: Fix chart layout in tabs and resize exported images. -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body { font-family: 'Noto Sans TC', sans-serif; padding: 15px 25px; background-color: #f9f9f9; color: #333; }
+      .header { display: flex; justify-content: flex-end; align-items: center; padding-bottom: 10px; margin-bottom: 5px; }
+      .drag-hint { text-align: left; font-size: 13px; color: #888; margin-top: -15px; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; white-space: pre-line; line-height: 1.4; }
+      .current-sheet-hint { font-size: 13px; font-weight: bold; color: #007bff; background-color: #e7f3ff; border: 1px solid #b3d7ff; padding: 8px 12px; border-radius: 4px; margin-top: -10px; margin-bottom: 15px; text-align: center; }
+      .header-icons { display: flex; align-items: center; gap: 10px; }
+      .header-icons .material-icons { cursor: pointer; font-size: 24px; color: #aaa; transition: transform 0.2s ease, color 0.2s ease; }
+      .header-icons .material-icons:hover { transform: scale(1.1); }
+      #pin-toggle.pinned { color: #007bff; transform: rotate(45deg); }
+      #expand-toggle.expanded { color: #007bff; }
+      #minimize-toggle.minimized { transform: rotate(180deg); }
+      body.minimized #form-body, body.minimized .drag-hint, body.minimized .current-sheet-hint { display: none; }
+      .section { margin-bottom: 20px; }
+      .section h4 { font-size: 1em; font-weight: 500; color: #007bff; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
+      label { display: block; font-weight: 500; margin-bottom: 5px; font-size: 0.9em; }
+      .input-group { display: flex; align-items: center; gap: 5px; }
+      .input-group input { flex-grow: 1; width: auto; }
+      .input-group button { flex-shrink: 0; padding: 8px 12px; font-size: 0.9em; margin-left: 0; }
+      input[type="text"], select { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
+      .help-text { font-size: 0.8em; color: #777; margin-top: 3px; margin-bottom: 10px; }
+      .validation-message { font-size: 0.8em; margin-top: 3px; margin-bottom: 10px; display: none; }
+      .error-message { color: #dc3545; display: block; }
+      input.invalid, select.invalid { border-color: #dc3545; }
+      .button-container { position: fixed; bottom: 0; left: 0; width: 100%; padding: 15px 25px; background-color: #f9f9f9; border-top: 1px solid #ddd; box-sizing: border-box; display: flex; justify-content: flex-end; align-items: center; }
+      button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-family: 'Noto Sans TC', sans-serif; margin-left: 10px; }
+      #generate-btn, #add-field-btn { background-color: #007bff; color: white; }
+      #close-btn, #export-cancel-btn { background-color: #6c757d; color: white; }
+      #status { margin-right: auto; color: #28a745; font-size: 0.9em; }
+      button:disabled { background-color: #ccc; cursor: not-allowed; }
+      .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+      .modal-content { background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); width: 90%; max-width: 500px; /* Increased width for export modal */ }
+      .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+      .modal-header h4 { margin: 0; font-size: 1.1em; }
+      .modal-close-btn { cursor: pointer; font-size: 24px; font-weight: bold; color: #aaa; }
+      .modal-body { max-height: 400px; overflow-y: auto; }
+      .modal-footer { margin-top: 20px; display: flex; justify-content: flex-end; align-items: center; }
+      .list-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+      .list-item:hover { background-color: #f0f0f0; }
+      .analysis-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; border: 1px dashed #ccc; padding: 10px; border-radius: 4px; }
+      .analysis-row select { flex: 1; }
+      .remove-field-btn { background-color: #dc3545; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-weight: bold; padding: 0; line-height: 22px; }
+      .validation-warning { color: #ffc107; font-size: 18px; display: none; }
+      .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      
+      /* --- Results Area --- */
+      .results-container { display: none; margin-top: 20px; }
+      .tabs-nav { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ddd; }
+      .tab { cursor: pointer; padding: 10px 15px; border-bottom: 3px solid transparent; color: #666; font-size: 0.9em; }
+      .tab:hover { color: #333; }
+      .tab.active { border-bottom-color: #007bff; color: #007bff; font-weight: 500; }
+      
+      #tab-content-container { position: relative; } 
+      .tab-content { 
+          padding-top: 20px;
+          visibility: hidden;
+          position: absolute;
+          opacity: 0;
+          width: 100%;
+          left: 0;
+          top: 0;
+      }
+      .tab-content.active { 
+          visibility: visible;
+          position: relative;
+          opacity: 1;
+      }
+
+      .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+      .kpi-card { background-color: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-align: center; border: 1px solid #e2e8f0; }
+      
+      .kpi-title { color: #64748b; font-size: 1rem; }
+      .kpi-value { color: #1e293b; font-size: 2rem; font-weight: 700; }
+
+      .chart-container { 
+          position: relative; 
+          background-color: white; 
+          padding: 1rem; 
+          border-radius: 0.5rem; 
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+          border: 1px solid #e2e8f0; 
+          min-height: 400px;
+          margin-bottom:20px; 
+          display: flex;
+          flex-direction: column;
+      }
+      .chart-controls { position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 8px; }
+      .chart-controls .material-icons { cursor: pointer; color: #999; }
+      .chart-controls .material-icons:hover { color: #333; }
+      .chart-controls .material-icons.active-chart { color: #007bff; }
+      .results-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+      .results-table th, .results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      .results-table th { background-color: #f2f2f2; font-weight: 500; }
+      
+      /* --- Export Modal --- */
+      .export-section { margin-bottom: 15px; }
+      .export-section h5 { margin-top: 0; margin-bottom: 10px; font-size: 1em; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+      .export-options-list { padding-left: 0; list-style: none; margin: 0; }
+      .export-options-list li { margin-bottom: 8px; }
+      .export-options-list input[type="checkbox"] { margin-right: 8px; }
+      .export-options-list .card-options { padding-left: 25px; }
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-icons">
+            <span id="minimize-toggle" class="material-icons" title="縮小">unfold_less</span>
+            <span id="expand-toggle" class="material-icons" title="擴展視窗">open_in_full</span>
+            <span id="pin-toggle" class="material-icons" title="釘選視窗">push_pin</span>
+        </div>
+    </div>
+    <p class="drag-hint"><?!= T.dragAndActionHelp ?></p>
+    <p id="current-sheet-hint" class="current-sheet-hint"></p>
+
+    <div id="form-body" style="padding-bottom: 100px;">
+        <!-- Settings Area -->
+        <div id="step1-container">
+            <div class="section">
+                <h4>資料來源</h4>
+                <div>
+                    <label for="sourceUrl"><?!= T.sourceSpreadsheetUrlLabel || '來源資料表 URL' ?></label>
+                    <input type="text" id="sourceUrl" placeholder="若為外部檔案請貼上 URL，否則留空">
+                    <p id="sourceUrl-validation" class="validation-message help-text"></p>
+                </div>
+                <div style="margin-top: 15px;">
+                    <label for="sourceSheetName"><?!= T.sourceDataSheetNameLabel ?></label>
+                    <div class="input-group">
+                        <input type="text" id="sourceSheetName">
+                        <button type="button" id="select-sheet-btn"><?!= T.selectButton ?></button>
+                    </div>
+                    <p id="sourceSheetName-validation" class="validation-message help-text"></p>
+                </div>
+                <div style="margin-top: 15px;">
+                    <label for="sourceRange"><?!= T.sourceDataRangeLabel ?></label>
+                    <input type="text" id="sourceRange" placeholder="<?!= T.sourceDataRangePlaceholder ?>">
+                    <p id="sourceRange-validation" class="validation-message help-text"></p>
+                </div>
+            </div>
+
+            <div id="field-mapping-container" class="section" style="display: none;">
+                <h4>欄位對應</h4>
+                <div id="analysis-fields-container"></div>
+                <button type="button" id="add-field-btn" style="margin-top: 10px;">+ 新增分析欄位</button>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div id="results-container" class="results-container">
+            <h4>分析結果</h4>
+            <div id="loader" class="loader" style="display: none;"></div>
+            <div id="results-content" style="display: none;">
+                <nav id="tabs-container" class="tabs-nav"></nav>
+                <div id="tab-content-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="button-container">
+        <span id="status"></span>
+        <button id="close-btn"><?!= T.closeButton ?></button>
+        <button id="save-btn"><?!= T.saveButton ?></button>
+        <button id="export-btn" style="display: none; background-color: #17a2b8; color: white;">匯出報表</button>
+        <button id="generate-btn"><?!= T.generateReportButton ?></button>
+    </div>
+
+    <!-- Modals -->
+    <div id="alert-modal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><h4 id="modal-title"></h4><span class="modal-close-btn">&times;</span></div><div class="modal-body"><p id="modal-message"></p></div><div class="modal-footer"><button id="modal-ok-btn"><?!= T.okButton ?></button></div></div></div>
+    <div id="sheet-select-modal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><h4><?!= T.sheetSelectionTitle ?></h4><span class="modal-close-btn">&times;</span></div><div id="sheet-select-modal-body" class="modal-body"></div></div></div>
+
+    <!-- Export Modal -->
+    <div id="export-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>匯出設定</h4>
+                <span class="modal-close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="export-section">
+                    <h5>1. 選擇匯出格式</h5>
+                     <ul class="export-options-list">
+                         <li><label><input type="radio" name="exportFormat" value="sheet" checked> 新增至 Google Sheet 分頁</label></li>
+                         <li><label><input type="radio" name="exportFormat" value="doc"> 匯出至 Google 文件</label></li>
+                         <li><label><input type="radio" name="exportFormat" value="pdf"> 匯出為 PDF</label></li>
+                     </ul>
+                </div>
+                <div class="export-section">
+                    <h5>2. 選擇要匯出的內容</h5>
+                    <div id="export-selection-container"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="export-status" style="margin-right: auto; color: #007bff; font-size: 0.9em;"></span>
+                <button id="export-cancel-btn">取消</button>
+                <button id="export-confirm-btn" style="background-color: #007bff; color: white;">確認匯出</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Templates -->
+    <template id="analysis-field-template">
+        <div class="analysis-row">
+            <select class="field-type">
+                <option value="dimension">維度 (分組依據)</option>
+                <option value="metric">指標 (計算數值)</option>
+            </select>
+            <select class="field-header"></select>
+            <span class="validation-warning material-icons" title="此欄位可能包含非數值資料，不適合做為指標。">warning</span>
+            <button type="button" class="remove-field-btn">&times;</button>
+        </div>
+    </template>
+
+    <script>
+        // Feature Version: v3.4 | Added validation message for export selection.
+        const T = <?!= JSON.stringify(T) ?>;
+        let isPinned = false, isExpanded = false, isMinimized = false, currentSheetName = '', allHeaders = [];
+        let chartsReady = false;
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(() => { chartsReady = true; });
+
+        let showLabels = false;
+        let overviewChartType = 'pie';
+        let currentResultData = null; 
+        let drawnCharts = {}; // Object to store drawn chart instances
+        
+        // DOM Elements
+        const pinToggle = document.getElementById('pin-toggle'), expandToggle = document.getElementById('expand-toggle'), minimizeToggle = document.getElementById('minimize-toggle');
+        const generateBtn = document.getElementById('generate-btn'), saveBtn = document.getElementById('save-btn'), closeBtn = document.getElementById('close-btn');
+        const statusDiv = document.getElementById('status');
+        const sourceUrlInput = document.getElementById('sourceUrl'), sourceSheetNameInput = document.getElementById('sourceSheetName'), sourceRangeInput = document.getElementById('sourceRange');
+        const selectSheetBtn = document.getElementById('select-sheet-btn'), addFieldBtn = document.getElementById('add-field-btn');
+        const mappingContainer = document.getElementById('field-mapping-container'), fieldsContainer = document.getElementById('analysis-fields-container');
+        const alertModal = document.getElementById('alert-modal'), sheetSelectModal = document.getElementById('sheet-select-modal');
+        const fieldTemplate = document.getElementById('analysis-field-template');
+        const resultsContainer = document.getElementById('results-container'), resultsContent = document.getElementById('results-content'), loader = document.getElementById('loader');
+        const tabsContainer = document.getElementById('tabs-container'), tabContentContainer = document.getElementById('tab-content-container');
+        const exportBtn = document.getElementById('export-btn');
+        const exportModal = document.getElementById('export-modal');
+        const exportConfirmBtn = document.getElementById('export-confirm-btn');
+        const exportStatus = document.getElementById('export-status');
+
+
+        // --- UI Interaction Logic ---
+        pinToggle.addEventListener('click', () => { isPinned = !isPinned; pinToggle.classList.toggle('pinned'); pinToggle.title = isPinned ? '取消釘選' : '釘選視窗'; });
+        
+        expandToggle.addEventListener('click', () => {
+            isExpanded = !isExpanded; 
+            expandToggle.classList.toggle('expanded');
+            
+            if (isExpanded && isMinimized) {
+                minimizeToggle.click(); // Un-minimize if we are expanding
+            }
+
+            google.script.host.setWidth(isExpanded ? 1200 : 500);
+            google.script.host.setHeight(isExpanded ? 850 : 650);
+            expandToggle.textContent = isExpanded ? 'close_fullscreen' : 'open_in_full';
+            expandToggle.title = isExpanded ? '收合視窗' : '擴展視窗';
+        });
+
+        minimizeToggle.addEventListener('click', () => {
+            isMinimized = !isMinimized;
+            document.body.classList.toggle('minimized', isMinimized);
+            minimizeToggle.classList.toggle('minimized', isMinimized);
+            minimizeToggle.textContent = isMinimized ? 'unfold_more' : 'unfold_less';
+            minimizeToggle.title = isMinimized ? '展開' : '縮小';
+            
+            if (isMinimized) {
+                // When minimizing, always shrink to the small, standard size
+                google.script.host.setWidth(500);
+                google.script.host.setHeight(150);
+            } else {
+                // When un-minimizing, restore to the appropriate size based on expand state
+                const targetWidth = isExpanded ? 1200 : 500;
+                const targetHeight = isExpanded ? 850 : 650;
+                google.script.host.setWidth(targetWidth);
+                google.script.host.setHeight(targetHeight);
+            }
+        });
+
+        closeBtn.addEventListener('click', () => google.script.host.close());
+        saveBtn.addEventListener('click', handleSave);
+        generateBtn.addEventListener('click', handleGenerate);
+        selectSheetBtn.addEventListener('click', openSheetSelectModal);
+        addFieldBtn.addEventListener('click', () => addAnalysisField());
+        exportBtn.addEventListener('click', openExportModal);
+        exportConfirmBtn.addEventListener('click', handleExport);
+
+
+        [sourceUrlInput, sourceSheetNameInput, sourceRangeInput].forEach(el => {
+            el.addEventListener('blur', validateAndFetchHeaders);
+            el.addEventListener('input', validateAndFetchHeaders);
+        });
+
+        // --- Modal Handling ---
+        document.querySelectorAll('.modal-close-btn, #modal-ok-btn, #export-cancel-btn').forEach(btn => btn.addEventListener('click', () => { 
+            alertModal.style.display = 'none'; 
+            sheetSelectModal.style.display = 'none'; 
+            exportModal.style.display = 'none';
+            exportStatus.textContent = '';
+        }));
+
+        function showModal(title, message, isLink = false) {
+          const messageP = document.getElementById('modal-message');
+          if (isLink) {
+            messageP.innerHTML = `報表已成功匯出！點此打開文件：<a href="${message}" target="_blank">${message}</a>`;
+          } else {
+            messageP.textContent = message;
+          }
+          document.getElementById('modal-title').textContent = title;
+          alertModal.style.display = 'flex';
+        }
+        function openSheetSelectModal() {
+            statusDiv.textContent = '讀取中...';
+            google.script.run.withSuccessHandler(names => {
+                statusDiv.textContent = '';
+                const body = document.getElementById('sheet-select-modal-body');
+                body.innerHTML = '';
+                names.forEach(name => {
+                    const item = document.createElement('div');
+                    item.className = 'list-item'; item.textContent = name;
+                    item.onclick = () => { sourceSheetNameInput.value = name; sheetSelectModal.style.display = 'none'; validateAndFetchHeaders(); };
+                    body.appendChild(item);
+                });
+                sheetSelectModal.style.display = 'flex';
+            }).withFailureHandler(err => { statusDiv.textContent = ''; showModal('錯誤', err.message); }).getSheetNames(sourceUrlInput.value.trim());
+        }
+
+        // --- Export Modal Logic ---
+        function openExportModal() {
+            if (!currentResultData) {
+                showModal('錯誤', '請先生成報表後再進行匯出。');
+                return;
+            }
+            populateExportModal();
+            exportModal.style.display = 'flex';
+        }
+
+        function populateExportModal() {
+            const container = document.getElementById('export-selection-container');
+            container.innerHTML = ''; 
+
+            const tabNames = ['總覽', ...currentResultData.dimensions.map(d => `${d} 分析`), '原始數據'];
+
+            tabNames.forEach(tabName => {
+                const tabList = document.createElement('ul');
+                tabList.className = 'export-options-list';
+                
+                const tabItem = document.createElement('li');
+                const tabCheckboxId = `export-tab-${tabName.replace(/\s/g, '-')}`;
+                tabItem.innerHTML = `<label><input type="checkbox" id="${tabCheckboxId}" data-type="tab" data-tab-name="${tabName}"><b>${tabName}</b></label>`;
+                
+                const cardList = document.createElement('ul');
+                cardList.className = 'card-options';
+
+                if (tabName === '總覽') {
+                    currentResultData.metrics.forEach(metric => {
+                        const cardItem = document.createElement('li');
+                        const cardTitle = metric.startsWith('總') ? metric : `總 ${metric}`;
+                        cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="kpi-${metric}"> ${cardTitle}</label>`;
+                        cardList.appendChild(cardItem);
+                    });
+                     if (currentResultData.dimensions.length > 0) {
+                         const dimensionName = currentResultData.dimensions[0];
+                         cardList.innerHTML += `
+                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-pie"> 圖表：${dimensionName} 圓餅圖 (圖例)</label></li>
+                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-pie-labeled"> 圖表：${dimensionName} 圓餅圖 (數值)</label></li>
+                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-bar"> 圖表：${dimensionName} 長條圖</label></li>
+                         `;
+                     }
+                } else if (tabName.endsWith(' 分析')) {
+                    const dimension = tabName.replace(' 分析', '');
+                    currentResultData.metrics.forEach(metric => {
+                         const cardItem = document.createElement('li');
+                         cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-${dimension.replace(/\s/g, '_')}-${metric.replace(/\s/g, '_')}"> 圖表：${metric} by ${dimension}</label>`;
+                         cardList.appendChild(cardItem);
+                    });
+                } else if (tabName === '原始數據') {
+                     const cardItem = document.createElement('li');
+                     cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="table-raw"> 原始數據表</label>`;
+                     cardList.appendChild(cardItem);
+                }
+
+                tabItem.appendChild(cardList);
+                tabList.appendChild(tabItem);
+                container.appendChild(tabList);
+
+                document.getElementById(tabCheckboxId).addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    tabItem.querySelectorAll('.card-options input[type="checkbox"]').forEach(child => {
+                        child.checked = isChecked;
+                    });
+                });
+                
+                // Add listeners to all checkboxes to clear the validation message upon interaction
+                container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        if (exportStatus.textContent === '請選擇要匯出的內容') {
+                            exportStatus.textContent = '';
+                            exportStatus.style.color = '#007bff'; // Revert to default color
+                        }
+                    });
+                });
+            });
+        }
+
+
+        function handleExport() {
+            const format = document.querySelector('input[name="exportFormat"]:checked').value;
+            const selections = {};
+            const chartImages = {};
+            
+            document.querySelectorAll('#export-selection-container input[type="checkbox"]:checked').forEach(cb => {
+                const tabName = cb.dataset.tabName;
+                const cardId = cb.dataset.cardId;
+                if (cb.dataset.type === 'card' && cardId) {
+                    if (!selections[tabName]) {
+                        selections[tabName] = [];
+                    }
+                    selections[tabName].push(cardId);
+                }
+            });
+
+            if (Object.keys(selections).length === 0) {
+                exportStatus.textContent = '請選擇要匯出的內容';
+                exportStatus.style.color = '#dc3545'; // Red error color
+                return;
+            }
+
+            exportStatus.textContent = '報表匯出中，請稍候...';
+            exportStatus.style.color = '#007bff'; // Revert to default color
+            exportConfirmBtn.disabled = true;
+
+            if (format === 'doc' || format === 'pdf') {
+                for (const tabName in selections) {
+                    for (const cardId of selections[tabName]) {
+                        if (cardId.startsWith('chart-') && drawnCharts[cardId]) {
+                            chartImages[cardId] = drawnCharts[cardId].getImageURI();
+                        }
+                    }
+                }
+            }
+
+            const exportOptions = { format, selections, chartImages };
+
+            google.script.run
+                .withSuccessHandler(result => {
+                    exportConfirmBtn.disabled = false;
+                    exportModal.style.display = 'none';
+                    exportStatus.textContent = '';
+                    
+                    if (result.success) {
+                        if (result.url) {
+                            showModal('匯出成功', result.url, true);
+                        } else {
+                            showModal('匯出成功', `報表已成功匯出！您可以在試算表中名為 "${result.sheetName}" 的新分頁找到它。`);
+                        }
+                    } else {
+                        showModal('匯出失敗', result.error);
+                    }
+                })
+                .withFailureHandler(err => {
+                    exportStatus.textContent = `錯誤: ${err.message}`;
+                    exportConfirmBtn.disabled = false;
+                })
+                .exportReport(exportOptions, currentResultData);
+        }
+
+
+        // --- Dynamic Fields Logic ---
+        function addAnalysisField(field = { type: 'dimension', header: '' }) {
+            const content = fieldTemplate.content.cloneNode(true);
+            const newRow = content.querySelector('.analysis-row');
+            const typeSelect = newRow.querySelector('.field-type');
+            const headerSelect = newRow.querySelector('.field-header');
+            
+            typeSelect.value = field.type;
+            headerSelect.innerHTML = allHeaders.map(h => `<option value="${h}">${h}</option>`).join('');
+            
+            if (field.header && allHeaders.includes(field.header)) {
+                headerSelect.value = field.header;
+            } else if (allHeaders.length > 0) {
+                headerSelect.value = allHeaders[0];
+            }
+
+            newRow.querySelector('.remove-field-btn').addEventListener('click', () => newRow.remove());
+            typeSelect.addEventListener('change', () => validateFieldType(newRow));
+            headerSelect.addEventListener('change', () => validateFieldType(newRow));
+            fieldsContainer.appendChild(newRow);
+            validateFieldType(newRow);
+        }
+        
+        // --- Data and Settings Logic ---
+        function handleSave() {
+            statusDiv.textContent = T.savingMessage;
+            [saveBtn, generateBtn].forEach(b => b.disabled = true);
+            const settings = {
+                sourceUrl: sourceUrlInput.value.trim(),
+                sheetName: sourceSheetNameInput.value,
+                rangeA1: sourceRangeInput.value,
+                analysisFields: Array.from(document.querySelectorAll('.analysis-row')).map(row => ({
+                    type: row.querySelector('.field-type').value,
+                    header: row.querySelector('.field-header').value
+                }))
+            };
+            google.script.run.withSuccessHandler(res => {
+                statusDiv.textContent = res.success ? res.message : '';
+                if (!res.success) showModal('錯誤', res.message);
+                setTimeout(() => statusDiv.textContent = '', 3000);
+                [saveBtn, generateBtn].forEach(b => b.disabled = false);
+            }).withFailureHandler(err => { showModal('錯誤', err.message); statusDiv.textContent = ''; [saveBtn, generateBtn].forEach(b => b.disabled = false); }).saveReportSettings(settings, currentSheetName);
+        }
+
+        function handleGenerate() {
+            const settings = {
+                sourceUrl: sourceUrlInput.value.trim(),
+                sheetName: sourceSheetNameInput.value,
+                rangeA1: sourceRangeInput.value,
+                analysisFields: Array.from(document.querySelectorAll('.analysis-row')).map(row => ({
+                    type: row.querySelector('.field-type').value,
+                    header: row.querySelector('.field-header').value
+                }))
+            };
+            resultsContainer.style.display = 'block';
+            resultsContent.style.display = 'none';
+            loader.style.display = 'block';
+            [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = true; });
+            generateBtn.textContent = '生成中...';
+
+            google.script.run.withSuccessHandler(result => {
+                loader.style.display = 'none';
+                if (result.success) {
+                    currentResultData = result;
+                    drawnCharts = {}; // Clear previous charts
+                    resultsContent.style.display = 'block';
+                    exportBtn.style.display = 'inline-block';
+                    displayResults(result);
+                } else {
+                    showModal('分析錯誤', result.error);
+                }
+                [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = false; });
+                generateBtn.textContent = T.generateReportButton;
+            }).withFailureHandler(err => {
+                loader.style.display = 'none';
+                showModal('執行錯誤', err.message);
+                [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = false; });
+                generateBtn.textContent = T.generateReportButton;
+            }).runDynamicAnalysis(settings);
+        }
+
+        function loadAndPopulateSettings() {
+            statusDiv.textContent = '資料讀取中...';
+            google.script.run.withSuccessHandler(sheetName => {
+                currentSheetName = sheetName;
+                document.getElementById('current-sheet-hint').textContent = T.settingsForSheetHint.replace('{SHEET_NAME}', sheetName);
+                google.script.run.withSuccessHandler(settings => {
+                    if (settings && settings.analysisFields) {
+                        sourceUrlInput.value = settings.sourceUrl || '';
+                        sourceSheetNameInput.value = settings.sheetName || sheetName;
+                        sourceRangeInput.value = settings.rangeA1 || '';
+                        validateAndFetchHeaders(settings.analysisFields);
+                    } else {
+                        validateAndFetchHeaders();
+                    }
+                }).withFailureHandler(err => {
+                    statusDiv.textContent = `讀取設定失敗: ${err.message}`;
+                    setTimeout(() => statusDiv.textContent = '', 5000);
+                }).getReportSettings(currentSheetName);
+            }).getActiveSheetName();
+        }
+
+        // --- Validation and Data Fetching ---
+        function validateAndFetchHeaders(savedFields = []) {
+            const sourceUrl = sourceUrlInput.value.trim(), sheetName = sourceSheetNameInput.value, rangeA1 = sourceRangeInput.value;
+            google.script.run
+                .withSuccessHandler(errors => {
+                    const urlEl = document.getElementById('sourceUrl'), sheetEl = document.getElementById('sourceSheetName'), rangeEl = document.getElementById('sourceRange');
+                    const urlValEl = document.getElementById('sourceUrl-validation'), sheetValEl = document.getElementById('sourceSheetName-validation'), rangeValEl = document.getElementById('sourceRange-validation');
+
+                    const hasUrlError = !!errors.sourceUrlError, hasSheetError = !!errors.sheetError, hasRangeError = !!errors.rangeError;
+
+                    urlValEl.textContent = errors.sourceUrlError || '';
+                    urlEl.classList.toggle('invalid', hasUrlError);
+                    urlValEl.className = hasUrlError ? 'validation-message error-message' : 'validation-message help-text';
+
+                    sheetValEl.textContent = errors.sheetError || '';
+                    sheetEl.classList.toggle('invalid', hasSheetError);
+                    sheetValEl.className = hasSheetError ? 'validation-message error-message' : 'validation-message help-text';
+
+                    rangeValEl.textContent = errors.rangeError || '';
+                    rangeEl.classList.toggle('invalid', hasRangeError);
+                    rangeValEl.className = hasRangeError ? 'validation-message error-message' : 'validation-message help-text';
+                    
+                    const hasAnyError = hasUrlError || hasSheetError || hasRangeError;
+                    const inputsAreFilled = sheetName && rangeA1;
+
+                    if (!hasAnyError && inputsAreFilled) {
+                        fetchHeaders(savedFields);
+                    } else {
+                        mappingContainer.style.display = 'none';
+                        allHeaders = [];
+                        fieldsContainer.innerHTML = '';
+                    }
+                })
+                .withFailureHandler(err => {
+                    showModal('後端驗證錯誤', '無法與伺服器通訊以驗證您的輸入，請檢查 Apps Script 腳本是否儲存且無誤。\n\n錯誤訊息: ' + err.message);
+                    statusDiv.textContent = '';
+                    mappingContainer.style.display = 'none';
+                })
+                .validateReportInputs(sourceUrl, sheetName, rangeA1);
+        }
+        
+        function fetchHeaders(savedFields = []) {
+            google.script.run.withSuccessHandler(headers => {
+                if (!headers || headers.length === 0) {
+                    showModal('標頭讀取錯誤', '在指定的範圍 ' + sourceRangeInput.value + ' 中找不到任何標頭資料。請檢查您的資料範圍是否正確，且第一行包含欄位名称。');
+                    mappingContainer.style.display = 'none';
+                    statusDiv.textContent = '讀取欄位失敗！';
+                    setTimeout(() => statusDiv.textContent = '', 5000);
+                    return;
+                }
+                mappingContainer.style.display = 'block';
+                allHeaders = headers;
+                fieldsContainer.innerHTML = ''; 
+                
+                if (savedFields && savedFields.length > 0) {
+                     savedFields.forEach(field => addAnalysisField(field));
+                } else { 
+                    addAnalysisField({ type: 'dimension', header: allHeaders[0] || '' });
+                    addAnalysisField({ type: 'metric', header: allHeaders.length > 1 ? allHeaders[1] : (allHeaders[0] || '') });
+                }
+                statusDiv.textContent = '設定讀取完成！';
+                setTimeout(() => statusDiv.textContent = '', 3000);
+            }).withFailureHandler(err => { 
+              showModal('錯誤', err.message); 
+              mappingContainer.style.display = 'none'; 
+              statusDiv.textContent = '讀取欄位失敗！';
+              setTimeout(() => statusDiv.textContent = '', 5000);
+            }).getHeadersFromRange(sourceUrlInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value);
+        }
+
+        function validateFieldType(rowElement) {
+            const typeSelect = rowElement.querySelector('.field-type');
+            const headerSelect = rowElement.querySelector('.field-header');
+            const warningIcon = rowElement.querySelector('.validation-warning');
+            
+            if (typeSelect.value === 'metric' && headerSelect.value) {
+                google.script.run.withSuccessHandler(nonNumericFields => {
+                    if (nonNumericFields.includes(headerSelect.value)) {
+                        warningIcon.style.display = 'inline';
+                    } else {
+                        warningIcon.style.display = 'none';
+                    }
+                }).checkMetricFields(sourceUrlInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value, [headerSelect.value]);
+            } else {
+                warningIcon.style.display = 'none';
+            }
+        }
+
+        // --- Result Display ---
+        function displayResults(result) {
+            tabsContainer.innerHTML = '';
+            tabContentContainer.innerHTML = '';
+
+            const tabNames = ['總覽', ...result.dimensions.map(d => `${d} 分析`), '原始數據'];
+            
+            // Create all tabs and content containers first
+            tabNames.forEach((name, index) => {
+                const tab = document.createElement('div');
+                tab.className = 'tab' + (index === 0 ? ' active' : '');
+                tab.textContent = name;
+                tab.dataset.tab = name;
+                tabsContainer.appendChild(tab);
+
+                const content = document.createElement('div');
+                content.className = 'tab-content' + (index === 0 ? ' active' : '');
+                content.id = 'content-' + name;
+                tabContentContainer.appendChild(content);
+
+                tab.addEventListener('click', () => {
+                    tabsContainer.querySelector('.active').classList.remove('active');
+                    tabContentContainer.querySelector('.active').classList.remove('active');
+                    tab.classList.add('active');
+                    content.classList.add('active');
+                });
+            });
+            
+            // Now, populate all content immediately to ensure charts are drawn
+            const populateAllTabs = () => {
+                tabNames.forEach(name => {
+                    populateTabContent(name, result);
+                });
+            };
+
+            if (chartsReady) {
+                populateAllTabs();
+            } else {
+                google.charts.setOnLoadCallback(populateAllTabs);
+            }
+        }
+
+        function formatValue(value, metricName) {
+            const isRateField = /率|%|百分比/.test(metricName);
+            if (isRateField) {
+                 return value.toLocaleString(undefined, { style: 'percent', minimumFractionDigits: 1 });
+            }
+            if (typeof value === 'number') {
+                return value.toLocaleString();
+            }
+            return value;
+        }
+
+        function populateTabContent(tabName, result) {
+            const contentElement = document.getElementById(`content-${tabName}`);
+            if (!contentElement) return;
+            contentElement.innerHTML = '';
+
+            if (tabName === '總覽') {
+                const kpiContainer = document.createElement('div');
+                kpiContainer.className = 'kpi-grid';
+                result.metrics.forEach(metric => {
+                    const card = document.createElement('div');
+                    card.className = 'kpi-card';
+                    const isRateField = /率|%|百分比/.test(metric);
+                    const displayValue = isRateField ? result.overallMetrics[metric].average : result.overallMetrics[metric].sum;
+                    const cardTitle = metric.startsWith('總') ? metric : `總 ${metric}`;
+                    card.innerHTML = `<div class="kpi-title">${cardTitle}</div><div class="kpi-value">${formatValue(displayValue, metric)}</div>`;
+                    kpiContainer.appendChild(card);
+                });
+                contentElement.appendChild(kpiContainer);
+
+                if (result.dimensions.length > 0 && result.metrics.length > 0) {
+                    const outerChartContainer = document.createElement('div');
+                    outerChartContainer.className = 'chart-container';
+                    
+                    const controls = document.createElement('div');
+                    controls.className = 'chart-controls';
+
+                    const pieBtn = document.createElement('span');
+                    pieBtn.className = 'material-icons active-chart';
+                    pieBtn.textContent = 'pie_chart';
+                    pieBtn.title = '圓餅圖';
+                    
+                    const barBtn = document.createElement('span');
+                    barBtn.className = 'material-icons';
+                    barBtn.textContent = 'bar_chart';
+                    barBtn.title = '長條圖';
+
+                    const visibilityBtn = document.createElement('span');
+                    visibilityBtn.className = 'material-icons';
+                    visibilityBtn.textContent = 'visibility';
+                    visibilityBtn.title = '切換數值顯示';
+
+                    controls.appendChild(pieBtn);
+                    controls.appendChild(barBtn);
+                    controls.appendChild(visibilityBtn);
+                    outerChartContainer.appendChild(controls);
+
+                    const chartDiv = document.createElement('div');
+                    chartDiv.style.flexGrow = '1';
+                    outerChartContainer.appendChild(chartDiv);
+                    contentElement.appendChild(outerChartContainer);
+
+                    const drawOverviewChart = () => {
+                         if (overviewChartType === 'pie') {
+                             drawOverviewPieChart(chartDiv, result, showLabels);
+                         } else {
+                             drawOverviewBarChart(chartDiv, result);
+                         }
+                    };
+                    
+                    const preRenderCharts = () => {
+                        const hiddenContainer = document.createElement('div');
+                        hiddenContainer.style.position = 'absolute';
+                        hiddenContainer.style.left = '-9999px';
+                        hiddenContainer.style.width = '800px'; 
+                        hiddenContainer.style.height = '400px';
+                        document.body.appendChild(hiddenContainer);
+                        
+                        drawOverviewPieChart(hiddenContainer, result, false);
+                        drawOverviewPieChart(hiddenContainer, result, true); 
+                        drawOverviewBarChart(hiddenContainer, result);
+
+                        document.body.removeChild(hiddenContainer);
+                    };
+
+                    if (!drawnCharts['chart-overview-pie']) { // only pre-render once
+                        preRenderCharts();
+                    }
+
+                    pieBtn.addEventListener('click', () => {
+                        overviewChartType = 'pie';
+                        pieBtn.classList.add('active-chart');
+                        barBtn.classList.remove('active-chart');
+                        drawOverviewChart();
+                    });
+
+                    barBtn.addEventListener('click', () => {
+                        overviewChartType = 'bar';
+                        barBtn.classList.add('active-chart');
+                        pieBtn.classList.remove('active-chart');
+                        drawOverviewChart();
+                    });
+
+                    visibilityBtn.addEventListener('click', () => {
+                          showLabels = !showLabels;
+                          preRenderCharts();
+                          drawOverviewChart();
+                    });
+
+                    drawOverviewChart();
+                }
+
+            } else if (tabName === '原始數據') {
+                const table = document.createElement('table');
+                table.className = 'results-table';
+                const thead = table.createTHead();
+                const headerRow = thead.insertRow();
+                result.headers.forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+                const tbody = table.createTBody();
+                result.data.forEach(rowData => {
+                    const row = tbody.insertRow();
+                    result.headers.forEach(header => {
+                        const cell = row.insertCell();
+                        cell.textContent = formatValue(rowData[header], header);
+                    });
+                });
+                contentElement.appendChild(table);
+
+            } else if (tabName.endsWith(' 分析')) {
+                const dimension = tabName.replace(' 分析', '');
+                result.metrics.forEach(metric => {
+                    const chartOuterContainer = document.createElement('div');
+                    chartOuterContainer.className = 'chart-container';
+                    
+                    const chartDiv = document.createElement('div');
+                    chartDiv.style.flexGrow = '1';
+                    chartOuterContainer.appendChild(chartDiv);
+                    contentElement.appendChild(chartOuterContainer);
+                    
+                    const groupedChartData = {};
+                    result.data.forEach(row => {
+                        const key = row[dimension];
+                        if(!groupedChartData[key]) {
+                             groupedChartData[key] = { total: 0, count: 0 };
+                        }
+                        groupedChartData[key].total += row[metric];
+                        groupedChartData[key].count++;
+                    });
+                    
+                    const chartDataArray = [[dimension, metric, { role: 'style' }, { role: 'annotation' }]];
+                    const isRateField = /率|%|百分比/.test(metric);
+
+                    for (const key in groupedChartData) {
+                        let value = isRateField 
+                            ? groupedChartData[key].total / groupedChartData[key].count
+                            : groupedChartData[key].total;
+                        chartDataArray.push([key, value, '#3b82f6', formatValue(value, metric)]);
+                    }
+                    
+                    if (chartDataArray.length > 1) { 
+                        const header = chartDataArray.shift();
+                        chartDataArray.sort((a,b) => b[1] - a[1]);
+                        chartDataArray.unshift(header);
+
+                        const chartData = google.visualization.arrayToDataTable(chartDataArray);
+                        const options = {
+                            title: `${metric} by ${dimension}`,
+                            titleTextStyle: { fontSize: 20 },
+                            chartArea: { width: '65%', left: 200, top: 60, bottom: 40 },
+                            hAxis: { title: metric, minValue: 0 },
+                            vAxis: { title: dimension },
+                            legend: { position: "none" },
+                            annotations: {
+                                textStyle: {
+                                    fontSize: 16,
+                                    color: 'white', 
+                                    auraColor: 'none'
+                                },
+                                alwaysOutside: false 
+                            }
+                        };
+                        if (isRateField) {
+                            options.hAxis.format = '#,##0.0%';
+                        }
+                        const chart = new google.visualization.BarChart(chartDiv);
+                        chart.draw(chartData, options);
+                        drawnCharts[`chart-${dimension.replace(/\s/g, '_')}-${metric.replace(/\s/g, '_')}`] = chart;
+                    } else {
+                        chartOuterContainer.innerHTML = `<p style="text-align:center; padding-top: 20px;">此維度沒有足夠的數據可供繪圖。</p>`;
+                    }
+                });
+            }
+        }
+        
+        function drawOverviewPieChart(chartDiv, result, useLabels) {
+            const dimension = result.dimensions[0];
+            const metric = result.metrics[0];
+            const isRateField = /率|%|百分比/.test(metric);
+
+            const groupedData = {};
+            result.data.forEach(row => {
+                const key = row[dimension];
+                if(!groupedData[key]) { groupedData[key] = { total: 0, count: 0 }; }
+                groupedData[key].total += row[metric];
+                groupedData[key].count++;
+            });
+            
+            const pieDataArray = [[dimension, metric]];
+            for (const key in groupedData) {
+                 let value = isRateField ? (groupedData[key].total / groupedData[key].count) : groupedData[key].total;
+                 pieDataArray.push([key, value]);
+            }
+            const pieData = google.visualization.arrayToDataTable(pieDataArray);
+            
+            let options; 
+
+            if (useLabels) {
+                options = { 
+                    title: `${dimension} 分佈`,
+                    titleTextStyle: { fontSize: 16, bold: true }, 
+                    pieHole: 0.4, 
+                    pieSliceText: 'none', 
+                    legend: { 
+                        position: 'labeled', 
+                        textStyle: { fontSize: 16 } 
+                    },
+                    chartArea: {
+                        left: '10%',
+                        top: 50,
+                        bottom: 10,
+                        width: '80%',
+                        height: '80%'
+                    }
+                };
+            } else {
+                options = { 
+                    title: `${dimension} 分佈`,
+                    titleTextStyle: { fontSize: 16, bold: true },
+                    pieHole: 0.4, 
+                    pieSliceText: 'none',
+                    legend: { 
+                        position: 'right',
+                        alignment: 'center',
+                        textStyle: { fontSize: 16 }
+                    },
+                    chartArea: {
+                        left: '5%',
+                        top: 50,
+                        bottom: 10,
+                        width: '80%',
+                        height: '80%'
+                    }
+                };
+            }
+            
+            const chart = new google.visualization.PieChart(chartDiv);
+            chart.draw(pieData, options);
+            
+            if (useLabels) {
+                drawnCharts['chart-overview-pie-labeled'] = chart;
+            } else {
+                drawnCharts['chart-overview-pie'] = chart;
+            }
+        }
+
+        function drawOverviewBarChart(chartDiv, result) {
+            const dimension = result.dimensions[0];
+            const metric = result.metrics[0];
+            const isRateField = /率|%|百分比/.test(metric);
+
+            const groupedData = {};
+            result.data.forEach(row => {
+                const key = row[dimension];
+                if(!groupedData[key]) { groupedData[key] = { total: 0, count: 0 }; }
+                groupedData[key].total += row[metric];
+                groupedData[key].count++;
+            });
+
+            const chartDataArray = [[dimension, metric, { role: 'style' }, { role: 'annotation' }]];
+            for (const key in groupedData) {
+                let value = isRateField 
+                    ? groupedData[key].total / groupedData[key].count
+                    : groupedData[key].total;
+                chartDataArray.push([key, value, '#3b82f6', formatValue(value, metric)]);
+            }
+            
+            if (chartDataArray.length > 1) { 
+                const header = chartDataArray.shift();
+                chartDataArray.sort((a,b) => b[1] - a[1]);
+                chartDataArray.unshift(header);
+                
+                const chartData = google.visualization.arrayToDataTable(chartDataArray);
+                 const options = {
+                    title: `${metric} by ${dimension}`,
+                    titleTextStyle: { fontSize: 20 },
+                    chartArea: { 
+                        width: '65%', 
+                        left: 200, 
+                        top: 60, 
+                        bottom: 40
+                    },
+                    hAxis: { title: metric, minValue: 0 },
+                    vAxis: { title: dimension },
+                    legend: { position: "none" },
+                    annotations: {
+                        textStyle: { fontSize: 16, color: 'white', auraColor: 'none' },
+                        alwaysOutside: false 
+                    }
+                };
+                if (isRateField) {
+                    options.hAxis.format = '#,##0.0%';
+                }
+                const chart = new google.visualization.BarChart(chartDiv);
+                chart.draw(chartData, options);
+                drawnCharts['chart-overview-bar'] = chart;
+            } else {
+                chartDiv.innerHTML = `<p style="text-align:center; padding-top: 20px;">沒有足夠的數據可供繪圖。</p>`;
+            }
+        }
+        
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', loadAndPopulateSettings);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,1060 @@
+<!--
+// =================================================================================================
+// =================================== VERSION & FEATURE SUMMARY ===================================
+// =================================================================================================
+//
+// V58.4 (UI Hint Update):
+// - UI ENHANCEMENT: Added a dynamic hint to show which sheet the settings are for,
+//   matching the UI of other settings pages.
+//
+// V58.3 (UI Wording & Formatting):
+// - UI ENHANCEMENT: Increased font size for auto-mapping results for better readability.
+// - UI ENHANCEMENT: Changed the format of mapping results to be more descriptive as requested.
+// - UI FIX: Added the correct title for the "Failed Matches" section in the auto-mapping modal.
+//
+// =================================================================================================
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+      body {
+        font-family: 'Noto Sans TC', sans-serif;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      .header {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding-bottom: 10px;
+        margin-bottom: 5px;
+      }
+      .drag-hint {
+        text-align: left;
+        font-size: 13px;
+        color: #888;
+        margin-top: -15px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 10px;
+        white-space: pre-line;
+        line-height: 1.4;
+      }
+      .current-sheet-hint {
+        font-size: 13px;
+        font-weight: bold;
+        color: #007bff;
+        background-color: #e7f3ff;
+        border: 1px solid #b3d7ff;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-top: -10px;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+      .header-icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .header-icons .material-icons {
+        cursor: pointer;
+        font-size: 24px;
+        color: #aaa;
+        transition: transform 0.2s ease, color 0.2s ease;
+      }
+      .header-icons .material-icons:hover {
+        transform: scale(1.1);
+      }
+      #pin-toggle.pinned {
+        color: #007bff;
+        transform: rotate(45deg);
+      }
+      #expand-toggle.expanded {
+        color: #007bff;
+      }
+      .section {
+        margin-bottom: 25px;
+      }
+      .section h4 {
+        font-size: 1em;
+        font-weight: 500;
+        color: #007bff;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .section h4.output-header {
+        color: #28a745;
+      }
+      label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+      }
+      .input-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .input-group input {
+        flex-grow: 1;
+        width: auto;
+      }
+      .input-group button {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        font-size: 0.9em;
+        margin-left: 0;
+      }
+      input[type="text"], input[type="number"], input[type="url"] {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+      }
+      .help-text {
+        font-size: 0.8em;
+        color: #777;
+        margin-top: 3px;
+        margin-bottom: 10px;
+      }
+      .validation-message {
+        font-size: 0.8em;
+        margin-top: 3px;
+        margin-bottom: 10px;
+        display: none;
+      }
+      .error-message { color: #dc3545; display: block; }
+      .success-message { color: #28a745; display: block; }
+      input.invalid { border-color: #dc3545; }
+      .button-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        border-top: 1px solid #ddd;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-family: 'Noto Sans TC', sans-serif;
+        margin-left: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      #save-btn { background-color: #007bff; color: white; }
+      #close-btn { background-color: #6c757d; color: white; }
+      #status { margin-right: auto; color: #28a745; font-size: 0.9em; }
+      button:disabled { background-color: #ccc; cursor: not-allowed; }
+      
+      .mappings-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .mapping-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto; 
+        align-items: end;
+        gap: 10px 15px;
+        padding: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background-color: #fff;
+        position: relative;
+        cursor: grab;
+      }
+      .mapping-card:grabbing {
+        cursor: grabbing;
+      }
+      .mapping-card.output-card {
+        grid-template-columns: 1fr 1fr;
+      }
+      .field-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .field-block label, .field-block-checkbox label {
+        font-size: 0.85em;
+        color: #555;
+        margin: 0;
+      }
+      .field-block input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        text-transform: uppercase;
+        padding: 6px 8px;
+      }
+      .field-block-checkbox {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        height: 100%;
+      }
+      .field-block-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        margin: 0;
+      }
+      .delete-btn-circle {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+      }
+      .delete-btn-circle .material-icons { font-size: 16px; }
+      
+      .mapping-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+        border-top: 1px solid #ddd;
+        padding-top: 20px;
+      }
+
+      .mapping-controls button {
+        padding: 8px 16px;
+        font-size: 0.9em;
+        font-weight: 500;
+        margin-left: 0;
+        gap: 0;
+        justify-content: center;
+        color: white;
+      }
+      .mapping-controls button.validation-btn { background-color: #007bff; }
+      .mapping-controls button.output-btn { background-color: #28a745; }
+      .mapping-controls button.check-btn { background-color: #17a2b8; }
+      
+      .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.5); display: none; justify-content: center;
+        align-items: center; z-index: 1000;
+      }
+      .modal-content {
+        background-color: white; padding: 20px; border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2); width: 90%; max-width: 550px;
+      }
+      .modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;
+      }
+      .modal-header h4 { margin: 0; color: #333; font-size: 1.1em; border: none; }
+      .modal-close-btn {
+        cursor: pointer; font-size: 24px; font-weight: bold;
+        color: #aaa; line-height: 1;
+      }
+      .modal-close-btn:hover { color: #333; }
+      .modal-body { max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+      .modal-body p { margin: 0 0 10px 0; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+      .modal-body p.message-part-title { font-weight: bold; margin-top: 10px; margin-bottom: 5px; }
+      .modal-body ul { margin: 0; padding-left: 20px; list-style-type: none; }
+      .modal-body li { margin-bottom: 8px; }
+      .modal-footer {
+        padding-top: 15px;
+        margin-top: 15px;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      .list-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+      }
+      .list-item:last-child { border-bottom: none; }
+      .list-item:hover { background-color: #f0f0f0; }
+      .check-button {
+        background-color: #17a2b8;
+        color: white;
+      }
+      #mapping-results-body h5 {
+        font-size: 1em;
+        font-weight: 700;
+        color: #333;
+        margin: 15px 0 10px 0;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #eee;
+      }
+      #mapping-results-body .mapping-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 5px;
+        border-radius: 4px;
+      }
+      #mapping-results-body .mapping-item:hover {
+        background-color: #f5f5f5;
+      }
+      #mapping-results-body .mapping-item-text {
+        font-family: monospace;
+        font-size: 1.1em; /* MODIFIED: Increased font size for readability */
+      }
+      #mapping-results-body .unmatched-list {
+        padding-left: 15px;
+        font-size: 0.9em;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-icons">
+        <span id="expand-toggle" class="material-icons" title="<?!= T.expandWindowTooltip ?>">open_in_full</span>
+        <span id="pin-toggle" class="material-icons" title="<?!= T.pinWindowTooltip ?>">push_pin</span>
+      </div>
+    </div>
+    <p class="drag-hint"><?!= T.dragAndActionHelp ?></p>
+
+    <!-- NEW: Hint element to show the current sheet -->
+    <p id="current-sheet-hint" class="current-sheet-hint"></p>
+
+    <div id="form-body" style="padding-bottom: 80px;">
+      <!-- Section: Source & Target -->
+      <div class="section">
+        <h4><?!= T.sectionSourceAndTarget ?></h4>
+        <label for="sourceDataUrl"><?!= T.verifySourceUrlLabel ?></label>
+        <input type="url" id="sourceDataUrl" name="sourceDataUrl">
+        <p id="sourceDataUrl-validation" class="validation-message help-text"></p>
+
+        <label for="sourceDataSheetName"><?!= T.verifySourceSheetNameLabel ?></label>
+        <div class="input-group">
+          <input type="text" id="sourceDataSheetName" name="sourceDataSheetName">
+          <button type="button" id="select-source-sheet-btn-verify" class="select-sheet-btn" disabled><?!= T.selectButton ?></button>
+        </div>
+        <p id="sourceDataSheetName-validation" class="validation-message help-text"></p>
+
+        <label for="targetSheetName"><?!= T.currentTargetSheetNameLabel ?></label>
+        <div class="input-group">
+          <input type="text" id="targetSheetName" name="targetSheetName" readonly>
+          <button type="button" id="select-target-sheet-btn-verify" class="select-sheet-btn"><?!= T.selectButton ?></button>
+        </div>
+        <p id="targetSheetName-validation" class="validation-message help-text"></p>
+      </div>
+      
+      <!-- Section: Data Ranges -->
+      <div class="section">
+        <h4><?!= T.sectionDataRanges ?></h4>
+        <label for="dataStartRow"><?!= T.dataStartRowLabel ?></label>
+        <input type="number" id="dataStartRow" name="dataStartRow" min="1" style="width: 100%;">
+        <p class="help-text"><?!= T.verifyStartRowHelp ?></p>
+        
+        <label for="targetHeaderRow"><?!= T.targetHeaderRowLabel ?></label>
+        <input type="number" id="targetHeaderRow" name="targetHeaderRow" min="1" style="width: 100%;">
+        <p class="help-text"><?!= T.targetHeaderRowHelp ?></p>
+        
+        <label for="sourceHeaderRow"><?!= T.sourceHeaderRowLabel ?></label>
+        <input type="number" id="sourceHeaderRow" name="sourceHeaderRow" min="1" style="width: 100%;">
+        <p class="help-text"><?!= T.sourceHeaderRowHelp ?></p>
+      </div>
+
+      <!-- Section: Validation Conditions -->
+      <div class="section">
+        <h4><?!= T.sectionValidationConditions ?></h4>
+        <div id="validation-mappings-container" class="mappings-container"></div>
+        <div class="mapping-controls">
+          <button id="add-validation-mapping-btn" class="validation-btn"><?!= T.addValidationMappingButton ?></button>
+          <button id="auto-map-validation-btn" class="validation-btn" disabled><?!= T.autoMapValidationButton ?></button>
+          <button id="check-empty-validation-btn" class="check-btn" disabled><?!= T.checkEmptyValuesButton ?></button>
+        </div>
+      </div>
+
+      <!-- Section: Validation Outputs -->
+      <div class="section">
+        <h4 class="output-header"><?!= T.sectionValidationOutputs ?></h4>
+        <div id="output-mappings-container" class="mappings-container"></div>
+        <div class="mapping-controls">
+          <button id="add-output-mapping-btn" class="output-btn"><?!= T.addOutputMappingButton ?></button>
+          <button id="auto-map-output-btn" class="output-btn" disabled><?!= T.autoMapOutputButton ?></button>
+          <button id="check-empty-output-btn" class="check-btn" disabled><?!= T.checkEmptyValuesButton ?></button>
+        </div>
+      </div>
+
+      <!-- Section: Mismatch Output -->
+      <div class="section">
+        <h4 class="output-header"><?!= T.sectionMismatchOutput ?></h4>
+        <label for="mismatchColumn"><?!= T.mismatchColumnLabel ?></label>
+        <input type="text" id="mismatchColumn" name="mismatchColumn" style="width: 100%;">
+        <p class="help-text"><?!= T.mismatchColumnHelp ?></p>
+      </div>
+    </div>
+
+    <div class="button-container">
+      <span id="status"></span>
+      <button id="close-btn"><?!= T.closeButton ?></button>
+      <button id="save-btn"><?!= T.saveButton ?></button>
+    </div>
+
+    <!-- General Alert Modal -->
+    <div id="alert-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="modal-title"></h4>
+          <span class="modal-close-btn">&times;</span>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer" id="modal-footer"></div>
+      </div>
+    </div>
+    
+    <!-- Sheet Selection Modal -->
+    <div id="sheet-select-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="modal-title-sheet"></h4>
+          <span class="modal-close-btn">&times;</span>
+        </div>
+        <div id="sheet-select-modal-body" class="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Mapping Results Modal -->
+    <div id="mapping-results-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="mapping-results-title">自動對應結果</h4>
+          <span class="modal-close-btn">&times;</span>
+        </div>
+        <div class="modal-body" id="mapping-results-body">
+          <!-- Mapping results will be injected here -->
+        </div>
+        <div class="modal-footer">
+          <button id="import-selected-mappings-btn" class="validation-btn">匯入選取項目</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- Global Variables ---
+      let isPinned = false;
+      let isExpanded = false;
+      let activeSheetInput = null;
+      let currentSheetName = '';
+      let isDirty = false;
+      let currentMappingTarget = 'validation';
+      let _modalOnCloseCallback = null;
+
+      // --- Element Selectors ---
+      const pinToggle = document.getElementById('pin-toggle');
+      const expandToggle = document.getElementById('expand-toggle');
+      const saveBtn = document.getElementById('save-btn');
+      const closeBtn = document.getElementById('close-btn');
+      const statusDiv = document.getElementById('status');
+      
+      const alertModal = document.getElementById('alert-modal');
+      const modalCloseBtn = document.querySelector('#alert-modal .modal-close-btn');
+      const modalTitle = document.getElementById('modal-title');
+      const modalBody = document.getElementById('modal-body');
+      const modalFooter = document.getElementById('modal-footer');
+      
+      const sheetSelectModal = document.getElementById('sheet-select-modal');
+      const sheetModalCloseBtn = document.querySelector('#sheet-select-modal .modal-close-btn');
+
+      const mappingResultsModal = document.getElementById('mapping-results-modal');
+      const mappingResultsCloseBtn = document.querySelector('#mapping-results-modal .modal-close-btn');
+      const importSelectedBtn = document.getElementById('import-selected-mappings-btn');
+
+      const sourceUrlInput = document.getElementById('sourceDataUrl');
+      const sourceSheetNameInput = document.getElementById('sourceDataSheetName');
+      const targetSheetNameInput = document.getElementById('targetSheetName');
+      const targetHeaderRowInput = document.getElementById('targetHeaderRow');
+      const sourceHeaderRowInput = document.getElementById('sourceHeaderRow');
+      const dataStartRowInput = document.getElementById('dataStartRow');
+      const mismatchColumnInput = document.getElementById('mismatchColumn');
+      
+      const selectSourceSheetBtn = document.getElementById('select-source-sheet-btn-verify');
+      const selectTargetSheetBtn = document.getElementById('select-target-sheet-btn-verify');
+      
+      const autoMapValidationBtn = document.getElementById('auto-map-validation-btn');
+      const addValidationMappingBtn = document.getElementById('add-validation-mapping-btn');
+      const validationMappingsContainer = document.getElementById('validation-mappings-container');
+      
+      const addOutputMappingBtn = document.getElementById('add-output-mapping-btn');
+      const autoMapOutputBtn = document.getElementById('auto-map-output-btn');
+      const outputMappingsContainer = document.getElementById('output-mappings-container');
+
+      const checkEmptyValidationBtn = document.getElementById('check-empty-validation-btn');
+      const checkEmptyOutputBtn = document.getElementById('check-empty-output-btn');
+      
+      const allInputs = [sourceUrlInput, sourceSheetNameInput, targetHeaderRowInput, sourceHeaderRowInput, dataStartRowInput, mismatchColumnInput];
+      const autoMapCheckFields = [sourceUrlInput, sourceSheetNameInput, targetSheetNameInput, targetHeaderRowInput, sourceHeaderRowInput];
+
+      // --- Dirty State Management ---
+      function setDirty(dirtyState = true) { isDirty = dirtyState; }
+      allInputs.forEach(input => input.addEventListener('input', () => setDirty()));
+      const observer = new MutationObserver(() => setDirty());
+      observer.observe(validationMappingsContainer, { childList: true });
+      observer.observe(outputMappingsContainer, { childList: true });
+
+      // --- Window Controls ---
+      pinToggle.addEventListener('click', () => {
+        isPinned = !isPinned;
+        pinToggle.classList.toggle('pinned');
+        pinToggle.title = isPinned ? '<?!= T.unpinWindowTooltip ?>' : '<?!= T.pinWindowTooltip ?>';
+      });
+
+      expandToggle.addEventListener('click', () => {
+        isExpanded = !isExpanded;
+        expandToggle.classList.toggle('expanded');
+        if (isExpanded) {
+          google.script.host.setWidth(750);
+          expandToggle.textContent = 'close_fullscreen';
+          expandToggle.title = '<?!= T.collapseWindowTooltip ?>';
+        } else {
+          google.script.host.setWidth(500);
+          expandToggle.textContent = 'open_in_full';
+          expandToggle.title = '<?!= T.expandWindowTooltip ?>';
+        }
+      });
+
+      // --- Mapping Card Management ---
+      function addMappingRow(container, type, targetCol = '', sourceCol = '', isRequired = false) {
+        setDirty(); 
+        const uniqueId = `${Date.now()}-${Math.random()}`;
+        const rowId = `mapping-card-${uniqueId}`;
+        const checkboxId = `primary-check-${uniqueId}`;
+
+        const div = document.createElement('div');
+        div.className = 'mapping-card';
+        if (type === 'output') div.classList.add('output-card');
+        div.id = rowId;
+        
+        const checkboxHtml = type === 'validation' ? `
+          <div class="field-block-checkbox">
+            <input type="checkbox" id="${checkboxId}" class="is-primary-checkbox" ${isRequired ? 'checked' : ''}>
+            <label for="${checkboxId}"><?!= T.primaryValidationLabel ?></label>
+          </div>` : '';
+
+        div.innerHTML = `
+          <button type="button" class="delete-btn-circle" onclick="document.getElementById('${rowId}').remove()" title="移除對應">
+            <span class="material-icons">close</span>
+          </button>
+          <div class="field-block">
+            <label><?!= T.targetColumnLabel ?></label>
+            <input type="text" class="target-col-input" value="${targetCol}" placeholder="B">
+            <p class="validation-message help-text"></p>
+          </div>
+          <div class="field-block">
+            <label><?!= T.sourceColumnLabel ?></label>
+            <input type="text" class="source-col-input" value="${sourceCol}" placeholder="C">
+            <p class="validation-message help-text"></p>
+          </div>
+          ${checkboxHtml}`;
+        
+        container.appendChild(div);
+        
+        const inputs = div.querySelectorAll('input[type="text"], input[type="checkbox"]');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => setDirty());
+            if (input.type === 'text') {
+              input.addEventListener('blur', validateColumnInput);
+            }
+        });
+      }
+
+      addValidationMappingBtn.addEventListener('click', () => addMappingRow(validationMappingsContainer, 'validation'));
+      addOutputMappingBtn.addEventListener('click', () => addMappingRow(outputMappingsContainer, 'output'));
+
+      function validateColumnInput(event) {
+          const input = event.target;
+          const value = input.value.trim().toUpperCase();
+          input.value = value;
+          const messageP = input.parentElement.querySelector('.validation-message');
+          clearValidationState(input, messageP);
+          if (value && !/^[A-Z]+$/.test(value)) {
+              setValidationError(input, messageP, '<?!= T.errorInvalidColumnFormat ?>');
+          }
+      }
+
+      // --- Button Readiness & Actions ---
+      function checkGlobalButtonReadiness() {
+          const isReady = autoMapCheckFields.every(field => field.value.trim() !== '');
+          autoMapValidationBtn.disabled = !isReady;
+          autoMapOutputBtn.disabled = !isReady;
+          checkEmptyValidationBtn.disabled = !isReady;
+          checkEmptyOutputBtn.disabled = !isReady;
+      }
+      autoMapCheckFields.forEach(field => field.addEventListener('input', checkGlobalButtonReadiness));
+
+      function handleAutoMap(type) {
+        currentMappingTarget = type;
+        statusDiv.textContent = '<?!= T.validatingMessage ?>';
+
+        const proceedToMapping = (existingMismatches = []) => {
+            statusDiv.textContent = '<?!= T.autoMappingMessage ?>';
+            const validationMappings = collectMappingsFromContainer(validationMappingsContainer).mappings;
+            const outputMappings = collectMappingsFromContainer(outputMappingsContainer).mappings;
+            const allExclusions = [...validationMappings, ...outputMappings];
+            
+            google.script.run
+              .withSuccessHandler(newMappingResults => {
+                const combinedSuggestions = [
+                  ...existingMismatches,
+                  ...newMappingResults.suggestedMatches
+                ];
+                
+                const finalResults = {
+                  ...newMappingResults,
+                  suggestedMatches: combinedSuggestions
+                };
+                displayMappingResults(finalResults);
+              })
+              .withFailureHandler(onFailure)
+              .getSmartMappingResults(getCurrentSettings(), allExclusions);
+        };
+        
+        google.script.run
+          .withSuccessHandler(validationResult => {
+            if (validationResult.isPerfect) {
+              proceedToMapping();
+            } else {
+              statusDiv.textContent = '';
+              onCheckComplete(validationResult, () => proceedToMapping(validationResult.mismatches));
+            }
+          })
+          .withFailureHandler(onFailure)
+          .checkSourceHeaderMapping(getCurrentSettings());
+      }
+
+      autoMapValidationBtn.addEventListener('click', () => handleAutoMap('validation'));
+      autoMapOutputBtn.addEventListener('click', () => handleAutoMap('output'));
+
+      function createScopedEmptyCheckHandler(type) {
+        return () => {
+          statusDiv.textContent = '<?!= T.checkingMessage ?>';
+          const settings = getCurrentSettings();
+          const scopedSettings = {...settings};
+          if (type === 'validation') {
+            scopedSettings.outputMappings = [];
+          } else {
+            scopedSettings.validationMappings = [];
+          }
+          google.script.run
+            .withSuccessHandler(result => showModal(result.isValid ? '<?!= T.emptyCheckTitle ?>' : '<?!= T.emptyCheckFailure ?>', result.message))
+            .withFailureHandler(onFailure)
+            .checkAllSourceColumnsForEmptyValues(scopedSettings);
+        };
+      }
+      checkEmptyValidationBtn.addEventListener('click', createScopedEmptyCheckHandler('validation'));
+      checkEmptyOutputBtn.addEventListener('click', createScopedEmptyCheckHandler('output'));
+
+
+      // --- Sheet Selection Logic ---
+      function openSheetSelectModal(url, targetInput) {
+        statusDiv.textContent = '<?!= T.validatingMessage ?>';
+        activeSheetInput = targetInput;
+        google.script.run
+            .withSuccessHandler(sheetNames => {
+                statusDiv.textContent = '';
+                const modalBody = document.getElementById('sheet-select-modal-body');
+                const modalTitle = document.getElementById('modal-title-sheet');
+                modalTitle.textContent = '<?!= T.sheetSelectionTitle ?>';
+                modalBody.innerHTML = '';
+                if (sheetNames && sheetNames.length > 0) {
+                    sheetNames.forEach(name => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.textContent = name;
+                        item.onclick = () => {
+                            if (activeSheetInput) {
+                                if (activeSheetInput.id === 'targetSheetName' && activeSheetInput.value !== name) {
+                                  currentSheetName = name;
+                                  loadSettingsForSheet(name); 
+                                }
+                                activeSheetInput.value = name;
+                                activeSheetInput.dispatchEvent(new Event('blur'));
+                            }
+                            sheetSelectModal.style.display = 'none';
+                        };
+                        modalBody.appendChild(item);
+                    });
+                } else {
+                    modalBody.innerHTML = `<p><?!= T.noSheetsFound ?></p>`;
+                }
+                sheetSelectModal.style.display = 'flex';
+            })
+            .withFailureHandler(err => {
+                statusDiv.textContent = '';
+                showModal('<?!= T.errorDialogTitle ?>', err.message);
+            })
+            .getSheetNames(url);
+      }
+
+      function checkVerifyUrlAndEnableButton() {
+          const url = sourceUrlInput.value;
+          const isValidUrl = url && url.startsWith('https://docs.google.com/spreadsheets/d/');
+          selectSourceSheetBtn.disabled = !isValidUrl;
+      }
+      
+      sourceUrlInput.addEventListener('input', () => {
+        checkVerifyUrlAndEnableButton();
+        autoMapCheckFields.forEach(f => f.dispatchEvent(new Event('input')));
+      });
+      sourceUrlInput.addEventListener('blur', () => {
+          checkVerifyUrlAndEnableButton();
+          validateCoreInputs();
+      });
+
+      selectSourceSheetBtn.addEventListener('click', () => openSheetSelectModal(sourceUrlInput.value, sourceSheetNameInput));
+      selectTargetSheetBtn.addEventListener('click', () => {
+          const continueAction = () => openSheetSelectModal('', targetSheetNameInput);
+          if (isDirty) {
+              showModal('<?!= T.unsavedWarningTitle ?>', '<?!= T.unsavedWarningBody ?>',
+                  [{ text: '<?!= T.saveAndContinueButton ?>', action: () => handleSave(continueAction) },
+                   { text: '<?!= T.continueAnywayButton ?>', action: continueAction }]
+              );
+          } else {
+              continueAction();
+          }
+      });
+
+      // --- Core Validation & Save ---
+      function validateCoreInputs() {
+        statusDiv.textContent = '<?!= T.validatingMessage ?>';
+        saveBtn.disabled = true;
+        google.script.run
+          .withSuccessHandler(handleValidationResults)
+          .withFailureHandler(onFailure)
+          .validateVerifyInputs(sourceUrlInput.value, sourceSheetNameInput.value, targetSheetNameInput.value);
+      }
+      autoMapCheckFields.forEach(field => field.addEventListener('blur', validateCoreInputs));
+
+      function handleValidationResults(errors) {
+        statusDiv.textContent = '';
+        saveBtn.disabled = false;
+        clearValidationState(sourceUrlInput, document.getElementById('sourceDataUrl-validation'));
+        clearValidationState(sourceSheetNameInput, document.getElementById('sourceDataSheetName-validation'));
+        clearValidationState(targetSheetNameInput, document.getElementById('targetSheetName-validation'));
+        if (errors.sourceUrlError) setValidationError(sourceUrlInput, document.getElementById('sourceDataUrl-validation'), errors.sourceUrlError);
+        if (errors.sourceSheetError) setValidationError(sourceSheetNameInput, document.getElementById('sourceDataSheetName-validation'), errors.sourceSheetError);
+        if (errors.targetSheetError) setValidationError(targetSheetNameInput, document.getElementById('targetSheetName-validation'), errors.targetSheetError);
+      }
+      
+      function setValidationError(input, msgEl, msg) {
+          input.classList.add('invalid');
+          if(msgEl) { msgEl.textContent = msg; msgEl.className = 'validation-message error-message'; }
+      }
+
+      function clearValidationState(input, msgEl) {
+          input.classList.remove('invalid');
+          if(msgEl) { msgEl.textContent = ''; msgEl.className = 'validation-message help-text'; }
+      }
+      
+      function onCheckComplete(result, onCloseCallback = null) {
+        statusDiv.textContent = '';
+        modalBody.innerHTML = '';
+        let messageContent = '';
+        if (result.isPerfect) {
+            messageContent = `<p>${result.message || '<?!= T.noIssuesFound ?>'}</p>`;
+        } else {
+            if (result.mismatches && result.mismatches.length > 0) {
+                messageContent += `<p class="message-part-title"><?!= T.checkResultMismatches ?></p><ul>${result.mismatches.map(item => `<li>${item.message}</li>`).join('')}</ul>`;
+            }
+        }
+        modalBody.innerHTML = messageContent;
+        showModal('<?!= T.checkResultTitle ?>', null, [], onCloseCallback);
+      }
+
+      // --- Modals & Data Handling ---
+      closeBtn.addEventListener('click', () => google.script.host.close());
+      saveBtn.addEventListener('click', () => handleSave());
+
+      function closeModal() {
+        alertModal.style.display = 'none';
+        if (typeof _modalOnCloseCallback === 'function') {
+          _modalOnCloseCallback();
+        }
+        _modalOnCloseCallback = null;
+      }
+
+      modalCloseBtn.addEventListener('click', closeModal);
+      alertModal.addEventListener('click', (e) => { if (e.target === alertModal) closeModal(); });
+      sheetModalCloseBtn.addEventListener('click', () => sheetSelectModal.style.display = 'none');
+      sheetSelectModal.addEventListener('click', (e) => { if (e.target === sheetSelectModal) sheetSelectModal.style.display = 'none'; });
+      mappingResultsCloseBtn.addEventListener('click', () => mappingResultsModal.style.display = 'none');
+      mappingResultsModal.addEventListener('click', (e) => { if (e.target === mappingResultsModal) mappingResultsModal.style.display = 'none'; });
+
+      function collectMappingsFromContainer(container) {
+          const mappings = [];
+          let hasInvalidColumn = false;
+          container.querySelectorAll('.mapping-card').forEach(row => {
+              const targetColInput = row.querySelector('.target-col-input');
+              const sourceColInput = row.querySelector('.source-col-input');
+              const isPrimaryCheckbox = row.querySelector('.is-primary-checkbox');
+              validateColumnInput({ target: targetColInput });
+              validateColumnInput({ target: sourceColInput });
+              if (targetColInput.classList.contains('invalid') || sourceColInput.classList.contains('invalid')) {
+                  hasInvalidColumn = true;
+              }
+              mappings.push({
+                  targetCol: targetColInput.value,
+                  sourceCol: sourceColInput.value,
+                  isRequired: isPrimaryCheckbox ? isPrimaryCheckbox.checked : false
+              });
+          });
+          return { mappings, hasInvalidColumn };
+      }
+      
+      function getCurrentSettings() {
+        const validationResult = collectMappingsFromContainer(validationMappingsContainer);
+        const outputResult = collectMappingsFromContainer(outputMappingsContainer);
+        return {
+            targetSheetName: targetSheetNameInput.value,
+            startRow: dataStartRowInput.value,
+            sourceDataUrl: sourceUrlInput.value,
+            sourceDataSheetName: sourceSheetNameInput.value,
+            mismatchColumn: mismatchColumnInput.value,
+            targetHeaderRow: targetHeaderRowInput.value,
+            sourceHeaderRow: sourceHeaderRowInput.value,
+            validationMappings: validationResult.mappings,
+            outputMappings: outputResult.mappings
+        };
+      }
+
+      function handleSave(onSuccessCallback) {
+        statusDiv.textContent = '<?!= T.validatingMessage ?>';
+        saveBtn.disabled = true;
+
+        const validationResult = collectMappingsFromContainer(validationMappingsContainer);
+        const outputResult = collectMappingsFromContainer(outputMappingsContainer);
+        if (validationResult.hasInvalidColumn || outputResult.hasInvalidColumn) {
+          onFailure({ message: '<?!= T.errorInvalidColumnSave ?>' });
+          return;
+        }
+
+        const currentSettings = getCurrentSettings();
+
+        if (currentSettings.validationMappings.length === 0 && currentSettings.outputMappings.length === 0) {
+          statusDiv.textContent = '<?!= T.savingMessage ?>';
+          google.script.run
+            .withSuccessHandler(saveResult => onSaveSuccess(saveResult, onSuccessCallback))
+            .withFailureHandler(onFailure)
+            .saveVerifySettings(currentSettings, currentSheetName);
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(validationResult => {
+            if (validationResult.isPerfect) {
+              statusDiv.textContent = '<?!= T.savingMessage ?>';
+              google.script.run
+                .withSuccessHandler(saveResult => onSaveSuccess(saveResult, onSuccessCallback))
+                .withFailureHandler(onFailure)
+                .saveVerifySettings(currentSettings, currentSheetName);
+            } else {
+              statusDiv.textContent = '';
+              saveBtn.disabled = false;
+              onCheckComplete(validationResult);
+            }
+          })
+          .withFailureHandler(onFailure)
+          .checkSourceHeaderMapping(currentSettings);
+      }
+
+      function onSaveSuccess(result, onSuccessCallback) {
+        if (result.success) {
+          statusDiv.textContent = result.message;
+          setDirty(false);
+          if (typeof onSuccessCallback === 'function') {
+            setTimeout(() => { statusDiv.textContent = ''; }, 1500);
+            onSuccessCallback();
+          } else {
+            setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+            if (!isPinned) {
+              setTimeout(() => { google.script.host.close(); }, 1000);
+            }
+          }
+        } else {
+          onFailure({ message: result.message });
+        }
+        saveBtn.disabled = false;
+      }
+      
+      function showModal(title, message, buttons = [], onCloseCallback = null) {
+        _modalOnCloseCallback = onCloseCallback;
+        modalTitle.textContent = title;
+        if (message) {
+            modalBody.innerHTML = `<p>${message.replace(/\n/g, '<br>')}</p>`;
+        }
+        modalFooter.innerHTML = ''; 
+        if (buttons.length === 0) {
+            const okButton = document.createElement('button');
+            okButton.textContent = '<?!= T.okButton ?>';
+            okButton.onclick = closeModal;
+            modalFooter.appendChild(okButton);
+        } else {
+            buttons.forEach(btnInfo => {
+                const button = document.createElement('button');
+                button.textContent = btnInfo.text;
+                button.onclick = () => {
+                    closeModal();
+                    if (btnInfo.action) btnInfo.action();
+                };
+                modalFooter.appendChild(button);
+            });
+        }
+        alertModal.style.display = 'flex';
+      }
+
+      function onFailure(error) {
+        showModal('<?!= T.errorDialogTitle ?>', error.message);
+        statusDiv.textContent = '';
+        saveBtn.disabled = false;
+        checkGlobalButtonReadiness();
+      }
+
+      // --- Mapping Results Modal Logic ---
+      function displayMappingResults(results) {
+        statusDiv.textContent = '';
+        const body = document.getElementById('mapping-results-body');
+        body.innerHTML = '';
+
+        const createMappingItem = (item, type, checked) => {
+            const isPerfect = type === 'perfect';
+            const matchText = isPerfect ? '<?!= T.mappingSuccessFormat ?>' : '<?!= T.mappingFailureFormat ?>';
+            const displayText = `${item.targetHeader} (${item.targetCol}) ${matchText} ${item.sourceHeader} (${item.sourceCol})`;
+
+            return `
+              <div class="mapping-item">
+                <input type="checkbox" data-target-col="${item.targetCol}" data-source-col="${item.sourceCol}" ${checked ? 'checked' : ''}>
+                <span class="mapping-item-text">${displayText}</span>
+              </div>`;
+        };
+        
+        if (results.perfectMatches.length > 0) {
+          body.innerHTML += `<h5><?!= T.perfectMatch ?></h5>` + results.perfectMatches.map(item => createMappingItem(item, 'perfect', true)).join('');
+        }
+        if (results.suggestedMatches.length > 0) {
+          body.innerHTML += `<h5><?!= T.matchFailedLabel ?></h5>` + results.suggestedMatches.map(item => createMappingItem(item, 'suggested', false)).join('');
+        }
+        if (results.unmatchedTarget.length > 0) {
+          body.innerHTML += `<h5><?!= T.unmatchedTarget ?></h5><ul class="unmatched-list">${results.unmatchedTarget.map(item => `<li>${item.header} (${item.col})</li>`).join('')}</ul>`;
+        }
+        if (results.unmatchedSource.length > 0) {
+          body.innerHTML += `<h5><?!= T.unmatchedSource ?></h5><ul class="unmatched-list">${results.unmatchedSource.map(item => `<li>${item.header} (${item.col})</li>`).join('')}</ul>`;
+        }
+
+        if (!body.innerHTML) {
+          body.innerHTML = '<p>找不到任何可用的匹配或建議欄位。</p>';
+        }
+
+        mappingResultsModal.style.display = 'flex';
+      }
+
+      importSelectedBtn.addEventListener('click', () => {
+        const selected = document.querySelectorAll('#mapping-results-body input[type="checkbox"]:checked');
+        const targetContainer = currentMappingTarget === 'validation' ? validationMappingsContainer : outputMappingsContainer;
+        const cardType = currentMappingTarget;
+
+        const existingMappings = new Set();
+        targetContainer.querySelectorAll('.mapping-card').forEach(card => {
+          const target = card.querySelector('.target-col-input').value;
+          const source = card.querySelector('.source-col-input').value;
+          if(target && source) existingMappings.add(`${target}-${source}`);
+        });
+
+        selected.forEach(cb => {
+          const targetCol = cb.dataset.targetCol;
+          const sourceCol = cb.dataset.sourceCol;
+          if (!existingMappings.has(`${targetCol}-${sourceCol}`)) {
+            addMappingRow(targetContainer, cardType, targetCol, sourceCol);
+          }
+        });
+        mappingResultsModal.style.display = 'none';
+      });
+
+      // --- Initial Load ---
+      function loadSettingsForSheet(sheetName) {
+        // NEW: Populate the hint element with the current sheet name
+        const hintElement = document.getElementById('current-sheet-hint');
+        hintElement.textContent = '<?!= T.settingsForSheetHint ?>'.replace('{SHEET_NAME}', sheetName);
+
+        google.script.run.withSuccessHandler(settings => {
+          if (settings) {
+            targetSheetNameInput.value = settings.targetSheetName || sheetName;
+            dataStartRowInput.value = settings.startRow || '';
+            sourceUrlInput.value = settings.sourceDataUrl || '';
+            sourceSheetNameInput.value = settings.sourceDataSheetName || '';
+            mismatchColumnInput.value = settings.mismatchColumn || '';
+            targetHeaderRowInput.value = settings.targetHeaderRow || '';
+            sourceHeaderRowInput.value = settings.sourceHeaderRow || '';
+            
+            validationMappingsContainer.innerHTML = '';
+            if (settings.validationMappings) {
+                settings.validationMappings.forEach(map => addMappingRow(validationMappingsContainer, 'validation', map.targetCol, map.sourceCol, map.isRequired));
+            }
+
+            outputMappingsContainer.innerHTML = '';
+            if (settings.outputMappings) {
+                settings.outputMappings.forEach(map => addMappingRow(outputMappingsContainer, 'output', map.targetCol, map.sourceCol, false));
+            }
+
+            validateCoreInputs();
+            checkGlobalButtonReadiness();
+            checkVerifyUrlAndEnableButton();
+            
+            setTimeout(() => setDirty(false), 100);
+          }
+        }).getVerifySettings(sheetName);
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // Initialize SortableJS for both containers
+        new Sortable(validationMappingsContainer, {
+            animation: 150,
+            ghostClass: 'blue-background-class',
+            onEnd: () => setDirty(true)
+        });
+        new Sortable(outputMappingsContainer, {
+            animation: 150,
+            ghostClass: 'blue-background-class',
+            onEnd: () => setDirty(true)
+        });
+
+        google.script.run.withSuccessHandler(activeSheetName => {
+          currentSheetName = activeSheetName;
+          targetSheetNameInput.value = activeSheetName;
+          loadSettingsForSheet(activeSheetName);
+        }).getActiveSheetName();
+      });
+    </script>
+  </body>
+</html>

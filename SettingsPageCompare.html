@@ -1,0 +1,690 @@
+<!--
+// =================================================================================================
+// =================================== VERSION & FEATURE SUMMARY ===================================
+// =================================================================================================
+//
+// V52.0 (UI Hint Update):
+// - UI ENHANCEMENT: Added a dynamic hint to show which sheet the settings are for.
+//
+//
+// =================================================================================================
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <!-- Using a modern font and icons from Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans TC', sans-serif;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      .header {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding-bottom: 10px;
+        margin-bottom: 5px;
+      }
+      .drag-hint {
+        text-align: left;
+        font-size: 13px;
+        color: #888;
+        margin-top: -15px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 10px;
+        white-space: pre-line;
+        line-height: 1.4;
+      }
+      /* NEW: Style for the current sheet hint */
+      .current-sheet-hint {
+        font-size: 13px;
+        font-weight: bold;
+        color: #007bff;
+        background-color: #e7f3ff;
+        border: 1px solid #b3d7ff;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-top: -10px;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+      .header-icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .header-icons .material-icons {
+        cursor: pointer;
+        font-size: 24px;
+        color: #aaa;
+        transition: transform 0.2s ease, color 0.2s ease;
+      }
+      .header-icons .material-icons:hover {
+        transform: scale(1.1);
+      }
+      #pin-toggle.pinned {
+        color: #007bff;
+        transform: rotate(45deg);
+      }
+      #expand-toggle.expanded {
+        color: #007bff;
+      }
+      .section {
+        margin-bottom: 20px;
+      }
+      .section h4 {
+        font-size: 1em;
+        font-weight: 500;
+        color: #007bff;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+      }
+      .input-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .input-group input {
+        flex-grow: 1;
+        width: auto;
+      }
+      .input-group button {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        font-size: 0.9em;
+        margin-left: 0;
+      }
+      input[type="text"], input[type="number"], input[type="url"] {
+        width: calc(100% - 20px);
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+      }
+      .help-text {
+        font-size: 0.8em;
+        color: #777;
+        margin-top: 3px;
+        margin-bottom: 10px;
+      }
+      .validation-message {
+        font-size: 0.8em;
+        margin-top: 3px;
+        margin-bottom: 10px;
+        display: none;
+      }
+      .error-message {
+        color: #dc3545;
+        display: block;
+      }
+      input.invalid {
+        border-color: #dc3545;
+      }
+      .button-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px 25px;
+        background-color: #f9f9f9;
+        border-top: 1px solid #ddd;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-family: 'Noto Sans TC', sans-serif;
+        margin-left: 10px;
+      }
+      #save-btn {
+        background-color: #007bff;
+        color: white;
+      }
+      #close-btn {
+        background-color: #6c757d;
+        color: white;
+      }
+      #status {
+        margin-right: auto;
+        color: #28a745;
+        font-size: 0.9em;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      .modal-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        width: 90%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+      }
+      .modal-header h4 {
+        margin: 0;
+        color: #333;
+        font-size: 1.1em;
+        border: none;
+      }
+      .modal-close-btn {
+        cursor: pointer;
+        font-size: 24px;
+        font-weight: bold;
+        color: #aaa;
+        line-height: 1;
+      }
+      .modal-close-btn:hover {
+        color: #333;
+      }
+      .modal-body {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+      }
+      .list-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+      }
+      .list-item:last-child {
+        border-bottom: none;
+      }
+      .list-item:hover {
+        background-color: #f0f0f0;
+      }
+      /* --- STYLES FOR CHECK STATUS --- */
+      .status-box {
+        font-size: 0.8em;
+        margin-top: 5px;
+        padding: 8px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        display: none; /* Initially hidden */
+      }
+      .status-success {
+        color: #155724;
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        display: block;
+      }
+      .status-error {
+        color: #721c24;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        display: block;
+      }
+      .status-info {
+        color: #0c5460;
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        display: block;
+      }
+    </style>
+</head>
+<body>
+    <div class="header">
+      <div class="header-icons">
+        <span id="expand-toggle" class="material-icons">open_in_full</span>
+        <span id="pin-toggle" class="material-icons">push_pin</span>
+      </div>
+    </div>
+    <p class="drag-hint"><?!= T.dragAndActionHelp ?></p>
+
+    <!-- NEW: Hint element to show the current sheet -->
+    <p id="current-sheet-hint" class="current-sheet-hint"></p>
+
+    <div id="form-body" style="padding-bottom: 80px;">
+      <!-- Section: Source & Target -->
+      <div class="section">
+        <h4><?!= T.sectionSourceAndTarget ?></h4>
+        <label for="sourceUrl"><?!= T.sourceSpreadsheetUrlLabel ?></label>
+        <input type="url" id="sourceUrl" name="sourceUrl">
+        <p id="sourceUrl-validation" class="validation-message help-text"></p>
+
+        <label for="sourceSheetName"><?!= T.sourceDataSheetNameLabel ?></label>
+        <div class="input-group">
+            <input type="text" id="sourceSheetName" name="sourceSheetName">
+            <button type="button" id="select-source-sheet-btn" class="select-sheet-btn" disabled><?!= T.selectButton ?></button>
+        </div>
+        <p id="sourceSheetName-validation" class="validation-message help-text"></p>
+        
+        <label for="targetSheetName"><?!= T.currentTargetSheetNameLabel ?></label>
+        <div class="input-group">
+            <input type="text" id="targetSheetName" name="targetSheetName">
+            <button type="button" id="select-target-sheet-btn" class="select-sheet-btn"><?!= T.selectButton ?></button>
+        </div>
+        <p id="targetSheetName-validation" class="validation-message help-text"></p>
+      </div>
+
+      <!-- Section: Data Ranges & Comparison -->
+      <div class="section">
+        <h4><?!= T.sectionRangesAndConditions ?></h4>
+        <label for="targetStartRow"><?!= T.targetStartRowLabel ?></label>
+        <input type="number" id="targetStartRow" name="targetStartRow" min="1">
+        <p class="help-text"><?!= T.targetStartRowHelp ?></p>
+        
+        <label for="sourceCompareRange" style="margin-top: 15px;"><?!= T.sourceCompareRangeLabel ?></label>
+        <input type="text" id="sourceCompareRange" name="sourceCompareRange" placeholder="e.g., D2:E10">
+        <p class="help-text"><?!= T.sourceCompareRangeHelp ?></p>
+      </div>
+
+      <!-- Section: Field Mapping -->
+      <div class="section">
+        <h4><?!= T.sectionFieldMapping ?></h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label for="targetLookupCol"><?!= T.targetLookupColLabel ?></label>
+                <div class="input-group">
+                    <input type="text" id="targetLookupCol" name="targetLookupCol" placeholder="e.g., B">
+                    <button type="button" id="check-target-field-btn"><?!= T.checkButton ?></button>
+                </div>
+                <p class="help-text"><?!= T.targetLookupColHelp ?></p>
+                <div id="check-target-status" class="status-box"></div>
+            </div>
+            <div>
+                <label for="targetWriteCol"><?!= T.targetWriteColLabel ?></label>
+                <input type="text" id="targetWriteCol" name="targetWriteCol" placeholder="e.g., C">
+                <p class="help-text"><?!= T.targetWriteColHelp ?></p>
+            </div>
+            <div>
+                <label for="sourceLookupCol"><?!= T.sourceLookupColLabel ?></label>
+                <div class="input-group">
+                    <input type="text" id="sourceLookupCol" name="sourceLookupCol" placeholder="e.g., D">
+                    <button type="button" id="check-source-field-btn"><?!= T.checkButton ?></button>
+                </div>
+                <p class="help-text"><?!= T.sourceLookupColHelp ?></p>
+                <div id="check-source-status" class="status-box"></div>
+            </div>
+            <div>
+                <label for="sourceReturnCol"><?!= T.sourceReturnColLabel ?></label>
+                <input type="text" id="sourceReturnCol" name="sourceReturnCol" placeholder="e.g., E">
+                <p class="help-text"><?!= T.sourceReturnColHelp ?></p>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-container">
+      <span id="status"></span>
+      <button id="close-btn"><?!= T.closeButton ?></button>
+      <button id="save-btn"><?!= T.saveButton ?></button>
+    </div>
+
+    <!-- Modals -->
+    <div id="error-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="modal-title-error"></h4>
+          <span class="modal-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <p id="modal-message"></p>
+        </div>
+      </div>
+    </div>
+    <div id="sheet-select-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="modal-title-sheet"></h4>
+          <span class="modal-close-btn">&times;</span>
+        </div>
+        <div id="sheet-select-modal-body" class="modal-body"></div>
+      </div>
+    </div>
+
+    <script>
+      let isPinned = false;
+      let isExpanded = false;
+      let activeSheetInput = null;
+      let currentSheetName = '';
+
+      const pinToggle = document.getElementById('pin-toggle');
+      const expandToggle = document.getElementById('expand-toggle');
+      const saveBtn = document.getElementById('save-btn');
+      const closeBtn = document.getElementById('close-btn');
+      const statusDiv = document.getElementById('status');
+      
+      const formFields = ['sourceUrl', 'sourceSheetName', 'targetSheetName', 'targetStartRow', 'sourceCompareRange', 'targetLookupCol', 'sourceLookupCol', 'sourceReturnCol', 'targetWriteCol'];
+
+      const errorModal = document.getElementById('error-modal');
+      const sheetSelectModal = document.getElementById('sheet-select-modal');
+      
+      const sourceUrlInput = document.getElementById('sourceUrl');
+      const sourceSheetNameInput = document.getElementById('sourceSheetName');
+      const targetSheetNameInput = document.getElementById('targetSheetName');
+      const selectSourceSheetBtn = document.getElementById('select-source-sheet-btn');
+      const selectTargetSheetBtn = document.getElementById('select-target-sheet-btn');
+      
+      // Get check buttons and status elements
+      const checkSourceBtn = document.getElementById('check-source-field-btn');
+      const checkSourceStatusDiv = document.getElementById('check-source-status');
+      const checkTargetBtn = document.getElementById('check-target-field-btn');
+      const checkTargetStatusDiv = document.getElementById('check-target-status');
+
+      // --- Pinning & Expansion Logic ---
+      pinToggle.addEventListener('click', () => {
+        isPinned = !isPinned;
+        pinToggle.classList.toggle('pinned');
+        pinToggle.title = isPinned ? '<?!= T.unpinWindowTooltip ?>' : '<?!= T.pinWindowTooltip ?>';
+      });
+
+      expandToggle.addEventListener('click', () => {
+        isExpanded = !isExpanded;
+        expandToggle.classList.toggle('expanded');
+        if (isExpanded) {
+          google.script.host.setWidth(750);
+          expandToggle.textContent = 'close_fullscreen';
+          expandToggle.title = '<?!= T.collapseWindowTooltip ?>';
+        } else {
+          google.script.host.setWidth(450);
+          expandToggle.textContent = 'open_in_full';
+          expandToggle.title = '<?!= T.expandWindowTooltip ?>';
+        }
+      });
+
+      // --- Button Handlers ---
+      closeBtn.addEventListener('click', () => google.script.host.close());
+      saveBtn.addEventListener('click', handleSave);
+      checkSourceBtn.addEventListener('click', handleSourceCheck); 
+      checkTargetBtn.addEventListener('click', handleTargetCheck);
+
+      // --- Sheet Selection Handlers ---
+      selectSourceSheetBtn.addEventListener('click', () => openSheetSelectModal(sourceUrlInput.value, sourceSheetNameInput));
+      selectTargetSheetBtn.addEventListener('click', () => openSheetSelectModal('', targetSheetNameInput));
+
+      function checkUrlAndEnableButton() {
+          const url = sourceUrlInput.value;
+          const isValidUrl = url && url.startsWith('https://docs.google.com/spreadsheets/d/');
+          selectSourceSheetBtn.disabled = !isValidUrl;
+      }
+
+      // --- Event listeners for validation ---
+      sourceUrlInput.addEventListener('blur', () => {
+          checkUrlAndEnableButton();
+          validateCoreInputs();
+      });
+      sourceUrlInput.addEventListener('input', checkUrlAndEnableButton);
+      sourceSheetNameInput.addEventListener('blur', validateCoreInputs);
+      targetSheetNameInput.addEventListener('blur', validateCoreInputs);
+
+      // --- Modal Logic ---
+      document.querySelectorAll('.modal-close-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          errorModal.style.display = 'none';
+          sheetSelectModal.style.display = 'none';
+        });
+      });
+
+      function openSheetSelectModal(url, targetInput) {
+        statusDiv.textContent = '<?!= T.validatingMessage ?>';
+        activeSheetInput = targetInput;
+        
+        google.script.run
+            .withSuccessHandler(sheetNames => {
+                statusDiv.textContent = '';
+                const modalBody = document.getElementById('sheet-select-modal-body');
+                const modalTitle = document.getElementById('modal-title-sheet');
+                modalTitle.textContent = '<?!= T.sheetSelectionTitle ?>';
+                modalBody.innerHTML = '';
+
+                if (sheetNames && sheetNames.length > 0) {
+                    sheetNames.forEach(name => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.textContent = name;
+                        item.onclick = () => {
+                            if (activeSheetInput) {
+                                activeSheetInput.value = name;
+                                activeSheetInput.dispatchEvent(new Event('blur'));
+                            }
+                            sheetSelectModal.style.display = 'none';
+                        };
+                        modalBody.appendChild(item);
+                    });
+                } else {
+                    modalBody.innerHTML = '<p><?!= T.noSheetsFound ?></p>';
+                }
+                sheetSelectModal.style.display = 'flex';
+            })
+            .withFailureHandler(err => {
+                statusDiv.textContent = '';
+                showError('<?!= T.errorDialogTitle ?>', err.message);
+            })
+            .getSheetNames(url);
+      }
+
+      // --- Live Validation Logic ---
+      function validateCoreInputs() {
+        statusDiv.textContent = '<?!= T.validatingMessage ?>';
+        saveBtn.disabled = true;
+
+        const sourceUrl = sourceUrlInput.value;
+        const sourceSheet = sourceSheetNameInput.value;
+        const targetSheet = targetSheetNameInput.value;
+
+        google.script.run
+          .withSuccessHandler(handleCoreValidation)
+          .withFailureHandler(err => {
+              console.error("Core validation call failed: ", err);
+              statusDiv.textContent = '';
+              saveBtn.disabled = false;
+          })
+          .validateCompareCoreInputs(sourceUrl, sourceSheet, targetSheet);
+      }
+      
+      function handleCoreValidation(errors) {
+        clearValidationState(sourceUrlInput, 'sourceUrl-validation');
+        clearValidationState(sourceSheetNameInput, 'sourceSheetName-validation');
+        clearValidationState(targetSheetNameInput, 'targetSheetName-validation');
+
+        if (errors.sourceUrlError) {
+          setValidationError(sourceUrlInput, 'sourceUrl-validation', errors.sourceUrlError);
+        }
+        if (errors.sourceSheetError) {
+          setValidationError(sourceSheetNameInput, 'sourceSheetName-validation', errors.sourceSheetError);
+        }
+        if (errors.targetSheetError) {
+          setValidationError(targetSheetNameInput, 'targetSheetName-validation', errors.targetSheetError);
+        }
+        
+        statusDiv.textContent = '';
+        saveBtn.disabled = false;
+      }
+      
+      function setValidationError(inputElement, messageElementId, message) {
+          inputElement.classList.add('invalid');
+          const messageElement = document.getElementById(messageElementId);
+          if(messageElement) {
+            messageElement.textContent = message;
+            messageElement.className = 'validation-message error-message';
+          }
+      }
+
+      function clearValidationState(inputElement, messageElementId) {
+          inputElement.classList.remove('invalid');
+          if (messageElementId) {
+            const messageElement = document.getElementById(messageElementId);
+            if(messageElement) {
+                messageElement.textContent = '';
+                messageElement.className = 'validation-message help-text';
+            }
+          }
+      }
+
+      function getSettingsFromUi() {
+        const settings = {};
+        formFields.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                settings[id] = element.value.trim();
+            }
+        });
+        return settings;
+      }
+
+      // --- Function to handle the source field check ---
+      function handleSourceCheck() {
+        const settings = getSettingsFromUi();
+
+        checkSourceStatusDiv.className = 'status-box status-info';
+        checkSourceStatusDiv.textContent = '<?!= T.checkingMessage ?>';
+        checkSourceBtn.disabled = true;
+        
+        google.script.run
+            .withSuccessHandler(result => {
+                checkSourceBtn.disabled = false;
+                if (result.isValid) {
+                    checkSourceStatusDiv.className = 'status-box status-success';
+                    checkSourceStatusDiv.textContent = result.message;
+                } else {
+                    checkSourceStatusDiv.className = 'status-box status-error';
+                    checkSourceStatusDiv.textContent = '<?!= T.checkFailure ?>\n' + result.message;
+                }
+            })
+            .withFailureHandler(err => {
+                checkSourceBtn.disabled = false;
+                checkSourceStatusDiv.className = 'status-box status-error';
+                checkSourceStatusDiv.textContent = 'Error: ' + err.message;
+            })
+            .checkSourceCompareField(settings);
+      }
+
+      // --- Function to handle the target field check ---
+      function handleTargetCheck() {
+        const settings = getSettingsFromUi();
+
+        checkTargetStatusDiv.className = 'status-box status-info';
+        checkTargetStatusDiv.textContent = '<?!= T.checkingMessage ?>';
+        checkTargetBtn.disabled = true;
+        
+        google.script.run
+            .withSuccessHandler(result => {
+                checkTargetBtn.disabled = false;
+                if (result.isValid) {
+                    checkTargetStatusDiv.className = 'status-box status-success';
+                    checkTargetStatusDiv.textContent = result.message;
+                } else {
+                    checkTargetStatusDiv.className = 'status-box status-error';
+                    checkTargetStatusDiv.textContent = '<?!= T.checkFailure ?>\n' + result.message;
+                }
+            })
+            .withFailureHandler(err => {
+                checkTargetBtn.disabled = false;
+                checkTargetStatusDiv.className = 'status-box status-error';
+                checkTargetStatusDiv.textContent = 'Error: ' + err.message;
+            })
+            .checkTargetLookupField(settings);
+      }
+
+      // --- Data Handling ---
+      function handleSave() {
+        statusDiv.textContent = '<?!= T.savingMessage ?>';
+        saveBtn.disabled = true;
+
+        const settings = getSettingsFromUi();
+        
+        google.script.run
+          .withSuccessHandler(onSaveSuccess)
+          .withFailureHandler(onSaveFailure)
+          .saveCompareSettings(settings, currentSheetName);
+      }
+
+      function onSaveSuccess(result) {
+        if (result.success) {
+            statusDiv.textContent = '<?!= T.saveSuccess ?>';
+            saveBtn.disabled = false;
+            setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+            if (!isPinned) {
+              setTimeout(() => { google.script.host.close(); }, 1000);
+            }
+        } else {
+            onSaveFailure(new Error(result.error));
+        }
+      }
+      
+      function showError(title, message) {
+        document.getElementById('modal-title-error').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        errorModal.style.display = 'flex';
+      }
+
+      function onSaveFailure(error) {
+        showError('<?!= T.errorDialogTitle ?>', error.message || error);
+        statusDiv.textContent = '';
+        saveBtn.disabled = false;
+      }
+
+      // --- Initial Load ---
+      function loadAndPopulateSettings() {
+        google.script.run.withSuccessHandler(sheetName => {
+          currentSheetName = sheetName;
+          // NEW: Populate the hint element with the current sheet name
+          const hintElement = document.getElementById('current-sheet-hint');
+          hintElement.textContent = '<?!= T.settingsForSheetHint ?>'.replace('{SHEET_NAME}', sheetName);
+          
+          google.script.run.withSuccessHandler(settings => {
+            if (settings) {
+              formFields.forEach(id => {
+                const element = document.getElementById(id);
+                if (element && settings[id] !== undefined) {
+                  element.value = settings[id];
+                }
+              });
+              checkUrlAndEnableButton();
+            }
+          }).getCompareSettings(currentSheetName);
+        }).getActiveSheetName();
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        pinToggle.title = '<?!= T.pinWindowTooltip ?>';
+        expandToggle.title = '<?!= T.expandWindowTooltip ?>';
+        loadAndPopulateSettings();
+      });
+    </script>
+</body>
+</html>
