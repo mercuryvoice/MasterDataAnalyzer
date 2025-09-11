@@ -780,33 +780,65 @@ function resetValidationData(settings) {
     let lastRow = sheet.getLastRow();
     if (lastRow < startRow) return; // Nothing to process.
 
-    //Identify columns to clear (1-based index).
+    // Get the full data range to process in memory
+    const range = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getMaxColumns());
+    const values = range.getValues();
+
+    // Identify which columns to clear in parent rows
     const columnsToClear = settings.outputMappings.map(m => columnToNumber(m.targetCol));
     if (settings.mismatchColumn) {
         columnsToClear.push(columnToNumber(settings.mismatchColumn));
     }
-    const uniqueColumnsToClear = [...new Set(columnsToClear)];
+    const uniqueColumnsToClear = [...new Set(columnsToClear)].filter(c => c > 0);
 
-    //Get all the flag values in the first column at once for efficiency.
-    const flags = sheet.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
+    const rowsToDelete = [];
+    const rangesToClear = [];
 
-    //Iterate from the bottom up to safely delete rows.
-    for (let i = flags.length - 1; i >= 0; i--) {
-        const currentRowInSheet = startRow + i;
-        const flag = flags[i][0].toString().trim();
+    // Process the data in memory to decide what to delete and what to clear
+    values.forEach((row, index) => {
+        const currentRowInSheet = startRow + index;
+        const flag = row[0].toString().trim();
 
         if (flag === 'MS' || flag.startsWith('EX-')) {
-            // If it's a generated row, delete it.
-            sheet.deleteRow(currentRowInSheet);
+            // Mark generated rows for deletion
+            rowsToDelete.push(currentRowInSheet);
         } else {
-            // If it's a parent row, clear the specific output columns.
+            // For parent rows, identify specific cells to clear
             uniqueColumnsToClear.forEach(colNum => {
-                if (colNum > 0) {
-                    sheet.getRange(currentRowInSheet, colNum).clearContent();
-                }
+                rangesToClear.push(`${columnToLetter(colNum)}${currentRowInSheet}`);
             });
         }
+    });
+
+    // Perform batch clearing of content for parent rows
+    // This is done first as it doesn't affect row indices. It preserves formatting and hyperlinks.
+    if (rangesToClear.length > 0) {
+        // Use getRangeList for efficiency. Chunking to avoid potential limits.
+        const chunkSize = 250; 
+        for (let i = 0; i < rangesToClear.length; i += chunkSize) {
+            const chunk = rangesToClear.slice(i, i + chunkSize);
+            sheet.getRangeList(chunk).clearContent();
+        }
     }
+
+    // Perform batch deletion of generated rows from the bottom up
+    if (rowsToDelete.length > 0) {
+        // Group contiguous rows together to delete in a single call
+        const reversedRows = rowsToDelete.sort((a, b) => b - a); // Sort descending
+        let i = 0;
+        while (i < reversedRows.length) {
+            const rowNum = reversedRows[i];
+            let count = 1;
+            // Find how many contiguous rows are next in the list
+            while (i + count < reversedRows.length && reversedRows[i + count] === rowNum - count) {
+                count++;
+            }
+            // Delete the contiguous block of rows
+            sheet.deleteRows(rowNum - count + 1, count);
+            i += count;
+        }
+    }
+
     SpreadsheetApp.flush();
 }
 

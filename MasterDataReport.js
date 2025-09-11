@@ -18,14 +18,14 @@
 function saveReportSettings(settings, sheetName) {
     const T = getTranslations();
     try {
-        if (!sheetName) throw new Error("缺少工作表名稱，無法儲存設定。");
+        if (!sheetName) throw new Error(T.saveFailureMissingSheetName); //mod
         const properties = PropertiesService.getDocumentProperties();
         const key = `reportSettings_${sheetName}`;
         properties.setProperty(key, JSON.stringify(settings));
-        return { success: true, message: T.saveSuccess || '設定已成功儲存！' };
+        return { success: true, message: T.saveSuccess }; //mod
     } catch (e) {
         Logger.log(`Error saving report settings for ${sheetName}: ${e.message}`);
-        return { success: false, message: `${T.saveFailure || '儲存設定失敗'}: ${e.message}` };
+        return { success: false, message: `${T.saveFailure}: ${e.message}` }; //mod
     }
 }
 
@@ -63,7 +63,7 @@ function validateReportInputs(url, sheetName, rangeA1) {
         if (url) {
             const validUrlPattern = /^https:\/\/docs\.google\.com\/spreadsheets\/d\//;
             if (!validUrlPattern.test(url)) {
-                errors.sourceUrlError = T.errorInvalidUrl || "無效的 Google Sheets URL。";
+                errors.sourceUrlError = T.errorInvalidUrl; //mod
                 return errors;
             }
             ss = SpreadsheetApp.openByUrl(url);
@@ -72,13 +72,13 @@ function validateReportInputs(url, sheetName, rangeA1) {
         }
 
         if (!sheetName) {
-             errors.sheetError = "請輸入或選擇一個工作表名稱。";
+             errors.sheetError = T.reportSheetNameRequired; //mod
              return errors;
         }
 
         const sheet = ss.getSheetByName(sheetName);
         if (!sheet) {
-            errors.sheetError = `在指定的試算表中找不到名為 "${sheetName}" 的工作表。`;
+            errors.sheetError = T.sheetNotFound.replace('{SHEET_NAME}', sheetName); //mod
             return errors;
         }
 
@@ -86,14 +86,14 @@ function validateReportInputs(url, sheetName, rangeA1) {
             try {
                 sheet.getRange(rangeA1);
             } catch (e) {
-                errors.rangeError = `無效的範圍 "${rangeA1}"。請檢查您的輸入。`;
+                errors.rangeError = T.errorInvalidHeaderRange.replace('{RANGE}', rangeA1); //mod
             }
         } else {
-            errors.rangeError = "請輸入資料範圍。";
+            errors.rangeError = T.reportRangeRequired; //mod
         }
 
     } catch (e) {
-        errors.sourceUrlError = "無法存取提供的 URL。請檢查網址並確認您有權限。";
+        errors.sourceUrlError = T.errorInvalidUrl; //mod
     }
 
     return errors;
@@ -168,20 +168,21 @@ function checkMetricFields(url, sheetName, rangeA1, metricHeaders) {
  * @returns {object} A structured object with all analysis results or an error.
  */
 function runDynamicAnalysis(settings) {
+    const T = getTranslations(); //mod
     try {
         const { sheetName, rangeA1, analysisFields } = settings;
-        if (!sheetName || !rangeA1) throw new Error("缺少工作表名稱或資料範圍。");
-        if (!analysisFields || analysisFields.length === 0) throw new Error("請設定至少一個分析欄位。");
+        if (!sheetName || !rangeA1) throw new Error(T.reportSheetOrRangeMissing); //mod
+        if (!analysisFields || analysisFields.length === 0) throw new Error(T.reportAnalysisFieldsMissing); //mod
 
         const dimensions = analysisFields.filter(f => f.type === 'dimension').map(f => f.header);
         const metrics = analysisFields.filter(f => f.type === 'metric').map(f => f.header);
         
-        if (dimensions.length === 0) throw new Error("請設定至少一個「維度」。");
-        if (metrics.length === 0) throw new Error("請設定至少一個「指標」。");
+        if (dimensions.length === 0) throw new Error(T.reportDimensionMissing); //mod
+        if (metrics.length === 0) throw new Error(T.reportMetricMissing); //mod
 
         const ss = settings.sourceUrl ? SpreadsheetApp.openByUrl(settings.sourceUrl) : SpreadsheetApp.getActiveSpreadsheet();
         const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) throw new Error(`找不到工作表: ${sheetName}`);
+        if (!sheet) throw new Error(T.sheetNotFound.replace('{SHEET_NAME}', sheetName)); //mod
 
         const dataValues = sheet.getRange(rangeA1).getValues();
         const headers = dataValues[0];
@@ -224,7 +225,7 @@ function runDynamicAnalysis(settings) {
         
         finalData.forEach(row => {
           metrics.forEach(metric => {
-            const isRateField = /率|%|百分比/.test(metric);
+            const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
             if (isRateField && row[`__count_${metric}`] > 0) {
               row[metric] = row[metric] / row[`__count_${metric}`];
             }
@@ -256,6 +257,7 @@ const REPORT_COLORS = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC', '#
  * @returns {{success: boolean, message?: string, sheetName?: string, url?: string, error?: string}} Result object.
  */
 function exportReport(exportOptions, reportData) {
+  const T = getTranslations(); //mod
   try {
     const { format } = exportOptions;
     switch (format) {
@@ -266,7 +268,7 @@ function exportReport(exportOptions, reportData) {
       case 'pdf':
         return exportToPdf(exportOptions, reportData);
       default:
-        throw new Error('不支援的匯出格式。');
+        throw new Error(T.reportUnsupportedFormat); //mod
     }
   } catch(e) {
     Logger.log(`Report export failed: ${e.stack}`);
@@ -278,19 +280,20 @@ function exportReport(exportOptions, reportData) {
  * Helper function to export data to a new Google Sheet.
  */
 function exportToSheet(exportOptions, reportData) {
+    const T = getTranslations(); //mod
     const { selections } = exportOptions;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = '報表匯出_' + new Date().toLocaleString('sv-SE').replace(/ /g, '_').replace(/:/g, '-');
+    const sheetName = T.reportExportSheetNamePrefix + new Date().toLocaleString('sv-SE').replace(/ /g, '_').replace(/:/g, '-'); //mod
     const newSheet = ss.insertSheet(sheetName);
     let currentRow = 1;
 
     const formatValue = (value, metricName) => {
-        const isRateField = /率|%|百分比/.test(metricName);
+        const isRateField = /率|%|百分比|Rate|Percentage/i.test(metricName);
         if (isRateField && typeof value === 'number') return value;
         return value;
     };
     
-    const tabOrder = ['總覽', ...reportData.dimensions.map(d => `${d} 分析`), '原始數據'];
+    const tabOrder = [T.reportTabOverview, ...reportData.dimensions.map(d => `${d} ${T.reportTabAnalysisSuffix}`), T.reportTabRawData]; //mod
 
     for (const tabName of tabOrder) {
         if (selections[tabName] && selections[tabName].length > 0) {
@@ -307,9 +310,9 @@ function exportToSheet(exportOptions, reportData) {
             if (kpis.length > 0) {
               kpis.forEach(cardId => {
                   const metric = cardId.replace('kpi-', '');
-                  const isRateField = /率|%|百分比/.test(metric);
+                  const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                   const displayValue = isRateField ? reportData.overallMetrics[metric].average : reportData.overallMetrics[metric].sum;
-                  const cardTitle = metric.startsWith('總') ? metric : `總 ${metric}`;
+                  const cardTitle = (T.locale === 'zh_TW' && !metric.startsWith('總')) ? `總 ${metric}` : metric; //mod
                   const range = newSheet.getRange(dataWriteRow, 1, 1, 2);
                   range.setValues([[cardTitle, displayValue]]);
                   range.getCell(1, 1).setFontWeight('bold');
@@ -326,8 +329,8 @@ function exportToSheet(exportOptions, reportData) {
               charts.forEach(cardId => {
                   let dimension, metric;
                    if (cardId.startsWith('chart-overview')) {
-                       dimension = reportData.dimensions[0];
-                       metric = reportData.metrics[0];
+                        dimension = reportData.dimensions[0];
+                        metric = reportData.metrics[0];
                    } else {
                         const idString = cardId.replace(/^chart-/, '');
                         const lastHyphenIndex = idString.lastIndexOf('-');
@@ -338,16 +341,16 @@ function exportToSheet(exportOptions, reportData) {
                             return;
                         }
                    }
-                   const dataKey = `${dimension}|${metric}`;
-                   if (!uniqueChartData[dataKey]) {
-                       uniqueChartData[dataKey] = {dimension, metric};
-                   }
+                    const dataKey = `${dimension}|${metric}`;
+                    if (!uniqueChartData[dataKey]) {
+                        uniqueChartData[dataKey] = {dimension, metric};
+                    }
               });
 
               for (const key in uniqueChartData) {
                   const {dimension, metric} = uniqueChartData[key];
                   const chartHeaders = [dimension, metric];
-                  const isRateField = /率|%|百分比/.test(metric);
+                  const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                   const aggregatedData = {}; 
 
                   reportData.data.forEach(row => {
@@ -399,7 +402,6 @@ function exportToSheet(exportOptions, reportData) {
                       if(cardId.includes('labeled')) {
                         chartTitle += ' (數值)';
                         chartOptions.pieSliceText = 'value';
-                        // **FIX 2**: Change pie chart label color to white
                         chartOptions.pieSliceTextStyle = { color: 'white' };
                       }
                   } else {
@@ -433,9 +435,8 @@ function exportToSheet(exportOptions, reportData) {
                     }
                 }
 
-                // **FIX 1**: Add data labels to all bar charts
                 if (chartType === Charts.ChartType.BAR) {
-                    const isRateField = /率|%|百分比/.test(metric);
+                    const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                     const seriesOptions = { 
                         0: { 
                             annotations: { 
@@ -445,7 +446,7 @@ function exportToSheet(exportOptions, reportData) {
                         }
                     };
                      if(isRateField) {
-                       seriesOptions[0].format = '0.0%';
+                        seriesOptions[0].format = '0.0%';
                      }
                     chartBuilder.setOption('series', seriesOptions);
                     chartBuilder.setOption('legend', { position: 'none' });
@@ -462,7 +463,7 @@ function exportToSheet(exportOptions, reportData) {
     }
     
     newSheet.autoResizeColumns(1, 2);
-    return { success: true, message: '匯出成功！', sheetName: sheetName };
+    return { success: true, message: T.reportExportSuccess, sheetName: sheetName }; //mod
 }
 
 
@@ -471,8 +472,9 @@ function exportToSheet(exportOptions, reportData) {
  * Helper function to export data to a new Google Doc.
  */
 function exportToDoc(exportOptions, reportData) {
+  const T = getTranslations(); //mod
   const { selections, chartImages } = exportOptions;
-  const doc = DocumentApp.create('報表匯出_' + new Date().toLocaleString('sv-SE').replace(/ /g, '_').replace(/:/g, '-'));
+  const doc = DocumentApp.create(T.reportExportDocNamePrefix + new Date().toLocaleString('sv-SE').replace(/ /g, '_').replace(/:/g, '-')); //mod
   const body = doc.getBody();
 
   // Define styles
@@ -490,10 +492,10 @@ function exportToDoc(exportOptions, reportData) {
   tableHeaderStyle[DocumentApp.Attribute.BOLD] = true;
 
   // --- Start building document ---
-  body.appendParagraph('數據分析報告').setAttributes(titleStyle);
+  body.appendParagraph(T.reportAnalysisReportTitle).setAttributes(titleStyle); //mod
   body.appendParagraph(''); // Spacer
   
-  const tabOrder = ['總覽', ...reportData.dimensions.map(d => `${d} 分析`), '原始數據'];
+  const tabOrder = [T.reportTabOverview, ...reportData.dimensions.map(d => `${d} ${T.reportTabAnalysisSuffix}`), T.reportTabRawData]; //mod
 
   for (const tabName of tabOrder) {
     if (selections[tabName] && selections[tabName].length > 0) {
@@ -515,9 +517,9 @@ function exportToDoc(exportOptions, reportData) {
         const kpiTableCells = [];
         kpis.forEach(cardId => {
           const metric = cardId.replace('kpi-', '');
-          const isRateField = /率|%|百分比/.test(metric);
+          const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
           const displayValue = isRateField ? (reportData.overallMetrics[metric].average * 100).toFixed(1) + '%' : reportData.overallMetrics[metric].sum.toLocaleString();
-          const cardTitle = metric.startsWith('總') ? metric : `總 ${metric}`;
+          const cardTitle = (T.locale === 'zh_TW' && !metric.startsWith('總')) ? `總 ${metric}` : metric; //mod
           kpiTableCells.push([cardTitle, displayValue]);
         });
         const kpiTable = body.appendTable(kpiTableCells);
@@ -538,10 +540,10 @@ function exportToDoc(exportOptions, reportData) {
             } else if (cardId === 'chart-overview-bar') {
                 chartTitle = `圖表：${dimensionName} 長條圖`;
             } else {
-               const parts = cardId.replace('chart-', '').split('_');
-               const metric = parts.pop().replace(/_/g, ' ');
-               const dimension = parts.join('_').replace(/_/g, ' ');
-               chartTitle = `圖表：${metric} by ${dimension}`;
+              const parts = cardId.replace('chart-', '').split('_');
+              const metric = parts.pop().replace(/_/g, ' ');
+              const dimension = parts.join('_').replace(/_/g, ' ');
+              chartTitle = `圖表：${metric} by ${dimension}`;
             }
 
             body.appendParagraph(chartTitle).setBold(true).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
@@ -608,4 +610,3 @@ function exportToPdf(exportOptions, reportData) {
     return docResult; // Return the error from the Doc creation
   }
 }
-

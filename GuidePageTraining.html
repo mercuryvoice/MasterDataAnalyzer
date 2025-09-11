@@ -116,6 +116,7 @@
         let T;
         let checkpointIndex = -1;
         let checkpoint2Index = -1;
+        let businessCheckpoint2Index = -1;
         const tutorialType = "<?= tutorialType ?>"; 
 
         try {
@@ -219,14 +220,25 @@
             const currentCheckpoint = tutorialSteps[currentStep];
 
             if (tutorialType === 'business') {
-                nextSteps = [
-                    { title: T.businessTask2Step1Title, instruction: T.businessTask2Step1Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "C:E"] } },
-                    { title: T.businessTask2Step2Title, instruction: T.businessTask2Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleCustomerMasterSheet_Sales).replace('{TARGET_SHEET_NAME}', T.exampleDashboardSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleCustomerMasterSheet_Sales] } },
-                    { title: T.businessTask2Step3Title, instruction: T.businessTask2Step3Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
-                    { title: T.businessTask3Step1Title, instruction: T.businessTask3Step1Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "J:J"] } },
-                    { title: T.businessTask3Step2Title, instruction: T.businessTask3Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleProductTargetsSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleProductTargetsSheet_Sales] } },
-                    { title: T.businessFinalStepTitle, instruction: T.businessFinalStepInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] }, isFinal: true }
-                ];
+                if (currentCheckpoint.title === T.businessCheckpointTitle) {
+                    nextSteps = [
+                        { title: T.businessTask2Step1Title, instruction: T.businessTask2Step1Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "C:E"] } },
+                        { title: T.businessTask2Step2Title, instruction: T.businessTask2Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleCustomerMasterSheet_Sales).replace('{TARGET_SHEET_NAME}', T.exampleDashboardSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleCustomerMasterSheet_Sales] } },
+                        { title: T.businessTask2Step3Title, instruction: T.businessTask2Step3Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                        { title: T.businessTask3Step1Title, instruction: T.businessTask3Step1Instruction, action: { func: 'tutorial_highlightRange', args: [T.exampleDashboardSheet_Sales, "J:J"] } },
+                        { title: T.businessTask3Step2Title, instruction: T.businessTask3Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleProductTargetsSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleProductTargetsSheet_Sales] } },
+                        { title: T.businessFinalStepTitle, instruction: T.businessFinalStepInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                        { isCheckpoint: true, title: T.businessCheckpoint2Title, instruction: T.businessCheckpoint2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } }
+                    ];
+                } else if (currentCheckpoint.title === T.businessCheckpoint2Title) {
+                    nextSteps = [
+                        { title: T.businessTask4Step1Title, instruction: T.businessTask4Step1Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                        { title: T.businessTask4Step2Title, instruction: T.businessTask4Step2Instruction.replace('{SHEET_NAME}', T.exampleDashboardSheet_Sales), action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                        { title: T.businessTask4Step3Title, instruction: T.businessTask4Step3Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                        { title: T.businessTask4Step4Title, instruction: T.businessTask4Step4Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
+                        { title: T.businessFinal2StepTitle, instruction: T.businessFinal2StepInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] }, isFinal: true }
+                    ];
+                }
             } else if (tutorialType === 'manufacturing') {
                  if (currentCheckpoint.title === T.mfgCheckpointTitle) { 
                     nextSteps = [
@@ -249,8 +261,13 @@
             
             tutorialSteps.splice(currentStep, 1, ...nextSteps);
 
-            checkpointIndex = tutorialSteps.findIndex(step => step.title === T.mfgCheckpointTitle);
-            checkpoint2Index = tutorialSteps.findIndex(step => step.title === T.mfgCheckpoint2Title);
+            if (tutorialType === 'business') {
+                checkpointIndex = tutorialSteps.findIndex(step => step.title === T.businessCheckpointTitle);
+                businessCheckpoint2Index = tutorialSteps.findIndex(step => step.title === T.businessCheckpoint2Title);
+            } else {
+                checkpointIndex = tutorialSteps.findIndex(step => step.title === T.mfgCheckpointTitle);
+                checkpoint2Index = tutorialSteps.findIndex(step => step.title === T.mfgCheckpoint2Title);
+            }
             
             populateStepSelector();
             renderStep(currentStep);
@@ -312,7 +329,7 @@
                     selector.style.display = 'none';
                 } else {
                     contentDiv.innerHTML = `<h2 class="step-title">${step.title}</h2><p class="step-instruction">${step.instruction.replace(/\n/g, '<br>')}</p>`;
-                    if (step.isFinal && tutorialType === 'business') {
+                    if (step.title === T.businessFinalStepTitle && tutorialType === 'business') {
                          contentDiv.innerHTML += `<div class="mt-4"><button id="insert-formulas-btn" onclick="handleInsertFormulas()" class="choice-button bg-green-600 hover:bg-green-700 text-white">${T.businessFinalStepButton}</button></div>`;
                     }
                     navButtons.style.display = 'flex';

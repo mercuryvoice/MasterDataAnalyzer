@@ -125,9 +125,9 @@
 <body>
     <div class="header">
         <div class="header-icons">
-            <span id="minimize-toggle" class="material-icons" title="縮小">unfold_less</span>
-            <span id="expand-toggle" class="material-icons" title="擴展視窗">open_in_full</span>
-            <span id="pin-toggle" class="material-icons" title="釘選視窗">push_pin</span>
+            <span id="minimize-toggle" class="material-icons" title="<?!= T.minimizeHint ?>">unfold_less</span>
+            <span id="expand-toggle" class="material-icons" title="<?!= T.expandHint ?>">open_in_full</span>
+            <span id="pin-toggle" class="material-icons" title="<?!= T.pinHint ?>">push_pin</span>
         </div>
     </div>
     <p class="drag-hint"><?!= T.dragAndActionHelp ?></p>
@@ -137,10 +137,10 @@
         <!-- Settings Area -->
         <div id="step1-container">
             <div class="section">
-                <h4>資料來源</h4>
+                <h4><?!= T.dataSourceTitle ?></h4>
                 <div>
-                    <label for="sourceUrl"><?!= T.sourceSpreadsheetUrlLabel || '來源資料表 URL' ?></label>
-                    <input type="text" id="sourceUrl" placeholder="若為外部檔案請貼上 URL，否則留空">
+                    <label for="sourceUrl"><?!= T.sourceSpreadsheetUrlLabel ?></label>
+                    <input type="text" id="sourceUrl" placeholder="<?!= T.sourceUrlPlaceholder ?>">
                     <p id="sourceUrl-validation" class="validation-message help-text"></p>
                 </div>
                 <div style="margin-top: 15px;">
@@ -159,15 +159,15 @@
             </div>
 
             <div id="field-mapping-container" class="section" style="display: none;">
-                <h4>欄位對應</h4>
+                <h4><?!= T.fieldMappingTitle ?></h4>
                 <div id="analysis-fields-container"></div>
-                <button type="button" id="add-field-btn" style="margin-top: 10px;">+ 新增分析欄位</button>
+                <button type="button" id="add-field-btn" style="margin-top: 10px;"><?!= T.addAnalysisFieldButton ?></button>
             </div>
         </div>
 
         <!-- Results Area -->
         <div id="results-container" class="results-container">
-            <h4>分析結果</h4>
+            <h4><?!= T.analysisResultsTitle ?></h4>
             <div id="loader" class="loader" style="display: none;"></div>
             <div id="results-content" style="display: none;">
                 <nav id="tabs-container" class="tabs-nav"></nav>
@@ -180,7 +180,7 @@
         <span id="status"></span>
         <button id="close-btn"><?!= T.closeButton ?></button>
         <button id="save-btn"><?!= T.saveButton ?></button>
-        <button id="export-btn" style="display: none; background-color: #17a2b8; color: white;">匯出報表</button>
+        <button id="export-btn" style="display: none; background-color: #17a2b8; color: white;"><?!= T.exportReportButton ?></button>
         <button id="generate-btn"><?!= T.generateReportButton ?></button>
     </div>
 
@@ -192,27 +192,27 @@
     <div id="export-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h4>匯出設定</h4>
+                <h4><?!= T.exportSettingsTitle ?></h4>
                 <span class="modal-close-btn">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="export-section">
-                    <h5>1. 選擇匯出格式</h5>
+                    <h5><?!= T.exportFormatTitle ?></h5>
                      <ul class="export-options-list">
-                         <li><label><input type="radio" name="exportFormat" value="sheet" checked> 新增至 Google Sheet 分頁</label></li>
-                         <li><label><input type="radio" name="exportFormat" value="doc"> 匯出至 Google 文件</label></li>
-                         <li><label><input type="radio" name="exportFormat" value="pdf"> 匯出為 PDF</label></li>
+                         <li><label><input type="radio" name="exportFormat" value="sheet" checked> <?!= T.exportToSheetLabel ?></label></li>
+                         <li><label><input type="radio" name="exportFormat" value="doc"> <?!= T.exportToDocLabel ?></label></li>
+                         <li><label><input type="radio" name="exportFormat" value="pdf"> <?!= T.exportToPdfLabel ?></label></li>
                      </ul>
                 </div>
                 <div class="export-section">
-                    <h5>2. 選擇要匯出的內容</h5>
+                    <h5><?!= T.exportContentTitle ?></h5>
                     <div id="export-selection-container"></div>
                 </div>
             </div>
             <div class="modal-footer">
                 <span id="export-status" style="margin-right: auto; color: #007bff; font-size: 0.9em;"></span>
-                <button id="export-cancel-btn">取消</button>
-                <button id="export-confirm-btn" style="background-color: #007bff; color: white;">確認匯出</button>
+                <button id="export-cancel-btn"><?!= T.cancelButton ?></button>
+                <button id="export-confirm-btn" style="background-color: #007bff; color: white;"><?!= T.confirmExportButton ?></button>
             </div>
         </div>
     </div>
@@ -222,11 +222,11 @@
     <template id="analysis-field-template">
         <div class="analysis-row">
             <select class="field-type">
-                <option value="dimension">維度 (分組依據)</option>
-                <option value="metric">指標 (計算數值)</option>
+                <option value="dimension"><?!= T.dimensionOption ?></option>
+                <option value="metric"><?!= T.metricOption ?></option>
             </select>
             <select class="field-header"></select>
-            <span class="validation-warning material-icons" title="此欄位可能包含非數值資料，不適合做為指標。">warning</span>
+            <span class="validation-warning material-icons" title="<?!= T.metricWarningHint ?>">warning</span>
             <button type="button" class="remove-field-btn">&times;</button>
         </div>
     </template>
@@ -262,7 +262,7 @@
 
 
         // --- UI Interaction Logic ---
-        pinToggle.addEventListener('click', () => { isPinned = !isPinned; pinToggle.classList.toggle('pinned'); pinToggle.title = isPinned ? '取消釘選' : '釘選視窗'; });
+        pinToggle.addEventListener('click', () => { isPinned = !isPinned; pinToggle.classList.toggle('pinned'); pinToggle.title = isPinned ? T.unpinHint : T.pinHint; });
         
         expandToggle.addEventListener('click', () => {
             isExpanded = !isExpanded; 
@@ -275,7 +275,7 @@
             google.script.host.setWidth(isExpanded ? 1200 : 500);
             google.script.host.setHeight(isExpanded ? 850 : 650);
             expandToggle.textContent = isExpanded ? 'close_fullscreen' : 'open_in_full';
-            expandToggle.title = isExpanded ? '收合視窗' : '擴展視窗';
+            expandToggle.title = isExpanded ? T.collapseHint : T.expandHint;
         });
 
         minimizeToggle.addEventListener('click', () => {
@@ -283,7 +283,7 @@
             document.body.classList.toggle('minimized', isMinimized);
             minimizeToggle.classList.toggle('minimized', isMinimized);
             minimizeToggle.textContent = isMinimized ? 'unfold_more' : 'unfold_less';
-            minimizeToggle.title = isMinimized ? '展開' : '縮小';
+            minimizeToggle.title = isMinimized ? T.unminimizeHint : T.minimizeHint;
             
             if (isMinimized) {
                 // When minimizing, always shrink to the small, standard size
@@ -323,7 +323,7 @@
         function showModal(title, message, isLink = false) {
           const messageP = document.getElementById('modal-message');
           if (isLink) {
-            messageP.innerHTML = `報表已成功匯出！點此打開文件：<a href="${message}" target="_blank">${message}</a>`;
+            messageP.innerHTML = `${T.exportSuccessLink} <a href="${message}" target="_blank">${message}</a>`;
           } else {
             messageP.textContent = message;
           }
@@ -331,7 +331,7 @@
           alertModal.style.display = 'flex';
         }
         function openSheetSelectModal() {
-            statusDiv.textContent = '讀取中...';
+            statusDiv.textContent = T.loadingMessage;
             google.script.run.withSuccessHandler(names => {
                 statusDiv.textContent = '';
                 const body = document.getElementById('sheet-select-modal-body');
@@ -343,13 +343,13 @@
                     body.appendChild(item);
                 });
                 sheetSelectModal.style.display = 'flex';
-            }).withFailureHandler(err => { statusDiv.textContent = ''; showModal('錯誤', err.message); }).getSheetNames(sourceUrlInput.value.trim());
+            }).withFailureHandler(err => { statusDiv.textContent = ''; showModal(T.errorTitle, err.message); }).getSheetNames(sourceUrlInput.value.trim());
         }
 
         // --- Export Modal Logic ---
         function openExportModal() {
             if (!currentResultData) {
-                showModal('錯誤', '請先生成報表後再進行匯出。');
+                showModal(T.errorTitle, '請先生成報表後再進行匯出。'); //TODO: Translate
                 return;
             }
             populateExportModal();
@@ -360,7 +360,7 @@
             const container = document.getElementById('export-selection-container');
             container.innerHTML = ''; 
 
-            const tabNames = ['總覽', ...currentResultData.dimensions.map(d => `${d} 分析`), '原始數據'];
+            const tabNames = [T.overviewTab, ...currentResultData.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
 
             tabNames.forEach(tabName => {
                 const tabList = document.createElement('ul');
@@ -373,31 +373,31 @@
                 const cardList = document.createElement('ul');
                 cardList.className = 'card-options';
 
-                if (tabName === '總覽') {
+                if (tabName === T.overviewTab) {
                     currentResultData.metrics.forEach(metric => {
                         const cardItem = document.createElement('li');
-                        const cardTitle = metric.startsWith('總') ? metric : `總 ${metric}`;
+                        const cardTitle = T.kpiCardTitle.replace('{METRIC}', metric);
                         cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="kpi-${metric}"> ${cardTitle}</label>`;
                         cardList.appendChild(cardItem);
                     });
                      if (currentResultData.dimensions.length > 0) {
                          const dimensionName = currentResultData.dimensions[0];
                          cardList.innerHTML += `
-                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-pie"> 圖表：${dimensionName} 圓餅圖 (圖例)</label></li>
-                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-pie-labeled"> 圖表：${dimensionName} 圓餅圖 (數值)</label></li>
-                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-bar"> 圖表：${dimensionName} 長條圖</label></li>
+                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-pie"> ${T.pieChartLegendLabel.replace('{DIMENSION}', dimensionName)}</label></li>
+                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-pie-labeled"> ${T.pieChartValuesLabel.replace('{DIMENSION}', dimensionName)}</label></li>
+                           <li><label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-overview-bar"> ${T.barChartLabel.replace('{DIMENSION}', dimensionName)}</label></li>
                          `;
                      }
-                } else if (tabName.endsWith(' 分析')) {
-                    const dimension = tabName.replace(' 分析', '');
+                } else if (tabName.endsWith(T.analysisTab.replace('{DIMENSION}', ''))) {
+                    const dimension = tabName.replace(T.analysisTab.replace('{DIMENSION}', ''),'').trim();
                     currentResultData.metrics.forEach(metric => {
                          const cardItem = document.createElement('li');
-                         cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-${dimension.replace(/\s/g, '_')}-${metric.replace(/\s/g, '_')}"> 圖表：${metric} by ${dimension}</label>`;
+                         cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="chart-${dimension.replace(/\s/g, '_')}-${metric.replace(/\s/g, '_')}"> ${T.chartByTitle.replace('{METRIC}', metric).replace('{DIMENSION}', dimension)}</label>`;
                          cardList.appendChild(cardItem);
                     });
-                } else if (tabName === '原始數據') {
+                } else if (tabName === T.rawDataTab) {
                      const cardItem = document.createElement('li');
-                     cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="table-raw"> 原始數據表</label>`;
+                     cardItem.innerHTML = `<label><input type="checkbox" data-type="card" data-tab-name="${tabName}" data-card-id="table-raw"> ${T.rawDataTab}</label>`;
                      cardList.appendChild(cardItem);
                 }
 
@@ -415,7 +415,7 @@
                 // Add listeners to all checkboxes to clear the validation message upon interaction
                 container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.addEventListener('change', () => {
-                        if (exportStatus.textContent === '請選擇要匯出的內容') {
+                        if (exportStatus.textContent === T.errorExportContent) {
                             exportStatus.textContent = '';
                             exportStatus.style.color = '#007bff'; // Revert to default color
                         }
@@ -442,12 +442,12 @@
             });
 
             if (Object.keys(selections).length === 0) {
-                exportStatus.textContent = '請選擇要匯出的內容';
+                exportStatus.textContent = T.errorExportContent;
                 exportStatus.style.color = '#dc3545'; // Red error color
                 return;
             }
 
-            exportStatus.textContent = '報表匯出中，請稍候...';
+            exportStatus.textContent = T.exportingMessage;
             exportStatus.style.color = '#007bff'; // Revert to default color
             exportConfirmBtn.disabled = true;
 
@@ -471,16 +471,16 @@
                     
                     if (result.success) {
                         if (result.url) {
-                            showModal('匯出成功', result.url, true);
+                            showModal(T.exportSuccess, result.url, true);
                         } else {
-                            showModal('匯出成功', `報表已成功匯出！您可以在試算表中名為 "${result.sheetName}" 的新分頁找到它。`);
+                            showModal(T.exportSuccess, T.exportSuccessSheet.replace('{SHEET_NAME}', result.sheetName));
                         }
                     } else {
-                        showModal('匯出失敗', result.error);
+                        showModal(T.exportFailure, result.error);
                     }
                 })
                 .withFailureHandler(err => {
-                    exportStatus.textContent = `錯誤: ${err.message}`;
+                    exportStatus.textContent = `${T.errorTitle}: ${err.message}`;
                     exportConfirmBtn.disabled = false;
                 })
                 .exportReport(exportOptions, currentResultData);
@@ -525,10 +525,10 @@
             };
             google.script.run.withSuccessHandler(res => {
                 statusDiv.textContent = res.success ? res.message : '';
-                if (!res.success) showModal('錯誤', res.message);
+                if (!res.success) showModal(T.errorTitle, res.message);
                 setTimeout(() => statusDiv.textContent = '', 3000);
                 [saveBtn, generateBtn].forEach(b => b.disabled = false);
-            }).withFailureHandler(err => { showModal('錯誤', err.message); statusDiv.textContent = ''; [saveBtn, generateBtn].forEach(b => b.disabled = false); }).saveReportSettings(settings, currentSheetName);
+            }).withFailureHandler(err => { showModal(T.errorTitle, err.message); statusDiv.textContent = ''; [saveBtn, generateBtn].forEach(b => b.disabled = false); }).saveReportSettings(settings, currentSheetName);
         }
 
         function handleGenerate() {
@@ -545,7 +545,7 @@
             resultsContent.style.display = 'none';
             loader.style.display = 'block';
             [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = true; });
-            generateBtn.textContent = '生成中...';
+            generateBtn.textContent = T.generatingMessage;
 
             google.script.run.withSuccessHandler(result => {
                 loader.style.display = 'none';
@@ -556,20 +556,20 @@
                     exportBtn.style.display = 'inline-block';
                     displayResults(result);
                 } else {
-                    showModal('分析錯誤', result.error);
+                    showModal(T.analysisError, result.error);
                 }
                 [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = false; });
                 generateBtn.textContent = T.generateReportButton;
             }).withFailureHandler(err => {
                 loader.style.display = 'none';
-                showModal('執行錯誤', err.message);
+                showModal(T.executionError, err.message);
                 [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = false; });
                 generateBtn.textContent = T.generateReportButton;
             }).runDynamicAnalysis(settings);
         }
 
         function loadAndPopulateSettings() {
-            statusDiv.textContent = '資料讀取中...';
+            statusDiv.textContent = T.loadingMessage;
             google.script.run.withSuccessHandler(sheetName => {
                 currentSheetName = sheetName;
                 document.getElementById('current-sheet-hint').textContent = T.settingsForSheetHint.replace('{SHEET_NAME}', sheetName);
@@ -583,7 +583,7 @@
                         validateAndFetchHeaders();
                     }
                 }).withFailureHandler(err => {
-                    statusDiv.textContent = `讀取設定失敗: ${err.message}`;
+                    statusDiv.textContent = `${T.loadSettingsFailure} ${err.message}`;
                     setTimeout(() => statusDiv.textContent = '', 5000);
                 }).getReportSettings(currentSheetName);
             }).getActiveSheetName();
@@ -623,7 +623,7 @@
                     }
                 })
                 .withFailureHandler(err => {
-                    showModal('後端驗證錯誤', '無法與伺服器通訊以驗證您的輸入，請檢查 Apps Script 腳本是否儲存且無誤。\n\n錯誤訊息: ' + err.message);
+                    showModal(T.backendValidationError, `無法與伺服器通訊以驗證您的輸入，請檢查 Apps Script 腳本是否儲存且無誤。\n\n錯誤訊息: ${err.message}`);
                     statusDiv.textContent = '';
                     mappingContainer.style.display = 'none';
                 })
@@ -633,9 +633,9 @@
         function fetchHeaders(savedFields = []) {
             google.script.run.withSuccessHandler(headers => {
                 if (!headers || headers.length === 0) {
-                    showModal('標頭讀取錯誤', '在指定的範圍 ' + sourceRangeInput.value + ' 中找不到任何標頭資料。請檢查您的資料範圍是否正確，且第一行包含欄位名称。');
+                    showModal(T.headerReadError, T.errorNoHeaders.replace('{RANGE}', sourceRangeInput.value));
                     mappingContainer.style.display = 'none';
-                    statusDiv.textContent = '讀取欄位失敗！';
+                    statusDiv.textContent = T.loadSettingsFailure;
                     setTimeout(() => statusDiv.textContent = '', 5000);
                     return;
                 }
@@ -649,12 +649,12 @@
                     addAnalysisField({ type: 'dimension', header: allHeaders[0] || '' });
                     addAnalysisField({ type: 'metric', header: allHeaders.length > 1 ? allHeaders[1] : (allHeaders[0] || '') });
                 }
-                statusDiv.textContent = '設定讀取完成！';
+                statusDiv.textContent = T.saveSuccess;
                 setTimeout(() => statusDiv.textContent = '', 3000);
             }).withFailureHandler(err => { 
-              showModal('錯誤', err.message); 
+              showModal(T.errorTitle, err.message); 
               mappingContainer.style.display = 'none'; 
-              statusDiv.textContent = '讀取欄位失敗！';
+              statusDiv.textContent = T.loadSettingsFailure;
               setTimeout(() => statusDiv.textContent = '', 5000);
             }).getHeadersFromRange(sourceUrlInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value);
         }
@@ -682,7 +682,7 @@
             tabsContainer.innerHTML = '';
             tabContentContainer.innerHTML = '';
 
-            const tabNames = ['總覽', ...result.dimensions.map(d => `${d} 分析`), '原始數據'];
+            const tabNames = [T.overviewTab, ...result.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
             
             // Create all tabs and content containers first
             tabNames.forEach((name, index) => {
@@ -720,7 +720,7 @@
         }
 
         function formatValue(value, metricName) {
-            const isRateField = /率|%|百分比/.test(metricName);
+            const isRateField = /率|%|百分比|Rate|Percentage/i.test(metricName);
             if (isRateField) {
                  return value.toLocaleString(undefined, { style: 'percent', minimumFractionDigits: 1 });
             }
@@ -735,15 +735,15 @@
             if (!contentElement) return;
             contentElement.innerHTML = '';
 
-            if (tabName === '總覽') {
+            if (tabName === T.overviewTab) {
                 const kpiContainer = document.createElement('div');
                 kpiContainer.className = 'kpi-grid';
                 result.metrics.forEach(metric => {
                     const card = document.createElement('div');
                     card.className = 'kpi-card';
-                    const isRateField = /率|%|百分比/.test(metric);
+                    const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                     const displayValue = isRateField ? result.overallMetrics[metric].average : result.overallMetrics[metric].sum;
-                    const cardTitle = metric.startsWith('總') ? metric : `總 ${metric}`;
+                    const cardTitle = T.kpiCardTitle.replace('{METRIC}', metric);
                     card.innerHTML = `<div class="kpi-title">${cardTitle}</div><div class="kpi-value">${formatValue(displayValue, metric)}</div>`;
                     kpiContainer.appendChild(card);
                 });
@@ -831,7 +831,7 @@
                     drawOverviewChart();
                 }
 
-            } else if (tabName === '原始數據') {
+            } else if (tabName === T.rawDataTab) {
                 const table = document.createElement('table');
                 table.className = 'results-table';
                 const thead = table.createTHead();
@@ -851,8 +851,8 @@
                 });
                 contentElement.appendChild(table);
 
-            } else if (tabName.endsWith(' 分析')) {
-                const dimension = tabName.replace(' 分析', '');
+            } else if (tabName.endsWith(T.analysisTab.replace('{DIMENSION}', ''))) {
+                const dimension = tabName.replace(T.analysisTab.replace('{DIMENSION}', ''),'').trim();
                 result.metrics.forEach(metric => {
                     const chartOuterContainer = document.createElement('div');
                     chartOuterContainer.className = 'chart-container';
@@ -873,7 +873,7 @@
                     });
                     
                     const chartDataArray = [[dimension, metric, { role: 'style' }, { role: 'annotation' }]];
-                    const isRateField = /率|%|百分比/.test(metric);
+                    const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
 
                     for (const key in groupedChartData) {
                         let value = isRateField 
@@ -889,7 +889,7 @@
 
                         const chartData = google.visualization.arrayToDataTable(chartDataArray);
                         const options = {
-                            title: `${metric} by ${dimension}`,
+                            title: T.chartByTitle.replace('{METRIC}', metric).replace('{DIMENSION}', dimension),
                             titleTextStyle: { fontSize: 20 },
                             chartArea: { width: '65%', left: 200, top: 60, bottom: 40 },
                             hAxis: { title: metric, minValue: 0 },
@@ -911,7 +911,7 @@
                         chart.draw(chartData, options);
                         drawnCharts[`chart-${dimension.replace(/\s/g, '_')}-${metric.replace(/\s/g, '_')}`] = chart;
                     } else {
-                        chartOuterContainer.innerHTML = `<p style="text-align:center; padding-top: 20px;">此維度沒有足夠的數據可供繪圖。</p>`;
+                        chartOuterContainer.innerHTML = `<p style="text-align:center; padding-top: 20px;">${T.noDataForChart}</p>`;
                     }
                 });
             }
@@ -920,7 +920,7 @@
         function drawOverviewPieChart(chartDiv, result, useLabels) {
             const dimension = result.dimensions[0];
             const metric = result.metrics[0];
-            const isRateField = /率|%|百分比/.test(metric);
+            const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
 
             const groupedData = {};
             result.data.forEach(row => {
@@ -941,7 +941,7 @@
 
             if (useLabels) {
                 options = { 
-                    title: `${dimension} 分佈`,
+                    title: T.distributionChartTitle.replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20, bold: true }, 
                     pieHole: 0.4, 
                     pieSliceText: 'none', 
@@ -959,7 +959,7 @@
                 };
             } else {
                 options = { 
-                    title: `${dimension} 分佈`,
+                    title: T.distributionChartTitle.replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20, bold: true },
                     pieHole: 0.4, 
                     pieSliceText: 'none',
@@ -991,7 +991,7 @@
         function drawOverviewBarChart(chartDiv, result) {
             const dimension = result.dimensions[0];
             const metric = result.metrics[0];
-            const isRateField = /率|%|百分比/.test(metric);
+            const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
 
             const groupedData = {};
             result.data.forEach(row => {
@@ -1016,7 +1016,7 @@
                 
                 const chartData = google.visualization.arrayToDataTable(chartDataArray);
                  const options = {
-                    title: `${metric} by ${dimension}`,
+                    title: T.chartByTitle.replace('{METRIC}', metric).replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20 },
                     chartArea: { 
                         width: '65%', 
@@ -1039,7 +1039,7 @@
                 chart.draw(chartData, options);
                 drawnCharts['chart-overview-bar'] = chart;
             } else {
-                chartDiv.innerHTML = `<p style="text-align:center; padding-top: 20px;">沒有足夠的數據可供繪圖。</p>`;
+                chartDiv.innerHTML = `<p style="text-align:center; padding-top: 20px;">${T.noDataForChart}</p>`;
             }
         }
         
@@ -1048,4 +1048,3 @@
     </script>
 </body>
 </html>
-
