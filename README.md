@@ -21,7 +21,9 @@ MasterDataAnalyzer Features：
 
 ★ Free with full functionality.	
 
-★ Versatile applications for business and engineering.	
+★ Diverse applications for business and engineering.	
+
+★ Friendly and Easily to use with interactive step by step guideline.
 
 ★ Intelligent data import, comparison, verification, and report generation.	
 
@@ -38,6 +40,8 @@ MasterDataAnalyzer Features：
 ★ 無須公式撰寫	
 
 ★ 免費使用全功能	
+
+★ 友善且易用的互動式教學步驟
 
 ★ 對於商用與工程的多重領域應用	
 
