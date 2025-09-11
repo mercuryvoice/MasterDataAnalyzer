@@ -450,6 +450,9 @@ const TRANSLATIONS = {
         pieChartValuesLabel: "Pie Chart: {DIMENSION} (Values)",
         barChartLabel: "Bar Chart: {DIMENSION}",
         noDataForChart: "Not enough data to draw this chart.",
+        pieChart: "Pie Chart",
+        barChart: "Bar Chart",
+        valuesSuffix: " (Values)",
     },
     'zh_TW': {
         // --- Main Menu ---
@@ -870,7 +873,7 @@ const TRANSLATIONS = {
         dimensionOption: "維度 (分組依據)",
         metricOption: "指標 (計算數值)",
         distributionChartTitle: "{DIMENSION} 分佈",
-        chartByTitle: "{METRIC} by {DIMENSION}",
+        chartByTitle: "圖表：{METRIC} by {DIMENSION}",
         kpiCardTitle: "總 {METRIC}",
         overviewTab: "總覽",
         analysisTab: "{DIMENSION} 分析",
@@ -886,6 +889,9 @@ const TRANSLATIONS = {
         pieChartValuesLabel: "圖表：{DIMENSION} 圓餅圖 (數值)",
         barChartLabel: "圖表：{DIMENSION} 長條圖",
         noDataForChart: "此維度沒有足夠的數據可供繪圖。",
+        pieChart: "圓餅圖",
+        barChart: "長條圖",
+        valuesSuffix: " (數值)",
     }
 };
 

@@ -405,16 +405,16 @@ function exportToSheet(exportOptions, reportData) {
                   
                   if (cardId.includes('pie')) {
                       chartType = Charts.ChartType.PIE;
-                      chartTitle = `${dimension} 圓餅圖`;
+                      chartTitle = `${dimension} ${T.pieChart}`;
                       chartOptions = { pieHole: 0.4, colors: REPORT_COLORS };
                       if(cardId.includes('labeled')) {
-                        chartTitle += ' (數值)';
+                        chartTitle += T.valuesSuffix;
                         chartOptions.pieSliceText = 'value';
                         chartOptions.pieSliceTextStyle = { color: 'white' };
                       }
                   } else {
                       chartType = Charts.ChartType.BAR;
-                      chartTitle = `${dimension} 長條圖`;
+                      chartTitle = `${dimension} ${T.barChart}`;
                       chartOptions.colors = [REPORT_COLORS[0]];
                   }
               } else {
@@ -468,6 +468,25 @@ function exportToSheet(exportOptions, reportData) {
                 maxChartHeight = Math.max(maxChartHeight, 15);
               }
             });
+            
+            if (tables.length > 0) {
+              tables.forEach(cardId => {
+                if (cardId === 'table-raw' && tabName === T.rawDataTab) {
+                  const headers = reportData.headers;
+                  const data = reportData.data.map(row => headers.map(header => {
+                      const val = row[header];
+                      return val === null || val === undefined ? '' : val;
+                  }));
+                  const tableData = [headers, ...data];
+                  if (tableData.length > 0) {
+                    const tableRange = newSheet.getRange(dataWriteRow, 1, tableData.length, headers.length);
+                    tableRange.setValues(tableData);
+                    newSheet.getRange(dataWriteRow, 1, 1, headers.length).setFontWeight('bold');
+                    dataWriteRow += tableData.length + 1;
+                  }
+                }
+              });
+            }
             
             currentRow = Math.max(dataWriteRow, sectionStartRow + maxChartHeight) + 6;
         }
@@ -545,16 +564,16 @@ function exportToDoc(exportOptions, reportData) {
             let chartTitle = '';
             const dimensionName = reportData.dimensions[0];
             if (cardId === 'chart-overview-pie') {
-                chartTitle = `圖表：${dimensionName} 圓餅圖 (圖例)`;
+                chartTitle = T.pieChartLegendLabel.replace('{DIMENSION}', dimensionName);
             } else if (cardId === 'chart-overview-pie-labeled') {
-                chartTitle = `圖表：${dimensionName} 圓餅圖 (數值)`;
+                chartTitle = T.pieChartValuesLabel.replace('{DIMENSION}', dimensionName);
             } else if (cardId === 'chart-overview-bar') {
-                chartTitle = `圖表：${dimensionName} 長條圖`;
+                chartTitle = T.barChartLabel.replace('{DIMENSION}', dimensionName);
             } else {
               const parts = cardId.replace('chart-', '').split('_');
               const metric = parts.pop().replace(/_/g, ' ');
               const dimension = parts.join('_').replace(/_/g, ' ');
-              chartTitle = `圖表：${metric} by ${dimension}`;
+              chartTitle = T.chartByTitle.replace('{METRIC}', metric).replace('{DIMENSION}', dimension);
             }
 
             body.appendParagraph(chartTitle).setBold(true).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
@@ -564,7 +583,7 @@ function exportToDoc(exportOptions, reportData) {
             const p = body.appendParagraph('');
             const image = p.appendInlineImage(imageBlob);
             
-            const newWidth = 555; // 15.06cm
+            const newWidth = 500;
             const imageWidth = image.getWidth();
             if (imageWidth > newWidth) {
                 const aspect = image.getHeight() / imageWidth;
