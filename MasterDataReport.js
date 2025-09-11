@@ -251,6 +251,14 @@ function runDynamicAnalysis(settings) {
 const REPORT_COLORS = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC', '#00ACC1', '#FF7043', '#7E57C2', '#5C6BC0', '#26A69A'];
 
 /**
+ * Returns the standard color palette for reports.
+ * @returns {string[]} An array of hex color codes.
+ */
+function getReportColors() {
+  return REPORT_COLORS;
+}
+
+/**
  * Exports the selected report data based on the chosen format.
  * @param {object} exportOptions The export settings from the UI.
  * @param {object} reportData The full analysis result data.
@@ -293,7 +301,7 @@ function exportToSheet(exportOptions, reportData) {
         return value;
     };
     
-    const tabOrder = [T.reportTabOverview, ...reportData.dimensions.map(d => `${d} ${T.reportTabAnalysisSuffix}`), T.reportTabRawData]; //mod
+    const tabOrder = [T.overviewTab, ...reportData.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
 
     for (const tabName of tabOrder) {
         if (selections[tabName] && selections[tabName].length > 0) {
@@ -407,6 +415,7 @@ function exportToSheet(exportOptions, reportData) {
                   } else {
                       chartType = Charts.ChartType.BAR;
                       chartTitle = `${dimension} 長條圖`;
+                      chartOptions.colors = [REPORT_COLORS[0]];
                   }
               } else {
                   const idString = cardId.replace(/^chart-/, '');
@@ -420,6 +429,7 @@ function exportToSheet(exportOptions, reportData) {
                   dataRange = chartDataRanges[`${dimension}|${metric}`];
                   chartType = Charts.ChartType.BAR;
                   chartTitle = `${metric} by ${dimension}`;
+                  chartOptions.colors = [REPORT_COLORS[0]];
               }
 
               if (dataRange) {
@@ -435,6 +445,7 @@ function exportToSheet(exportOptions, reportData) {
                     }
                 }
 
+                // Specific options for bar charts that are not part of the generic options
                 if (chartType === Charts.ChartType.BAR) {
                     const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                     const seriesOptions = { 
@@ -495,7 +506,7 @@ function exportToDoc(exportOptions, reportData) {
   body.appendParagraph(T.reportAnalysisReportTitle).setAttributes(titleStyle); //mod
   body.appendParagraph(''); // Spacer
   
-  const tabOrder = [T.reportTabOverview, ...reportData.dimensions.map(d => `${d} ${T.reportTabAnalysisSuffix}`), T.reportTabRawData]; //mod
+  const tabOrder = [T.overviewTab, ...reportData.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
 
   for (const tabName of tabOrder) {
     if (selections[tabName] && selections[tabName].length > 0) {

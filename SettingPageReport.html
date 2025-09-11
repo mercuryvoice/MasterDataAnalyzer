@@ -232,10 +232,11 @@
     </template>
 
     <script>
-        // Feature Version: v3.4 | Added validation message for export selection.
+        // Feature Version: v3.5 | Synchronize chart colors
         const T = <?!= JSON.stringify(T) ?>;
         let isPinned = false, isExpanded = false, isMinimized = false, currentSheetName = '', allHeaders = [];
         let chartsReady = false;
+        let chartColors = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC', '#00ACC1', '#FF7043', '#7E57C2', '#5C6BC0', '#26A69A']; // Fallback colors
         google.charts.load('current', {'packages':['corechart']});
         google.charts.setOnLoadCallback(() => { chartsReady = true; });
 
@@ -879,7 +880,7 @@
                         let value = isRateField 
                             ? groupedChartData[key].total / groupedChartData[key].count
                             : groupedChartData[key].total;
-                        chartDataArray.push([key, value, '#3b82f6', formatValue(value, metric)]);
+                        chartDataArray.push([key, value, chartColors[0], formatValue(value, metric)]);
                     }
                     
                     if (chartDataArray.length > 1) { 
@@ -935,12 +936,20 @@
                  let value = isRateField ? (groupedData[key].total / groupedData[key].count) : groupedData[key].total;
                  pieDataArray.push([key, value]);
             }
+            
+            if (pieDataArray.length > 1) {
+                const header = pieDataArray.shift();
+                pieDataArray.sort((a, b) => b[1] - a[1]);
+                pieDataArray.unshift(header);
+            }
+
             const pieData = google.visualization.arrayToDataTable(pieDataArray);
             
             let options; 
 
             if (useLabels) {
                 options = { 
+                    colors: chartColors,
                     title: T.distributionChartTitle.replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20, bold: true }, 
                     pieHole: 0.4, 
@@ -959,6 +968,7 @@
                 };
             } else {
                 options = { 
+                    colors: chartColors,
                     title: T.distributionChartTitle.replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20, bold: true },
                     pieHole: 0.4, 
@@ -1006,7 +1016,7 @@
                 let value = isRateField 
                     ? groupedData[key].total / groupedData[key].count
                     : groupedData[key].total;
-                chartDataArray.push([key, value, '#3b82f6', formatValue(value, metric)]);
+                chartDataArray.push([key, value, chartColors[0], formatValue(value, metric)]);
             }
             
             if (chartDataArray.length > 1) { 
@@ -1044,7 +1054,15 @@
         }
         
         // --- Initial Load ---
-        document.addEventListener('DOMContentLoaded', loadAndPopulateSettings);
+        document.addEventListener('DOMContentLoaded', () => {
+            google.script.run.withSuccessHandler(colors => {
+                if (colors && colors.length > 0) chartColors = colors;
+                loadAndPopulateSettings();
+            }).withFailureHandler(err => {
+                console.error("Could not load report colors", err);
+                loadAndPopulateSettings();
+            }).getReportColors();
+        });
     </script>
 </body>
 </html>
