@@ -4,8 +4,8 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V1.0 (Pre-release version):
-// - Noted.
+// V1.1 (Pre-release version):
+// - Fixed overwrite un-specific header issues.
 //
 // =================================================================================================
 
@@ -157,13 +157,13 @@ const TRANSLATIONS = {
         businessTask2Step1Title: "Task 2: Enrich Customer Data (1/3)",
         businessTask2Step1Instruction: "Excellent! The dashboard now has raw data but lacks detailed customer information.\n\nNext, we'll use the 'Data Comparison' feature to look up and fill in customer data from the \"[Source] Customer Master\".\n\nOpen <code>Data Import Tool > ⚙️ Data Comparison Settings</code> and begin configuring Task 2:",
         businessTask2Step2Title: "Task 2: Enrich Customer Data (2/3)",
-        businessTask2Step2Instruction: "Please apply the following settings:\n1. **Source Sheets**: Choose \"Source Data Sheet Name\" as <code>{SOURCE_SHEET_NAME}</code> and \"Target Data Sheet Name\" as <code>{TARGET_SHEET_NAME}</code>.\n2. **Ranges**: Set \"Target Data Start Row\" to <code>2</code> and \"Source Data Compare Range\" to <code>A2:D6</code>.\n3. **Field Mapping**: Set up the fields in the following order:\n  - **Target Lookup Column**: <code>B</code> (Customer ID)\n  - **Source Compare Column**: <code>A</code> (Customer ID)\n  - **Source Return Column**: <code>B</code> (Customer Name)\n  - **Target Write Column**: <code>C</code> (Customer Name)",
+        businessTask2Step2Instruction: "Please apply the following settings:\n1. **Source Sheets**: Choose \"Source Data Sheet Name\" as <code>{SOURCE_SHEET_NAME}</code> and \"Target Data Sheet Name\" as <code>{TARGET_SHEET_NAME}</code>.\n2. **Ranges**: Set \"Target Data Start Row\" to <code>2</code> and \"Source Data Compare Range\" to <code>A2:D6</code>.\n3. **Field Mapping**: Set up the fields in the following order:\n - **Target Lookup Column**: <code>B</code> (Customer ID)\n - **Source Compare Column**: <code>A</code> (Customer ID)\n - **Source Return Column**: <code>B</code> (Customer Name)\n - **Target Write Column**: <code>C</code> (Customer Name)",
         businessTask2Step3Title: "Task 2: Enrich Customer Data (3/3)",
         businessTask2Step3Instruction: "After saving the settings, run <code>MasterDataAnalyzer > Data Import Tool > ▶️ Run Data Comparison</code>.\n\nYou will see the customer names have been successfully imported. Repeat this process to also fill in the \"Region\" and \"Salesperson\" to complete the dashboard.",
         businessTask3Step1Title: "Task 3: Compare Sales Targets (1/2)",
         businessTask3Step1Instruction: "The dashboard data is becoming more complete! For the final step, let's compare the sales targets for each product.\n\nPlease open the 'Data Comparison Settings' again.",
         businessTask3Step2Title: "Task 3: Compare Sales Targets (2/2)",
-        businessTask3Step2Instruction: "This time, use \"Product Name\" as the lookup key and select \"[Source] Product Targets\" as the source sheet.<br>Set the \"Source Data Compare Range\" to <code>A2:B5</code>, and configure the field mapping as follows:<br>  - **Target Lookup Column**: <code>F</code> (Product Name)<br>  - **Source Compare Column**: <code>A</code> (Product Name)<br>  - **Source Return Column**: <code>B</code> (Monthly Target)<br>  - **Target Write Column**: <code>J</code> (Monthly Target)<br><br>Then, run the 'Data Comparison' again.",
+        businessTask3Step2Instruction: "This time, use \"Product Name\" as the lookup key and select \"[Source] Product Targets\" as the source sheet.<br>Set the \"Source Data Compare Range\" to <code>A2:B5</code>, and configure the field mapping as follows:<br> - **Target Lookup Column**: <code>F</code> (Product Name)<br> - **Source Compare Column**: <code>A</code> (Product Name)<br> - **Source Return Column**: <code>B</code> (Monthly Target)<br> - **Target Write Column**: <code>J</code> (Monthly Target)<br><br>Then, run the 'Data Comparison' again.",
         businessFinalStepTitle: "Congratulations, Analysis Complete!",
         businessFinalStepInstruction: "All data is now in place! You now have a clean, complete dataset ready for analysis.\n\nNext, you can manually enter or click the button below to insert formulas in the corresponding columns to complete the final calculations:\n- **Total Sales**: <code>=H2*I2</code> (Quantity * Unit Price)\n- **Achievement Rate**: <code>=G2/J2</code> (Total Sales / Monthly Target)",
         // Manufacturing Tutorial
@@ -186,7 +186,7 @@ const TRANSLATIONS = {
         mfgTask2Step1Title: "Task 2: Validation Settings (1/4)",
         mfgTask2Step1Instruction: "Great! Now let's verify the accuracy of the imported data.\n\nPlease open <code>MasterDataAnalyzer > Data Validation Tool > ⚙️ Data Validation Settings</code>.",
         mfgTask2Step2Title: "Task 2: Data Range Settings (2/4)",
-        mfgTask2Step2Instruction: "In the [Data Validation] settings window, please configure the following:<br>1. **Source Spreadsheet URL**: (Paste the URL of the current file)<br>2. **Source Data Sheet Name**: Select <code>{SOURCE_SHEET_NAME}</code><br>3. Please fill in the data range settings in the following order:<br>   - Data Import Start Row after Validation: <code>4</code><br>   - Target Data Header Start Row: <code>3</code><br>   - Source Data Header Start Row: <code>1</code><br><br>Proceed to the next step to begin setting up the 'Field Validation Conditions' and 'Validation Result Outputs'.",
+        mfgTask2Step2Instruction: "In the [Data Validation] settings window, please configure the following:<br>1. **Source Spreadsheet URL**: (Paste the URL of the current file)<br>2. **Source Data Sheet Name**: Select <code>{SOURCE_SHEET_NAME}</code><br>3. Please fill in the data range settings in the following order:<br>   - Data Import Start Row after Validation: <code>4</code><br>   - Target Data Header Start Row: <code>3</code><br>   - Source Data Header Start Row: <code>1</code><br><br>Proceed to the next step to begin setting up the 'Field Validation Conditions' and 'Validation Result Outputs'.",
         mfgTask2Step3Title: "Task 2: Field Validation Settings (3/4)",
         mfgTask2Step3Instruction: "In the Field and Validation Conditions section, the first step is to map the 'Target Column' and 'Source Column'.<br>We recommend using the <b>Auto-map Validation Fields</b> feature first, which will <b>automatically match and recommend</b> suitable headers for you.<br>For this task, the validation conditions are as follows:<br>Target Column - Source Column<br><code>B</code> - <code>B</code><br><code>C</code> - <code>C</code><br><code>D</code> - <code>D</code><br><code>E</code> - <code>E</code><br><code>G</code> - <code>A</code>",
         mfgTask2Step4Title: "Task 2: Validation Output Settings (4/4)",
@@ -539,13 +539,13 @@ const TRANSLATIONS = {
         businessTask2Step1Title: "任務二：豐富客戶資料 (1/3)",
         businessTask2Step1Instruction: "太棒了！現在儀表板有了原始數據，但還缺少客戶的詳細資訊。\n\n接下來，我們將使用「資料比對」功能，從 \"[來源] 客戶主檔\" 中查找並填入客戶資料。\n\n打開 <code>資料匯入工具 > ⚙️ 資料比對設定</code>，並開始進行任務二的設定：",
         businessTask2Step2Title: "任務二：豐富客戶資料 (2/3)",
-        businessTask2Step2Instruction: "請進行以下設定：\n1. **來源分頁**: 請選擇 \"來源資料分頁名稱\" 為 <code>{SOURCE_SHEET_NAME}</code>，而 \"目標資料表分頁名稱\" 為 <code>{TARGET_SHEET_NAME}</code>。\n2. \"目標資料起始列數\" 設定為 <code>2</code>，\"來源資料比對範圍\" 設定為 <code>A2:D6</code>。\n3. \"資料比對欄位對應\" 請依照下方順序逐一設定：\n  - **目標查找欄位**: <code>B</code> (客戶ID)\n  - **來源比對欄位**: <code>A</code> (客戶ID)\n  - **來源返回欄位**: <code>B</code> (客戶全名)\n  - **目標寫入欄位**: <code>C</code> (客戶全名)",
+        businessTask2Step2Instruction: "請進行以下設定：\n1. **來源分頁**: 請選擇 \"來源資料分頁名稱\" 為 <code>{SOURCE_SHEET_NAME}</code>，而 \"目標資料表分頁名稱\" 為 <code>{TARGET_SHEET_NAME}</code>。\n2. \"目標資料起始列數\" 設定為 <code>2</code>，\"來源資料比對範圍\" 設定為 <code>A2:D6</code>。\n3. \"資料比對欄位對應\" 請依照下方順序逐一設定：\n - **目標查找欄位**: <code>B</code> (客戶ID)\n - **來源比對欄位**: <code>A</code> (客戶ID)\n - **來源返回欄位**: <code>B</code> (客戶全名)\n - **目標寫入欄位**: <code>C</code> (客戶全名)",
         businessTask2Step3Title: "任務二：豐富客戶資料 (3/3)",
         businessTask2Step3Instruction: "設定儲存後，請執行 <code>MasterDataAnalyzer > 資料匯入工具 > ▶️ 執行資料比對</code>。\n\n這時您將會看到客戶全名已被成功匯入。請重複此操作，將 \"所屬地區\" 和 \"負責業務員\" 也一併填入，您將可以得到完整的業務統計儀表板囉。",
         businessTask3Step1Title: "任務三：比對銷售目標 (1/2)",
         businessTask3Step1Instruction: "儀表板的資料越來越完整了！最後一步，讓我們來比對每項產品的銷售目標。\n\n請再次打開「資料比對設定」。",
         businessTask3Step2Title: "任務三：比對銷售目標 (2/2)",
-        businessTask3Step2Instruction: "這次，請用 \"產品名稱\" 作為目標對比基準，並選擇 \"來源資料分頁名稱\" 為 <code>{SOURCE_SHEET_NAME}</code>。<br>\"來源資料比對範圍\" 請設定為 <code>A2:B5</code>，\"資料比對欄位對應\" 請依照下方順序逐一設定：<br>  - **目標查找欄位**: <code>F</code> (產品名稱)<br>  - **來源比對欄位**: <code>A</code> (產品名稱)<br>  - **來源返回欄位**: <code>B</code> (目標月銷售額)<br>  - **目標寫入欄位**: <code>J</code> (目標月銷售額)<br><br>接著，再次執行 \"資料比對\"。",
+        businessTask3Step2Instruction: "這次，請用 \"產品名稱\" 作為目標對比基準，並選擇 \"來源資料分頁名稱\" 為 <code>{SOURCE_SHEET_NAME}</code>。<br>\"來源資料比對範圍\" 請設定為 <code>A2:B5</code>，\"資料比對欄位對應\" 請依照下方順序逐一設定：<br> - **目標查找欄位**: <code>F</code> (產品名稱)<br> - **來源比對欄位**: <code>A</code> (產品名稱)<br> - **來源返回欄位**: <code>B</code> (目標月銷售額)<br> - **目標寫入欄位**: <code>J</code> (目標月銷售額)<br><br>接著，再次執行 \"資料比對\"。",
         businessFinalStepTitle: "恭喜您，分析完成！",
         businessFinalStepInstruction: "所有資料都已到位！您現在擁有了一份乾淨、完整的數據。\n\n接下來，您可以手動或點擊下方按鈕，在對應的欄位中填入公式來完成最後的計算：\n- **總銷售額**: <code>=H2*I2</code> (數量 * 單價)\n- **業績達成率**: <code>=G2/J2</code> (總銷售額 / 目標月銷售額)",
         // Manufacturing Tutorial
@@ -568,7 +568,7 @@ const TRANSLATIONS = {
         mfgTask2Step1Title: "任務二：資料驗證設定 (1/4)",
         mfgTask2Step1Instruction: "很好！現在我們來驗證匯入資料的正確性。\n\n請打開 <code>MasterDataAnalyzer > 資料驗證工具 > ⚙️ 資料驗證設定</code>。",
         mfgTask2Step2Title: "任務二：資料範圍設定 (2/4)",
-        mfgTask2Step2Instruction: "在[資料驗證]設定視窗中，請進行以下設定：<br>1. **來源資料表 URL**: (貼上當前檔案的網址)<br>2. **來源資料分頁名稱**: 選擇 <code>{SOURCE_SHEET_NAME}</code><br>3. 請依照下列設定順序填妥資料範圍設定：<br>   - 資料驗證後匯入的起始列數請填入 <code>4</code><br>   - 目標資料標頭起始列請填入 <code>3</code><br>   - 來源資料標頭起始列請填入 <code>1</code><br><br>接下來繼續下一步，將開始設定 \"欄位驗證條件\" 與 \"驗證結果輸出\"。",
+        mfgTask2Step2Instruction: "在[資料驗證]設定視窗中，請進行以下設定：<br>1. **來源資料表 URL**: (貼上當前檔案的網址)<br>2. **來源資料分頁名稱**: 選擇 <code>{SOURCE_SHEET_NAME}</code><br>3. 請依照下列設定順序填妥資料範圍設定：<br>   - 資料驗證後匯入的起始列數請填入 <code>4</code><br>   - 目標資料標頭起始列請填入 <code>3</code><br>   - 來源資料標頭起始列請填入 <code>1</code><br><br>接下來繼續下一步，將開始設定 \"欄位驗證條件\" 與 \"驗證結果輸出\"。",
         mfgTask2Step3Title: "任務二：欄位驗證設定 (3/4)",
         mfgTask2Step3Instruction: "在欄位與驗證條件功能區塊裡，首先要設定的是 \"目標工作表欄位\" 與 \"來源工作表欄位\" 的對應關係。<br>建議您可以優先使用 <b>自動對應驗證欄位</b> 功能，此功能將會 <b>自動匹配與推薦</b> 合適的標頭給您設定。<br>在此項任務裡，欄位驗證要設定的條件如下：<br>目標工作表欄位 - 來源工作表欄位<br><code>B</code> - <code>B</code><br><code>C</code> - <code>C</code><br><code>D</code> - <code>D</code><br><code>E</code> - <code>E</code><br><code>G</code> - <code>A</code>",
         mfgTask2Step4Title: "任務二：驗證結果輸出設定 (4/4)",
@@ -1905,7 +1905,8 @@ function runImportProcess() {
         const {
             allTasks,
             sourceInfo,
-            hasSourceData
+            hasSourceData,
+            headerMap 
         } = buildFullTaskList(settings, targetSheet, isFlatteningMode);
 
         if (!hasSourceData) {
@@ -1923,54 +1924,90 @@ function runImportProcess() {
             return;
         }
 
-        ss.toast('Clearing target sheet for synchronization...', 'Processing', 5);
-        clearTargetSheetData(settings);
+        
+        ss.toast(`Preparing to write ${allTasks.length} records...`, 'Processing', 10);
 
-        const valuesForBulkWrite = allTasks.map(task => task.valuesToWrite);
+        const startRow = settings.targetStartRow;
+        const numRowsToImport = allTasks.length;
+        const lastCol = targetSheet.getMaxColumns();
+        const lastRowInSheet = targetSheet.getLastRow();
 
-        if (valuesForBulkWrite.length > 0) {
-            ss.toast(`Writing ${allTasks.length} records...`, 'Processing', 10);
-            const rangeToWrite = targetSheet.getRange(settings.targetStartRow, 1, valuesForBulkWrite.length, valuesForBulkWrite[0].length);
-            rangeToWrite.setValues(valuesForBulkWrite);
-
-            for (let i = 0; i < allTasks.length; i++) {
-                if (scriptProperties.getProperty('stopImportRequested') === 'true') {
-                    scriptProperties.deleteProperty('stopImportRequested');
-                    Logger.log('Import script was manually stopped by the user.');
-                    ss.toast('Import process was manually stopped. Data may be incomplete.', 'Stopped', 8);
-                    return;
-                }
-
-                const task = allTasks[i];
-                const currentRow = settings.targetStartRow + i;
-
-                //Logic to create internal or external links
-               const isInternalLink = (targetSsId === sourceInfo.id);
-
-                task.richTextChecks.forEach(check => {
-                 const cell = targetSheet.getRange(currentRow, check.targetCol);
-                 const sourceRow = sourceInfo.startRow + task.sourceRowIndex;
-                 const sourceColLetter = columnToLetter(check.originalCol);
-                 const linkFragment = `#gid=${sourceInfo.gid}&range=${sourceColLetter}${sourceRow}`;
-                 const linkUrl = isInternalLink ? linkFragment : `${sourceInfo.url.replace('/edit', '')}${linkFragment}`;
-                 const newText = `${sourceColLetter}${sourceRow}${T.noSourceDataSuffix}`;
-                 const richText = SpreadsheetApp.newRichTextValue()
-                     .setText(newText)
-                     .setLinkUrl(0, newText.length, linkUrl)
-                     .build();
-                 cell.setRichTextValue(richText);
-                });
-            }
-
-            const commitColumnValues = Array(allTasks.length).fill(['OK']);
-            const commitColIndex = findColumnIndexByHeader(targetSheet.getRange(settings.targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0], 'Commit');
-            if (commitColIndex !== -1) {
-                targetSheet.getRange(settings.targetStartRow, commitColIndex, commitColumnValues.length, 1).setValues(commitColumnValues);
-                targetSheet.hideColumns(commitColIndex);
-            } else {
-                Logger.log("Warning: 'Commit' header not found in target sheet. Cannot write commit status.");
-            }
+        // 1. Read existing data in the target area, if any.
+        let dataToWrite;
+        if (lastRowInSheet >= startRow) {
+            const numExistingRows = lastRowInSheet - startRow + 1;
+            dataToWrite = targetSheet.getRange(startRow, 1, numExistingRows, lastCol).getValues();
+        } else {
+            dataToWrite = [];
         }
+
+        // 2. Adjust the size of the dataToWrite array to match the number of rows we are importing.
+        while (dataToWrite.length < numRowsToImport) {
+            dataToWrite.push(new Array(lastCol).fill(''));
+        }
+        if (dataToWrite.length > numRowsToImport) {
+            dataToWrite.length = numRowsToImport;
+        }
+
+        // 3. Merge the new data from `allTasks` into `dataToWrite`.
+        allTasks.forEach((task, rowIndex) => {
+            const newRowData = task.valuesToWrite;
+            Object.keys(headerMap).forEach(header => {
+                const colIndex = headerMap[header] - 1; // 0-based index
+                if (colIndex >= 0 && colIndex < lastCol) {
+                    dataToWrite[rowIndex][colIndex] = newRowData[colIndex];
+                }
+            });
+        });
+        
+        // 4. Clear the target range on the sheet to remove old data/formats if row count differs.
+        if (lastRowInSheet >= startRow) {
+           targetSheet.getRange(startRow, 1, lastRowInSheet - startRow + 1, lastCol).clearContent();
+        }
+
+        // 5. Write the final merged data back to the sheet, if there is data to write.
+        if (dataToWrite.length > 0 && dataToWrite[0].length > 0) {
+          targetSheet.getRange(startRow, 1, dataToWrite.length, dataToWrite[0].length).setValues(dataToWrite);
+        }
+       
+
+        for (let i = 0; i < allTasks.length; i++) {
+            if (scriptProperties.getProperty('stopImportRequested') === 'true') {
+                scriptProperties.deleteProperty('stopImportRequested');
+                Logger.log('Import script was manually stopped by the user.');
+                ss.toast('Import process was manually stopped. Data may be incomplete.', 'Stopped', 8);
+                return;
+            }
+
+            const task = allTasks[i];
+            const currentRow = settings.targetStartRow + i;
+
+            const isInternalLink = (targetSsId === sourceInfo.id);
+
+            task.richTextChecks.forEach(check => {
+                const cell = targetSheet.getRange(currentRow, check.targetCol);
+                const sourceRow = sourceInfo.startRow + task.sourceRowIndex;
+                const sourceColLetter = columnToLetter(check.originalCol);
+                const linkFragment = `#gid=${sourceInfo.gid}&range=${sourceColLetter}${sourceRow}`;
+                const linkUrl = isInternalLink ? linkFragment : `${sourceInfo.url.replace('/edit', '')}${linkFragment}`;
+                const newText = `${sourceColLetter}${sourceRow}${T.noSourceDataSuffix}`;
+                const richText = SpreadsheetApp.newRichTextValue()
+                    .setText(newText)
+                    .setLinkUrl(0, newText.length, linkUrl)
+                    .build();
+                cell.setRichTextValue(richText);
+            });
+        }
+
+        const commitColumnValues = Array(allTasks.length).fill(['OK']);
+        const commitColIndex = findColumnIndexByHeader(targetSheet.getRange(settings.targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0], 'Commit');
+        if (commitColIndex !== -1) {
+            targetSheet.getRange(settings.targetStartRow, commitColIndex, commitColumnValues.length, 1).setValues(commitColumnValues);
+            targetSheet.hideColumns(commitColIndex);
+        } else {
+            Logger.log("Warning: 'Commit' header not found in target sheet. Cannot write commit status.");
+        }
+
 
         ss.toast('Data synchronization complete!', 'Success', 5);
 
@@ -1981,6 +2018,7 @@ function runImportProcess() {
         scriptProperties.deleteProperty('stopImportRequested');
     }
 }
+
 
 // =================================================================================================
 // ===================================== SECTION 3: HELPER FUNCTIONS ===============================
@@ -2027,6 +2065,7 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
     const targetHeaderRow = settings.targetHeaderRow;
     if (targetHeaderRow <= 0) throw new Error(`'Target Header Row' in Settings must be a positive number.`);
     const targetHeaders = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
+    const headerMap = {};
 
     if (isFlatteningMode) {
         const {
@@ -2041,7 +2080,6 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
 
         const qtyHeaderName = "Q'ty";
         const allRequiredHeaders = [...sourceIdentifierHeaders, qtyHeaderName, masterHeaderName];
-        const headerMap = {};
         allRequiredHeaders.forEach(header => {
             if (!header) return;
             const colIndex = findColumnIndexByHeader(targetHeaders, header);
@@ -2134,7 +2172,8 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
         return {
             allTasks,
             sourceInfo,
-            hasSourceData
+            hasSourceData,
+            headerMap
         };
     } else {
         // --- MODE 2: DIRECT IMPORT ---
@@ -2147,7 +2186,6 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
         const hasSourceData = identifierValues.some(row => row.some(cell => cell.toString().trim() !== ''));
 
         const headersToImport = sourceIdentifierHeaders;
-        const headerMap = {};
         headersToImport.forEach(header => {
             const colIndex = findColumnIndexByHeader(targetHeaders, header);
             if (colIndex === -1) {
@@ -2196,7 +2234,8 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
         return {
             allTasks,
             sourceInfo,
-            hasSourceData
+            hasSourceData,
+            headerMap 
         };
     }
 }
