@@ -50,3 +50,23 @@ MasterDataAnalyzer Features：
 ★ 主動式掃描與提供不正確或不吻合的數據資訊	
 
 ★ 支援中文與英文操作介面	
+
+
+License
+This project (MasterDataAnalyzer) is licensed under the GNU General Public License v3.0 (GPLv3).
+
+In simple terms, this means you are free to:
+
+Use the code in this project.
+
+Modify the code to suit your needs.
+
+Distribute the original or modified versions.
+
+However, you must adhere to the following core conditions:
+
+ShareAlike: Any derivative work based on this project must also be open-sourced under the same GPLv3 license.
+
+Attribution: You need to retain the original copyright notice.
+
+This license ensures the project remains open and prevents anyone from modifying it and making it proprietary for commercial purposes. For the full legal text, please see the LICENSE file.
