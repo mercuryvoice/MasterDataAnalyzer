@@ -107,7 +107,7 @@ function getFullTranslationsWithAllUpdates() {
           businessTask1Step4Title: "Task 1: Data Import (4/6)",
           businessTask1Step4Instruction: "Next, set the data ranges:\n1. **Header Start Row for Data Import**: <code>1</code>\n2. **Data Import Start Row**: <code>2</code>\n3. **Source Data Import Range**: <code>A2:E9</code>",
           businessTask1Step5Title: "Task 1: Data Import (5/6)",
-          businessTask1Step5Instruction: "Please add a filter condition:<br>1. **Header Name**: <br>Customer Name<br>2. **Keywords**: <br>Click <code>Select</code> then check <code>Select All</code><br>Reminder: It is recommended to import all data here to facilitate the application of report generation later.<br><br>In <code>[Source Header Import Range Settings]</code>, you can enter a header range to limit the scope of header detection. If left blank, all headers will be used by default.",
+          businessTask1Step5Instruction: "Please add a filter condition:<br>1. **Header Name**: <br>Customer ID<br>2. **Keywords**: <br>Click <code>Select</code> then check <code>Select All</code><br>Reminder: It is recommended to import all data here to facilitate the application of report generation later.<br><br>In <code>[Source Header Import Range Settings]</code>, you can enter a header range to limit the scope of header detection. If left blank, all headers will be used by default.",
           businessTask1Step6Title: "Task 1: Data Import (6/6)",
           businessTask1Step6Instruction: "Great! All settings are complete.\n\nPlease click <code>Save Settings</code>, close the window, and then run <code>MasterDataAnalyzer > Data Import Tool > ▶️ Run Import</code> from the menu.",
           businessCheckpointTitle: "Task 1 Complete!",
