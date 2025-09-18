@@ -131,7 +131,7 @@ function getFullTranslationsWithAllUpdates() {
           businessCheckpoint2Title: "Task 4: Data Report Generation Settings!",
           businessCheckpoint2Instruction: "Congratulations! You have successfully transformed the raw data into an analyzable dashboard with the help of MasterDataAnalyzer.\n\nWould you like to continue learning about the next core feature, 'Data Report Generation Settings'?",
           businessTask4Step1Title: "Task 4: Data Report Generation Settings (1/4)",
-          businessTask4Step1Instruction: "Please click on <code>MasterDataAnalyzer > Data Report Generation > ⚙️ Data Report Generation Settings</code> in the top menu.",
+          businessTask4Step1Instruction: "Please click on <code>MasterDataAnalyzer > Data Management Tool > ⚙️ Report Generation Settings</code> in the top menu.",
           businessTask4Step2Title: "Task 4: Report Data Source Settings (2/4)",
           businessTask4Step2Instruction: "In the settings window, please configure the following:\n1. **Source Spreadsheet URL**: Please enter the URL of the current worksheet.\n2. **Source Data Sheet Name**: Select <code>{SHEET_NAME}</code>\n3. **Source Data Import Range**: Please enter the data range to be analyzed from <code>{SHEET_NAME}</code>, for example: <code>A1:K9</code>",
           businessTask4Step3Title: "Task 4: Report Field Mapping Settings (3/4)",
