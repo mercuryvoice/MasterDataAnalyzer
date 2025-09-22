@@ -155,12 +155,22 @@ function createOnChangeTrigger() {
 function deleteOnChangeTrigger(silent = false) {
     const triggers = ScriptApp.getProjectTriggers();
     let deleted = false;
-    triggers.forEach(trigger => {
-        if (trigger.getHandlerFunction() === NOTIFY_TRIGGER_FUNCTION) {
-            ScriptApp.deleteTrigger(trigger);
+    // Using a standard for loop for robustness.
+    for (let i = 0; i < triggers.length; i++) {
+        if (triggers[i].getHandlerFunction() === NOTIFY_TRIGGER_FUNCTION) {
+            ScriptApp.deleteTrigger(triggers[i]);
             deleted = true;
         }
-    });
+    }
+
+    // As a safeguard, also clear the stored state.
+    if (deleted || !triggers.some(t => t.getHandlerFunction() === NOTIFY_TRIGGER_FUNCTION)) {
+        try {
+            PropertiesService.getScriptProperties().deleteProperty(NOTIFY_PROPERTY_KEY);
+        } catch (e) {
+            Logger.log(`Could not delete property ${NOTIFY_PROPERTY_KEY}: ${e.message}`);
+        }
+    }
 
     if (!silent) {
         if (deleted) {

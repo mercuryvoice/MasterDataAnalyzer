@@ -123,24 +123,24 @@
   </head>
   <body>
     <div class="section">
-      <h4>勾選要刪除的分頁</h4>
+      <h4><?= T.quickDeleteSheetTitle ?></h4>
       <div id="sheet-list-container">
         <div class="sheet-item" style="border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 8px;">
           <label>
             <input type="checkbox" id="select-all">
-            <strong>全選 / 取消全選</strong>
+            <strong><?= T.quickDeleteSelectAll ?></strong>
           </label>
         </div>
         <div id="sheet-list">
-          <p>讀取分頁列表中...</p>
+          <p><?= T.quickDeleteLoading ?></p>
         </div>
       </div>
     </div>
 
     <div class="button-container">
       <span id="status"></span>
-      <button id="close-btn">關閉</button>
-      <button id="delete-btn">刪除選取項目</button>
+      <button id="close-btn"><?= T.quickDeleteCloseButton ?></button>
+      <button id="delete-btn"><?= T.quickDeleteDeleteButton ?></button>
     </div>
 
     <script>
@@ -150,11 +150,22 @@
       const sheetListDiv = document.getElementById('sheet-list');
       const selectAllCheckbox = document.getElementById('select-all');
 
+      // Pass translations from server to client-side script
+      const translations = {
+        noSheets: '<?= T.quickDeleteNoSheets ?>',
+        selectOne: '<?= T.quickDeleteSelectOne ?>',
+        confirmDelete: '<?= T.quickDeleteConfirm ?>',
+        deleteButtonText: '<?= T.quickDeleteDeleteButton ?>',
+        deleting: '<?= T.quickDeleteDeleting ?>',
+        reading: '<?= T.quickDeleteReading ?>',
+        errorPrefix: '<?= T.quickDeleteError ?>'
+      };
+
       // --- Initial Load ---
       document.addEventListener('DOMContentLoaded', loadSheetList);
       
       function loadSheetList() {
-        statusDiv.innerHTML = '<div class="loader"></div>讀取中...';
+        statusDiv.innerHTML = `<div class="loader"></div>${translations.reading}`;
         google.script.run
           .withSuccessHandler(populateSheetList)
           .withFailureHandler(showError)
@@ -165,7 +176,7 @@
         statusDiv.textContent = '';
         sheetListDiv.innerHTML = '';
         if (sheetNames.length === 0) {
-          sheetListDiv.textContent = '沒有可刪除的分頁。';
+          sheetListDiv.textContent = translations.noSheets;
           deleteBtn.disabled = true;
           selectAllCheckbox.disabled = true;
           return;
@@ -201,7 +212,7 @@
         const sheetNamesToDelete = Array.from(selectedCheckboxes).map(cb => cb.value);
 
         if (sheetNamesToDelete.length === 0) {
-          statusDiv.textContent = '請至少選擇一個分頁。';
+          statusDiv.textContent = translations.selectOne;
           statusDiv.style.color = '#dc3545';
           setTimeout(() => {
             statusDiv.textContent = '';
@@ -211,20 +222,20 @@
         }
 
         // Simple confirmation by changing button text
-        if (deleteBtn.textContent.includes('確認')) {
+        if (deleteBtn.textContent.includes(translations.confirmDelete.substring(0, 5))) { // Check for substring of confirm message
            performDelete(sheetNamesToDelete);
         } else {
-          deleteBtn.textContent = `確認刪除 ${sheetNamesToDelete.length} 個分頁？`;
+          deleteBtn.textContent = translations.confirmDelete.replace('{COUNT}', sheetNamesToDelete.length);
           deleteBtn.style.backgroundColor = '#c82333'; // Darker red for confirmation
           setTimeout(() => {
-             deleteBtn.textContent = '刪除選取項目';
+             deleteBtn.textContent = translations.deleteButtonText;
              deleteBtn.style.backgroundColor = '#dc3545';
           }, 5000); // Reset button text after 5 seconds if not clicked
         }
       }
 
       function performDelete(sheetNames) {
-        statusDiv.innerHTML = '<div class="loader"></div>刪除中...';
+        statusDiv.innerHTML = `<div class="loader"></div>${translations.deleting}`;
         statusDiv.style.color = 'black';
         deleteBtn.disabled = true;
         closeBtn.disabled = true;
@@ -238,7 +249,7 @@
       function onDeleteSuccess(result) {
         statusDiv.textContent = result.message;
         statusDiv.style.color = result.success ? '#28a745' : '#dc3545';
-        deleteBtn.textContent = '刪除選取項目';
+        deleteBtn.textContent = translations.deleteButtonText;
         deleteBtn.style.backgroundColor = '#dc3545';
         deleteBtn.disabled = false;
         closeBtn.disabled = false;
@@ -253,7 +264,7 @@
       }
 
       function showError(error) {
-        statusDiv.textContent = `錯誤: ${error.message}`;
+        statusDiv.textContent = translations.errorPrefix.replace('{MESSAGE}', error.message);
         statusDiv.style.color = '#dc3545';
         deleteBtn.disabled = false;
         closeBtn.disabled = false;
@@ -262,4 +273,3 @@
     </script>
   </body>
 </html>
-
