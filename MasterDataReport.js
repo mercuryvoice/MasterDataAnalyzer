@@ -311,7 +311,8 @@ function exportToSheet(exportOptions, reportData) {
     const T = getTranslations(); //mod
     const { selections } = exportOptions;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = T.reportExportSheetNamePrefix + new Date().toLocaleString('sv-SE').replace(/ /g, '_').replace(/:/g, '-'); //mod
+    const prefix = T.reportExportSheetNamePrefix || 'MasterDataAnalyzer';
+    const sheetName = prefix + new Date().toLocaleString('sv-se').replace(/ /g, '_').replace(/:/g, '-');
     const newSheet = ss.insertSheet(sheetName);
     let currentRow = 1;
 
@@ -524,7 +525,8 @@ function exportToSheet(exportOptions, reportData) {
 function exportToDoc(exportOptions, reportData) {
   const T = getTranslations(); //mod
   const { selections, chartImages } = exportOptions;
-  const doc = DocumentApp.create(T.reportExportDocNamePrefix + new Date().toLocaleString('sv-SE').replace(/ /g, '_').replace(/:/g, '-')); //mod
+  const prefix = T.reportExportDocNamePrefix || 'MasterDataAnalyzer';
+  const doc = DocumentApp.create(prefix + new Date().toLocaleString('sv-se').replace(/ /g, '_').replace(/:/g, '-'));
   const body = doc.getBody();
 
   // Define styles

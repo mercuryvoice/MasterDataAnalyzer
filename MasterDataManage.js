@@ -34,6 +34,8 @@
 // SECTION 1: UI & Settings Functions
 // ================================================================
 
+const MONITOR_SETTINGS_KEY = 'monitorSettings';
+
 /**
  * Shows the HTML settings for Data Management.
  */
@@ -46,10 +48,40 @@ function showManageSettingsSidebar() {
 }
 
 /**
+ * Saves monitor settings to PropertiesService.
+ * @param {object} settings The monitor settings to save.
+ */
+function saveMonitorSettings(settings) {
+    try {
+        PropertiesService.getDocumentProperties().setProperty(MONITOR_SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {
+        Logger.log(`Error saving monitor settings: ${e.message}`);
+        throw new Error('Failed to save monitor settings.');
+    }
+}
+
+/**
+ * Gets monitor settings from PropertiesService.
+ * @returns {object} The saved monitor settings.
+ */
+function getMonitorSettings() {
+    try {
+        const settingsString = PropertiesService.getDocumentProperties().getProperty(MONITOR_SETTINGS_KEY);
+        if (settingsString) {
+            return JSON.parse(settingsString);
+        }
+        return {}; // Return empty object if no settings are found
+    } catch (e) {
+        Logger.log(`Error getting monitor settings: ${e.message}`);
+        return {}; // Return empty object on error
+    }
+}
+
+/**
  * Gets settings for the Data Management HTML interface.
  */
 function getManageSettingsForHtml() {
-    const monitorSettings = getSettings().monitorSettings;
+    const monitorSettings = getMonitorSettings();
     return {
         monitorRange: monitorSettings.monitorRange || '',
         monitorRecipientEmail: monitorSettings.monitorRecipientEmail || '',
@@ -63,30 +95,28 @@ function getManageSettingsForHtml() {
  */
 function saveManageSettingsFromHtml(manageSettings) {
     const T = getTranslations();
-    const settingsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Settings");
-    if (!settingsSheet) throw new Error('Sheet named "Settings" not found.');
-
-    const values = settingsSheet.getDataRange().getValues();
-    const sectionHeaderPair = ["Data Management Settings", "資料管理設定"];
-    const settingLabels = {
-        monitorRange: ["文件內容變更自動通知", "Automatic notification for document content changes"],
-        monitorRecipientEmail: ["通知接收者 Email", "Notification Recipient Email"],
-        monitorSubject: ["通知標題", "Notification Subject"],
-        monitorBody: ["通知內文", "Notification Body"]
-    };
-
-    for (const key in manageSettings) {
-        if (settingLabels[key]) {
-            const row = findRowInSection(values, sectionHeaderPair, ...settingLabels[key]);
-            if (row !== -1) {
-                settingsSheet.getRange(row, 2).setValue(manageSettings[key]);
-            } else {
-                Logger.log(`Setting label for "${key}" not found in the Settings sheet.`);
-            }
-        }
-    }
-    SpreadsheetApp.flush();
+    saveMonitorSettings(manageSettings);
     return T.saveSuccess;
+}
+
+/**
+ * Gets all non-protected sheet names from the active spreadsheet.
+ * @returns {string[]} An array of sheet names.
+ */
+function getAllSheetNames() {
+    const allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+    return allSheets.map(sheet => sheet.getName());
+}
+
+/**
+ * Gets all the data needed for the Manage Settings page UI.
+ * @returns {{settings: object, sheetNames: string[]}}
+ */
+function getManageSettingsPageData() {
+    return {
+        settings: getMonitorSettings(),
+        sheetNames: getAllSheetNames()
+    };
 }
 
 
@@ -143,9 +173,9 @@ function deleteOnChangeTrigger(silent = false) {
 
 function storeCurrentState() {
     try {
-        const allSettings = getSettings();
-        const monitorSheetName = allSettings.verifySettings.targetSheetName;
-        const monitorRangeA1 = allSettings.monitorSettings.monitorRange;
+        const monitorSettings = getMonitorSettings();
+        const monitorSheetName = monitorSettings.monitorSheetName;
+        const monitorRangeA1 = monitorSettings.monitorRange;
 
         if (!monitorSheetName || !monitorRangeA1) {
             return;
@@ -167,11 +197,8 @@ function storeCurrentState() {
 
 function checkAndNotify() {
     try {
-        const allSettings = getSettings();
-        const monitorSettings = allSettings.monitorSettings;
-        const verifySettings = allSettings.verifySettings;
-        
-        const monitorSheetName = verifySettings.targetSheetName;
+        const monitorSettings = getMonitorSettings();
+        const monitorSheetName = monitorSettings.monitorSheetName;
         const monitorRangeA1 = monitorSettings.monitorRange;
         const recipientEmail = monitorSettings.monitorRecipientEmail;
 

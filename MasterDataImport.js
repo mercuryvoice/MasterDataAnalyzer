@@ -261,6 +261,7 @@ const TRANSLATIONS = {
         selectAllLabel: 'Select/Deselect All',
         fieldMappingJSONLabel: 'Field Mapping & Validation Settings',
         checkEmptyValuesButton: 'Check Source for Empty Values',
+        monitorSheetNameLabel: 'Sheet to Monitor',
         monitorRangeLabel: 'Automatic notification for document content changes',
         monitorEmailLabel: 'Notification Recipient Email',
         monitorSubjectLabel: 'Notification Subject',
@@ -292,6 +293,7 @@ const TRANSLATIONS = {
         mismatchColumnHelp: 'Column letter (e.g., K) to output mismatch information.',
         targetHeaderRowHelp: 'The row number in the target sheet where the headers are located.',
         sourceHeaderRowHelp: 'The row number in the source sheet where the headers are located.',
+        monitorSheetNameHelp: 'Select the sheet you want to monitor for changes.',
         monitorRangeHelp: 'Specify the cell range (e.g., A2:E20) to monitor for changes.',
         monitorEmailHelp: 'Enter the email address to receive notifications.',
         monitorSubjectHelp: 'Set a custom subject for the notification email. Use {SHEET_NAME} as a placeholder.',
@@ -700,6 +702,7 @@ const TRANSLATIONS = {
         selectAllLabel: '全選/取消所有驗證條件',
         fieldMappingJSONLabel: '欄位對應與驗證設定',
         checkEmptyValuesButton: '檢查來源空值',
+        monitorSheetNameLabel: '監控目標工作表',
         monitorRangeLabel: '文件內容變更自動通知',
         monitorEmailLabel: '通知接收者 Email',
         monitorSubjectLabel: '通知標題',
@@ -731,6 +734,7 @@ const TRANSLATIONS = {
         mismatchColumnHelp: '用來輸出不吻合資訊的欄位字母 (例如: K)。',
         targetHeaderRowHelp: '目標工作表中，標頭所在的列數。',
         sourceHeaderRowHelp: '來源工作表中，標頭所在的列數。',
+        monitorSheetNameHelp: '請選擇要監控內容變更的工作表。',
         monitorRangeHelp: '請指定要監控變更的儲存格範圍 (例如 A2:E20)。',
         monitorEmailHelp: '請輸入要接收通知的 Email 地址。',
         monitorSubjectHelp: '自訂通知郵件的標題。可使用 {SHEET_NAME} 作為預留位置。',
@@ -964,11 +968,11 @@ function onOpen() {
     const managementSubMenu = ui.createMenu(T.manageMenuTitle)
         .addItem(T.manageSettingsItem, 'showManageSettingsSidebar')
         .addSeparator()
-        .addItem(T.quickDeleteItem, 'showQuickDeleteSheetUI')
-        .addSeparator()
         .addSubMenu(monitorSubMenu)
         .addSeparator()
-        .addItem(T.reportSettingsItem, 'showReportSettingsDialog');
+        .addItem(T.reportSettingsItem, 'showReportSettingsDialog')
+        .addSeparator()
+        .addItem(T.quickDeleteItem, 'showQuickDeleteSheetUI');
 
     // --- [NEW] Sub-Menu: Guides & Examples ---
     const guideSubMenu = ui.createMenu(T.guideMenuTitle)
@@ -2483,32 +2487,7 @@ function getSettings(sheetName) {
 
     const importSettings = getImportSettings(currentSheetName);
     const verifySettings = getVerifySettings(currentSheetName);
-
-    const monitorSettings = {};
-    const settingsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Settings");
-    if (settingsSheet) {
-        const values = settingsSheet.getDataRange().getValues();
-        let currentSection = null;
-        for (let i = 0; i < values.length; i++) {
-            const row = values[i];
-            const key = (row[0] || '').toString().trim();
-            const key_lc = key.toLowerCase();
-
-            if (key_lc.includes("data management settings") || key_lc.includes("資料管理設定")) {
-                currentSection = 'manage';
-                continue;
-            }
-            if (!key || currentSection !== 'manage') {
-                continue;
-            }
-
-            const value = row[1] ? row[1].toString().trim() : null;
-            if (key.includes("文件內容變更自動通知")) monitorSettings.monitorRange = value;
-            else if (key.includes("通知接收者 Email")) monitorSettings.monitorRecipientEmail = value;
-            else if (key.includes("通知標題")) monitorSettings.monitorSubject = value;
-            else if (key.includes("通知內文")) monitorSettings.monitorBody = value;
-        }
-    }
+    const monitorSettings = getMonitorSettings();
 
     // Post-process header filter range
     if (importSettings.rawImportFilterHeaders && importSettings.sourceUrl && importSettings.sourceSheetName) {

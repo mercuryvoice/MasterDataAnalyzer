@@ -164,6 +164,10 @@
       <!-- Section: Data Management Settings -->
       <div class="section">
         <h4><?!= T.sectionDataManagement ?></h4>
+
+        <label for="monitorSheetName"><?!= T.monitorSheetNameLabel ?></label>
+        <select id="monitorSheetName" name="monitorSheetName" style="width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; box-sizing: border-box; font-family: 'Noto Sans TC', sans-serif;"></select>
+        <p class="help-text"><?!= T.monitorSheetNameHelp ?></p>
         
         <label for="monitorRange"><?!= T.monitorRangeLabel ?></label>
         <input type="text" id="monitorRange" name="monitorRange" placeholder="A2:E20">
@@ -200,6 +204,7 @@
       const closeBtn = document.getElementById('close-btn');
       const statusDiv = document.getElementById('status');
       
+      const monitorSheetNameSelect = document.getElementById('monitorSheetName');
       const monitorRangeInput = document.getElementById('monitorRange');
       const monitorEmailInput = document.getElementById('monitorRecipientEmail');
       const monitorSubjectInput = document.getElementById('monitorSubject');
@@ -247,6 +252,7 @@
         saveBtn.disabled = true;
 
         const settings = {
+          monitorSheetName: monitorSheetNameSelect.value,
           monitorRange: monitorRangeInput.value,
           monitorRecipientEmail: monitorEmailInput.value,
           monitorSubject: monitorSubjectInput.value,
@@ -278,14 +284,27 @@
 
       // --- Initial Load ---
       document.addEventListener('DOMContentLoaded', function() {
-        google.script.run.withSuccessHandler(function(settings) {
+        google.script.run.withSuccessHandler(function(data) {
+          const settings = data.settings;
+          const sheetNames = data.sheetNames;
+
+          // Populate sheet name dropdown
+          sheetNames.forEach(name => {
+              const option = document.createElement('option');
+              option.value = name;
+              option.textContent = name;
+              monitorSheetNameSelect.appendChild(option);
+          });
+
+          // Set the form values
           if (settings) {
+            monitorSheetNameSelect.value = settings.monitorSheetName || '';
             monitorRangeInput.value = settings.monitorRange || '';
             monitorEmailInput.value = settings.monitorRecipientEmail || '';
             monitorSubjectInput.value = settings.monitorSubject || '';
             monitorBodyInput.value = settings.monitorBody || '';
           }
-        }).getManageSettingsForHtml();
+        }).getManageSettingsPageData();
       });
     </script>
   </body>
