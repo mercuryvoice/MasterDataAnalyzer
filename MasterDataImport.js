@@ -103,6 +103,9 @@ const TRANSLATIONS = {
         noNotificationsActive: 'No automatic notifications are currently active.',
         toastTitleSuccess: 'Success',
         toastTitleInfo: 'Info',
+        checkingChanges: "Checking for changes manually...",
+        changesDetected: "Changes detected and notification sent!",
+        noChangesDetected: "Check complete, no changes detected.",
          // Privacy Policy Content
         privacyLastUpdated: 'Last Updated: September 2, 2025',
         privacyIntro: "Thank you for using MasterDataAnalyzer (hereinafter referred to as 'this add-on'). We are committed to protecting your privacy and ensuring you understand how your data is handled. All operations of this add-on are completed within your Google account. We do not collect, store, or share your personal information or document content with any third parties.",
@@ -568,6 +571,9 @@ const TRANSLATIONS = {
         noNotificationsActive: '目前沒有已啟用的自動通知。',
         toastTitleSuccess: '成功',
         toastTitleInfo: '資訊',
+        checkingChanges: "正在手動檢查變更...",
+        changesDetected: "偵測到變更並已發送通知！",
+        noChangesDetected: "檢查完成，未偵測到任何變更。",
         // Privacy Policy Content
         privacyLastUpdated: '最後更新日期：2025年9月2日',
         privacyIntro: "感謝您使用 MasterDataAnalyzer (以下簡稱「本外掛」)。我們致力於保護您的隱私，並讓您清楚了解我們如何處理您的資料。本外掛的所有操作均在您的 Google 帳戶內部完成，我們不會收集、儲存或與任何第三方分享您的個人資訊或文件內容。",

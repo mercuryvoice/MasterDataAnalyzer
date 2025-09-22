@@ -128,13 +128,14 @@ const NOTIFY_TRIGGER_FUNCTION = 'checkAndNotify';
 const NOTIFY_PROPERTY_KEY = 'monitorRangePreviousState';
 
 function checkAndNotifyWrapper() {
+    const T = getTranslations();
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    ss.toast('正在手動檢查變更...', '處理中', 5);
+    ss.toast(T.checkingChanges, T.toastTitleInfo, 5);
     const changed = checkAndNotify();
     if (changed) {
-        ss.toast('偵測到變更並已發送通知！', '完成', 5);
+        ss.toast(T.changesDetected, T.toastTitleSuccess, 5);
     } else {
-        ss.toast('檢查完成，未偵測到任何變更。', '完成', 5);
+        ss.toast(T.noChangesDetected, T.toastTitleSuccess, 5);
     }
 }
 
