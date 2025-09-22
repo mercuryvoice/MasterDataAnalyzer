@@ -93,6 +93,16 @@ const TRANSLATIONS = {
         reportSettingsTitle: 'Report Generation Settings',
         sheetSelectionTitle: 'Select a Sheet',
         privacyPolicyTitle: 'Privacy Policy',
+        // --- Data Monitoring Notifications ---
+        changeDetailTemplate: '- Cell {cell}: from "{from}" to "{to}"',
+        moreChanges: '...and {count} more changes.\\n',
+        blankCell: '(blank)',
+        // --- Toast Messages ---
+        enableNotificationsSuccess: 'Automatic notifications have been enabled.',
+        disableNotificationsSuccess: 'Automatic notifications have been disabled.',
+        noNotificationsActive: 'No automatic notifications are currently active.',
+        toastTitleSuccess: 'Success',
+        toastTitleInfo: 'Info',
          // Privacy Policy Content
         privacyLastUpdated: 'Last Updated: September 2, 2025',
         privacyIntro: "Thank you for using MasterDataAnalyzer (hereinafter referred to as 'this add-on'). We are committed to protecting your privacy and ensuring you understand how your data is handled. All operations of this add-on are completed within your Google account. We do not collect, store, or share your personal information or document content with any third parties.",
@@ -548,6 +558,16 @@ const TRANSLATIONS = {
         reportSettingsTitle: '資料生成報表設定',
         sheetSelectionTitle: '選擇分頁',
         privacyPolicyTitle: '隱私權政策',
+        // --- 資料監控通知 ---
+        changeDetailTemplate: '- 儲存格 {cell}: 從 "{from}" 變為 "{to}"',
+        moreChanges: '...還有 {count} 項其他變更。\\n',
+        blankCell: '(空白)',
+        // --- Toast 訊息 ---
+        enableNotificationsSuccess: '已啟用自動通知功能。',
+        disableNotificationsSuccess: '已停用自動通知功能。',
+        noNotificationsActive: '目前沒有已啟用的自動通知。',
+        toastTitleSuccess: '成功',
+        toastTitleInfo: '資訊',
         // Privacy Policy Content
         privacyLastUpdated: '最後更新日期：2025年9月2日',
         privacyIntro: "感謝您使用 MasterDataAnalyzer (以下簡稱「本外掛」)。我們致力於保護您的隱私，並讓您清楚了解我們如何處理您的資料。本外掛的所有操作均在您的 Google 帳戶內部完成，我們不會收集、儲存或與任何第三方分享您的個人資訊或文件內容。",

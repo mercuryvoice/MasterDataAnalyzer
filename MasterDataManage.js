@@ -140,6 +140,7 @@ function checkAndNotifyWrapper() {
 
 function createOnChangeTrigger() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const T = getTranslations();
     deleteOnChangeTrigger(true);
 
     ScriptApp.newTrigger(NOTIFY_TRIGGER_FUNCTION)
@@ -149,10 +150,11 @@ function createOnChangeTrigger() {
 
     storeCurrentState();
 
-    ss.toast('已啟用自動通知功能。', '成功', 5);
+    ss.toast(T.enableNotificationsSuccess, T.toastTitleSuccess, 5);
 }
 
 function deleteOnChangeTrigger(silent = false) {
+    const T = getTranslations();
     const triggers = ScriptApp.getProjectTriggers();
     let deleted = false;
     // Using a standard for loop for robustness.
@@ -174,9 +176,9 @@ function deleteOnChangeTrigger(silent = false) {
 
     if (!silent) {
         if (deleted) {
-            SpreadsheetApp.getActiveSpreadsheet().toast('已停用自動通知功能。', '成功', 5);
+            SpreadsheetApp.getActiveSpreadsheet().toast(T.disableNotificationsSuccess, T.toastTitleSuccess, 5);
         } else {
-            SpreadsheetApp.getActiveSpreadsheet().toast('目前沒有已啟用的自動通知。', '資訊', 5);
+            SpreadsheetApp.getActiveSpreadsheet().toast(T.noNotificationsActive, T.toastTitleInfo, 5);
         }
     }
 }
@@ -237,6 +239,7 @@ function checkAndNotify() {
         const changes = [];
         const startRow = range.getRow();
         const startCol = range.getColumn();
+        const T = getTranslations();
 
         for (let r = 0; r < newValues.length; r++) {
             for (let c = 0; c < newValues[r].length; c++) {
@@ -246,17 +249,21 @@ function checkAndNotify() {
                     const cellNotation = sheet.getRange(startRow + r, startCol + c).getA1Notation();
                     changes.push({
                         cell: cellNotation,
-                        from: oldValue || "(空白)",
-                        to: newValue || "(空白)"
+                        from: oldValue || T.blankCell,
+                        to: newValue || T.blankCell
                     });
                 }
             }
         }
 
         if (changes.length > 0) {
-            const T = getTranslations();
-            const changeDetailsText = changes.slice(0, 20).map(c => `- 儲存格 ${c.cell}: 從 "${c.from}" 變為 "${c.to}"`).join('\n');
-            const hasMoreChanges = changes.length > 20 ? `...還有 ${changes.length - 20} 項其他變更。\n` : '';
+            const changeDetailsText = changes.slice(0, 20).map(c => {
+                return T.changeDetailTemplate
+                    .replace('{cell}', c.cell)
+                    .replace('{from}', c.from)
+                    .replace('{to}', c.to);
+            }).join('\n');
+            const hasMoreChanges = changes.length > 20 ? T.moreChanges.replace('{count}', changes.length - 20) : '';
             const fullChangeDetails = `${changeDetailsText}\n${hasMoreChanges}`;
 
             let subject = monitorSettings.monitorSubject || T.defaultSubjectTemplate;
