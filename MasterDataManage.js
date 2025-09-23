@@ -40,7 +40,7 @@ const MONITOR_SETTINGS_KEY = 'monitorSettings';
  * Shows the HTML settings for Data Management.
  */
 function showManageSettingsSidebar() {
-  const T = getTranslations();
+  const T = MasterData.getTranslations();
   const htmlTemplate = HtmlService.createTemplateFromFile('SettingsPageManage');
   htmlTemplate.T = T;
   const htmlOutput = htmlTemplate.evaluate().setWidth(450).setHeight(500);
@@ -94,7 +94,7 @@ function getManageSettingsForHtml() {
  * Saves settings from the Data Management HTML interface.
  */
 function saveManageSettingsFromHtml(manageSettings) {
-    const T = getTranslations();
+    const T = MasterData.getTranslations();
     saveMonitorSettings(manageSettings);
     return T.saveSuccess;
 }
@@ -129,7 +129,7 @@ const NOTIFY_PROPERTY_KEY = 'monitorRangePreviousState';
 
 function createOnChangeTrigger() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const T = getTranslations();
+    const T = MasterData.getTranslations();
     deleteOnChangeTrigger(true);
 
     ScriptApp.newTrigger(NOTIFY_TRIGGER_FUNCTION)
@@ -143,7 +143,7 @@ function createOnChangeTrigger() {
 }
 
 function deleteOnChangeTrigger(silent = false) {
-    const T = getTranslations();
+    const T = MasterData.getTranslations();
     const triggers = ScriptApp.getProjectTriggers();
     let deleted = false;
     // Using a standard for loop for robustness.
@@ -228,7 +228,7 @@ function checkAndNotify() {
         const changes = [];
         const startRow = range.getRow();
         const startCol = range.getColumn();
-        const T = getTranslations();
+        const T = MasterData.getTranslations();
 
         for (let r = 0; r < newValues.length; r++) {
             for (let c = 0; c < newValues[r].length; c++) {
@@ -292,7 +292,7 @@ function checkAndNotify() {
  * This function should be called from the add-on menu.
  */
 function showQuickDeleteSheetUI() {
-  const T = getTranslations(); 
+  const T = MasterData.getTranslations(); 
   const htmlTemplate = HtmlService.createTemplateFromFile('QuickDeleteSheet');
   htmlTemplate.T = T;
   const htmlOutput = htmlTemplate.evaluate().setWidth(400).setHeight(500);

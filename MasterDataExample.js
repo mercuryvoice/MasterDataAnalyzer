@@ -38,7 +38,7 @@
  */
 function generateManufacturingExample() {
   const ui = SpreadsheetApp.getUi();
-  const T = getTranslations();
+  const T = MasterData.getTranslations();
 
   const response = ui.alert(
     T.manufacturingGuide,
@@ -157,7 +157,7 @@ function generateManufacturingExample() {
 
 function generateBusinessExample() {
   const ui = SpreadsheetApp.getUi();
-  const T = getTranslations();
+  const T = MasterData.getTranslations();
 
   if (Session.getActiveUserLocale().startsWith('zh')) {
     T.exampleCustomerMasterSheet_Sales = '[來源] 客戶清單';
@@ -258,7 +258,7 @@ function generateBusinessExample() {
 
 function deleteExampleSheets() {
   const ui = SpreadsheetApp.getUi();
-  const T = getTranslations();
+  const T = MasterData.getTranslations();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const allSheets = ss.getSheets();
 

@@ -33,85 +33,8 @@
 
 
 // ================================================================
-// SECTION 0: TRANSLATIONS & SETTINGS
+// SECTION 0: SETTINGS
 // ================================================================
-
-const _MDV_TRANSLATIONS = {
-  en: {
-    validationFailedTitle: 'Data Validation Failed',
-    errorNoValidationSettingsFound: 'No validation settings found for the current sheet "{SHEET_NAME}". Please configure them first.',
-    errorNoValidationMappings: 'No validation mappings found. Please configure "Field Validation Conditions".',
-    errorDialogTitle: 'Error',
-    majorPrefix: 'Major',
-    minorPrefix: 'Minor',
-    mismatchSuffix: 'Mismatch',
-    sourceValueMismatch: 'Source Data Mismatch',
-    sourceValueBlank: 'Source Data is Blank',
-    noSourceDataSuffix: '_No source data',
-    outputErrorRequiredMismatch: 'Required validation conditions do not match, cannot output result',
-    headerMismatchErrorTitle: 'Header Mismatch',
-    headerMismatchErrorBody: 'The following headers do not match between the target and source sheets for the configured mappings:\n\n{MISMATCH_DETAILS}\n\nPlease correct the mappings or the sheet headers and try again.',
-    headerMismatchDetail: 'Target column {TARGET_COL} ("{TARGET_HEADER}") AND Source column {SOURCE_COL} ("{SOURCE_HEADER}") NOT MATCH',
-    checkResultTitle: 'Field Check Notice',
-    checkResultMismatches: 'Found Mismatched Headers:',
-    checkResultSuggestions: 'Found Potentially Mismatched Headers (Suggestions):',
-    suggestionText: '- Target header "{TARGET_HEADER}" (Col {TARGET_COL}) might correspond to Source header "{SOURCE_HEADER}" (Col {SOURCE_COL})?',
-    noIssuesFound: 'No issues found. All mapped headers match perfectly.',
-    checkSuccessHeaders: 'Header check passed. All mapped columns correspond correctly.',
-    checkFailureHeaders: 'Header Mismatch Found:',
-    checkSuccessColumn: 'Column check passed. No empty values found.',
-    checkFailureColumn: 'Empty Values Found:',
-    emptyValuesInRows: 'Empty values found in the following rows of source column {COLUMN}: {ROWS}',
-    columnIsEmpty: 'The entire source column {COLUMN} is empty or could not be read.',
-    noMappingsToCheck: 'No field mappings have been set up, no check required.',
-    emptyCheckTitle: 'Source Column Empty Value Check',
-    emptyCheckSuccess: 'Check complete. No empty values found in any mapped source columns.',
-    emptyCheckFailure: 'Empty values were found in the following source columns:',
-    checkEmptyValuesButton: 'Check Source for Empty Values',
-    firstColumnMismatch: 'First key column mismatch',
-  },
-  'zh_TW': {
-    validationFailedTitle: '資料驗證失敗',
-    errorNoValidationSettingsFound: '找不到工作表 "{SHEET_NAME}" 的資料驗證設定，請先設定。',
-    errorNoValidationMappings: '找不到任何驗證對應。請設定「欄位驗證條件」。',
-    errorDialogTitle: '錯誤',
-    majorPrefix: '主要',
-    minorPrefix: '非主要',
-    mismatchSuffix: '不匹配',
-    sourceValueMismatch: '來源數值不匹配',
-    sourceValueBlank: '來源數值為空白',
-    noSourceDataSuffix: '_無來源資料',
-    outputErrorRequiredMismatch: '必要驗證條件不吻合無法輸出驗證結果',
-    headerMismatchErrorTitle: '標頭不符',
-    headerMismatchErrorBody: '根據您的欄位對應設定，目標與來源工作表的以下標頭不相符：\n\n{MISMATCH_DETAILS}\n\n請修正您的設定或工作表標頭後再試一次。',
-    headerMismatchDetail: '目標欄位 {TARGET_COL} ("{TARGET_HEADER}") 與 來源欄位 {SOURCE_COL} ("{SOURCE_HEADER}") 不一致',
-    checkResultTitle: '欄位檢查提示',
-    checkResultMismatches: '發現不匹配的標頭：',
-    checkResultSuggestions: '發現疑似不匹配的標頭 (建議)：',
-    suggestionText: '- 目標標頭 "{TARGET_HEADER}" (欄 {TARGET_COL}) 是否應對應到來源標頭 "{SOURCE_HEADER}" (欄 {SOURCE_COL})？',
-    noIssuesFound: '檢查完畢，未發現問題。所有已設定的對應欄位標頭均完全匹配。',
-    checkSuccessHeaders: '標頭檢查通過。所有對應欄位的標頭均正確對應。',
-    checkFailureHeaders: '發現標頭不符:',
-    checkSuccessColumn: '欄位檢查通過，沒有發現空值。',
-    checkFailureColumn: '發現空值:',
-    emptyValuesInRows: '在來源欄位 {COLUMN} 的以下列中發現空值: {ROWS}',
-    columnIsEmpty: '整個來源欄位 {COLUMN} 為空或無法讀取。',
-    noMappingsToCheck: '未設定任何欄位對應，無需檢查。',
-    emptyCheckTitle: '來源欄位空值檢查',
-    emptyCheckSuccess: '檢查完畢，所有已對應的來源欄位中均未發現空值。',
-    emptyCheckFailure: '在以下來源欄位中發現空值：',
-    checkEmptyValuesButton: '檢查來源空值',
-    firstColumnMismatch: '第一起始欄位不匹配',
-  }
-};
-
-/**
- * Gets the appropriate translation object based on the user's locale.
- */
-function _MDV_getTranslations() {
-  const locale = Session.getActiveUserLocale();
-  return _MDV_TRANSLATIONS[locale] || _MDV_TRANSLATIONS.en;
-}
 
 /**
  * Saves Data Validation Settings for a specific sheet using PropertiesService.
@@ -120,7 +43,7 @@ function _MDV_getTranslations() {
  * @returns {{success: boolean, message: string}} Result object.
  */
 function saveVerifySettings(settings, sheetName) {
-  const T = getTranslations();
+  const T = MasterData.getTranslations();
   try {
     if (!sheetName) {
       throw new Error("工作表名稱為必填項，無法儲存設定。");
@@ -210,7 +133,7 @@ function runDataValidation(mode) {
     scriptProperties.deleteProperty('stopValidationRequested');
 
      try {
-        const T = _MDV_getTranslations(); // Get translations
+        const T = MasterData.getTranslations(); // Get translations
         const modeText = mode === 'MS_ONLY' ? '(MS Mode)' : '(EX Expanded Mode)';
         ss.toast(`Starting "Data Validation" ${modeText}...`, 'Processing', 3);
         const settings = getVerifySettings(activeSheetName);
@@ -468,7 +391,7 @@ function getSmartMappingResults(settings, mappingsToExclude = []) {
  * @returns {{isPerfect: boolean, mismatches: Array<object>}} An object with detailed results.
  */
 function checkSourceHeaderMapping(settings) {
-    const T = _MDV_getTranslations();
+    const T = MasterData.getTranslations();
     const { validationMappings, outputMappings, targetHeaderRow, sourceHeaderRow, targetSheetName, sourceDataUrl, sourceDataSheetName } = settings;
     
     if (!targetHeaderRow || !sourceHeaderRow || !sourceDataUrl || !sourceDataSheetName) {
@@ -530,7 +453,7 @@ function checkSourceHeaderMapping(settings) {
  * @returns {{isValid: boolean, message: string}} An object containing the validation result.
  */
 function checkAllSourceColumnsForEmptyValues(settings) {
-    const T = _MDV_getTranslations();
+    const T = MasterData.getTranslations();
     const { sourceDataUrl, sourceDataSheetName, sourceHeaderRow, validationMappings, outputMappings } = settings;
 
     if (!sourceDataUrl || !sourceDataSheetName || !sourceHeaderRow) {
@@ -625,7 +548,7 @@ function cleanupMsRowGroups(processedResults, taskMap) {
  * Generates structured mismatch information.
  */
 function generateInfoTask(sourceMatch, targetValues, settings) {
-    const T = _MDV_getTranslations();
+    const T = MasterData.getTranslations();
     const primaryMismatches = [];
     const secondaryMismatches = [];
     const generalMismatchLabels = new Set();
@@ -677,7 +600,7 @@ function generateInfoTask(sourceMatch, targetValues, settings) {
  * Processes a single task, with plain text mismatch info.
  */
 function processSingleTask(task, externalDataMap, settings, mode, sheetUrl, sheetGid, T) {
-    // const T = _MDV_getTranslations();
+    // const T = getTranslations();
     const { validationMappings, outputMappings } = settings;
     const majorValidationMappings = validationMappings.filter(m => m.isRequired);
 

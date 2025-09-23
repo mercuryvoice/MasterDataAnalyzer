@@ -36,7 +36,7 @@
  * @returns {{success: boolean, message: string}} Result object.
  */
 function saveReportSettings(settings, sheetName) {
-    const T = getTranslations();
+    const T = MasterData.getTranslations();
     try {
         if (!sheetName) throw new Error(T.saveFailureMissingSheetName); //mod
         const properties = PropertiesService.getDocumentProperties();
@@ -75,7 +75,7 @@ function getReportSettings(sheetName) {
  * @returns {object} An object containing any validation error messages.
  */
 function validateReportInputs(url, sheetName, rangeA1) {
-    const T = getTranslations();
+    const T = MasterData.getTranslations();
     const errors = { sourceUrlError: '', sheetError: '', rangeError: '' };
     let ss;
 
@@ -188,7 +188,7 @@ function checkMetricFields(url, sheetName, rangeA1, metricHeaders) {
  * @returns {object} A structured object with all analysis results or an error.
  */
 function runDynamicAnalysis(settings) {
-    const T = getTranslations(); //mod
+    const T = MasterData.getTranslations(); //mod
     try {
         const { sheetName, rangeA1, analysisFields } = settings;
         if (!sheetName || !rangeA1) throw new Error(T.reportSheetOrRangeMissing); //mod
@@ -285,7 +285,7 @@ function getReportColors() {
  * @returns {{success: boolean, message?: string, sheetName?: string, url?: string, error?: string}} Result object.
  */
 function exportReport(exportOptions, reportData) {
-  const T = getTranslations(); //mod
+  const T = MasterData.getTranslations(); //mod
   try {
     const { format } = exportOptions;
     switch (format) {
@@ -306,7 +306,7 @@ function exportReport(exportOptions, reportData) {
  * Helper function to export data to a new Google Sheet.
  */
 function exportToSheet(exportOptions, reportData) {
-    const T = getTranslations(); //mod
+    const T = MasterData.getTranslations(); //mod
     const { selections } = exportOptions;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const prefix = T.reportExportSheetNamePrefix || 'MasterDataAnalyzer';
@@ -521,7 +521,7 @@ function exportToSheet(exportOptions, reportData) {
  * Helper function to export data to a new Google Doc.
  */
 function exportToDoc(exportOptions, reportData) {
-  const T = getTranslations(); //mod
+  const T = MasterData.getTranslations(); //mod
   const { selections, chartImages } = exportOptions;
   const prefix = T.reportExportDocNamePrefix || 'MasterDataAnalyzer';
   const doc = DocumentApp.create(prefix + new Date().toLocaleString('sv-se').replace(/ /g, '_').replace(/:/g, '-'));
