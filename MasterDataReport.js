@@ -293,8 +293,6 @@ function exportReport(exportOptions, reportData) {
         return exportToSheet(exportOptions, reportData);
       case 'doc':
         return exportToDoc(exportOptions, reportData);
-      case 'pdf':
-        return exportToPdf(exportOptions, reportData);
       default:
         throw new Error(T.reportUnsupportedFormat); //mod
     }
@@ -644,21 +642,3 @@ function exportToDoc(exportOptions, reportData) {
   return { success: true, url: doc.getUrl() };
 }
 
-/**
- * Helper function to export data to a PDF file in Google Drive.
- */
-function exportToPdf(exportOptions, reportData) {
-  const docResult = exportToDoc(exportOptions, reportData);
-  if (docResult.success) {
-    const doc = DocumentApp.openByUrl(docResult.url);
-    const pdfBlob = doc.getAs('application/pdf').setName(doc.getName() + '.pdf');
-    const pdfFile = DriveApp.createFile(pdfBlob);
-    
-    // Clean up the temporary Google Doc
-    DriveApp.getFileById(doc.getId()).setTrashed(true);
-    
-    return { success: true, url: pdfFile.getUrl() };
-  } else {
-    return docResult; // Return the error from the Doc creation
-  }
-}

@@ -61,7 +61,6 @@ const TRANSLATIONS = {
         monitorMenuName: 'Data Change Monitoring',
         enableNotifyItem: '🟢 Enable Automatic Notifications',
         disableNotifyItem: '🔴 Disable Automatic Notifications',
-        checkNowItem: '✉️ Check and Notify Now',
         privacyPolicyItem: 'Privacy Policy',
         // --- Guide Sub-menu Items (Placeholders) ---
         manufacturingGuide: 'Manufacturing Example',
@@ -479,7 +478,6 @@ const TRANSLATIONS = {
         exportContentTitle: "2. Select Content to Export",
         exportToSheetLabel: "Add to Google Sheet tab",
         exportToDocLabel: "Export to Google Docs",
-        exportToPdfLabel: "Export as PDF",
         addAnalysisFieldButton: "+ Add Analysis Field",
         dimensionOption: "Dimension (Group By)",
         metricOption: "Metric (Calculate Value)",
@@ -529,7 +527,6 @@ const TRANSLATIONS = {
         monitorMenuName: '資料變更監控',
         enableNotifyItem: '🟢 啟用自動通知',
         disableNotifyItem: '🔴 停用自動通知',
-        checkNowItem: '✉️ 立即檢查並通知',
         privacyPolicyItem: '隱私權政策',
         // --- Guide Sub-menu Items (Placeholders) ---
         manufacturingGuide: '生產製造範例',
@@ -946,7 +943,6 @@ const TRANSLATIONS = {
         exportContentTitle: "2. 選擇要匯出的內容",
         exportToSheetLabel: "新增至 Google Sheet 分頁",
         exportToDocLabel: "匯出至 Google 文件",
-        exportToPdfLabel: "匯出為 PDF",
         addAnalysisFieldButton: "+ 新增分析欄位",
         dimensionOption: "維度 (分組依據)",
         metricOption: "指標 (計算數值)",
@@ -1015,9 +1011,7 @@ function onOpen() {
     // --- Sub-Menu: Data Management Tool ---
     const monitorSubMenu = ui.createMenu(T.monitorMenuName)
         .addItem(T.enableNotifyItem, 'createOnChangeTrigger')
-        .addItem(T.disableNotifyItem, 'deleteOnChangeTrigger')
-        .addSeparator()
-        .addItem(T.checkNowItem, 'checkAndNotifyWrapper');
+        .addItem(T.disableNotifyItem, 'deleteOnChangeTrigger');
 
     const managementSubMenu = ui.createMenu(T.manageMenuTitle)
         .addItem(T.manageSettingsItem, 'showManageSettingsSidebar')

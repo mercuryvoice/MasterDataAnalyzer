@@ -127,18 +127,6 @@ function getManageSettingsPageData() {
 const NOTIFY_TRIGGER_FUNCTION = 'checkAndNotify';
 const NOTIFY_PROPERTY_KEY = 'monitorRangePreviousState';
 
-function checkAndNotifyWrapper() {
-    const T = getTranslations();
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    ss.toast(T.checkingChanges, T.toastTitleInfo, 5);
-    const changed = checkAndNotify();
-    if (changed) {
-        ss.toast(T.changesDetected, T.toastTitleSuccess, 5);
-    } else {
-        ss.toast(T.noChangesDetected, T.toastTitleSuccess, 5);
-    }
-}
-
 function createOnChangeTrigger() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const T = getTranslations();
