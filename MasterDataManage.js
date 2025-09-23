@@ -253,67 +253,31 @@ function checkAndNotify() {
                     .replace('{to}', c.to);
             }).join('\n');
             const hasMoreChanges = changes.length > 20 ? T.moreChanges.replace('{count}', changes.length - 20) : '';
-            const fullChangeDetails = `${changeDetailsText}
-${hasMoreChanges}`;
+            const fullChangeDetails = `${changeDetailsText}\n${hasMoreChanges}`;
 
             let subject = monitorSettings.monitorSubject || T.defaultSubjectTemplate;
             let body = monitorSettings.monitorBody || T.defaultBodyTemplate;
 
             subject = subject.replace(/{SHEET_NAME}/g, monitorSheetName);
             
-            // CORRECTED: Replaced chained .replace() with separate assignments to avoid parsing issues.
-            body = body.replace(/{SHEET_NAME}/g, monitorSheetName);
-            body = body.replace(/{RANGE}/g, monitorRangeA1);
-            body = body.replace(/{TIMESTAMP}/g, new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }));
-            body = body.replace(/{CHANGES_COUNT}/g, changes.length);
-            body = body.replace(/{CHANGE_DETAILS}/g, fullChangeDetails);
-            body = body.replace(/{SHEET_URL}/g, SpreadsheetApp.getActiveSpreadsheet().getUrl());
+            body = body.replace(/{SHEET_NAME}/g, monitorSheetName)
+                       .replace(/{RANGE}/g, monitorRangeA1)
+                       .replace(/{TIMESTAMP}/g, new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }))
+                       .replace(/{CHANGES_COUNT}/g, changes.length)
+                       .replace(/{CHANGE_DETAILS}/g, fullChangeDetails)
+                       .replace(/{SHEET_URL}/g, SpreadsheetApp.getActiveSpreadsheet().getUrl());
 
-            const apiKey = PropertiesService.getScriptProperties().getProperty('SENDGRID_API_KEY');
-            if (!apiKey) {
-                Logger.log("SendGrid API Key not found in Script Properties. Please run the save function again.");
-                return false;
-            }
+            GmailApp.sendEmail(recipientEmail, subject, body);
 
-            const sendgridUrl = 'https://api.sendgrid.com/v3/mail/send';
-            const fromEmail = 'go@mda.design'; // Your desired sender email
-
-            const payload = {
-              personalizations: [{ to: [{ email: recipientEmail }] }],
-              from: { email: fromEmail, name: 'MasterDataAnalyzer' },
-              subject: subject,
-              content: [{ type: 'text/plain', value: body }]
-            };
-
-            const options = {
-              method: 'post',
-              contentType: 'application/json',
-              headers: {
-                Authorization: 'Bearer ' + apiKey
-              },
-              payload: JSON.stringify(payload),
-              muteHttpExceptions: true 
-            };
-
-            const response = UrlFetchApp.fetch(sendgridUrl, options);
-            const responseCode = response.getResponseCode();
-            const responseBody = response.getContentText();
-
-            if (responseCode >= 200 && responseCode < 300) {
-              Logger.log(`Successfully sent email via SendGrid to ${recipientEmail}. Response code: ${responseCode}`);
-              PropertiesService.getScriptProperties().setProperty(NOTIFY_PROPERTY_KEY, JSON.stringify(newValues));
-            } else {
-              Logger.log(`Error sending email via SendGrid. Response Code: ${responseCode}. Response Body: ${responseBody}`);
-            }
-            
+            PropertiesService.getScriptProperties().setProperty(NOTIFY_PROPERTY_KEY, JSON.stringify(newValues));
+            Logger.log(`Detected ${changes.length} changes and sent email to ${recipientEmail}`);
             return true;
-
         } else {
             Logger.log("No changes detected.");
             return false;
         }
     } catch (e) {
-        Logger.log(`Error during SendGrid notification: ${e.stack}`);
+        Logger.log(`Error during notification: ${e.stack}`);
         return false;
     }
 }
@@ -382,9 +346,9 @@ function deleteSheets(sheetNames) {
 
   let message = `成功刪除 ${deletedCount} 個分頁。`;
   if (failedCount > 0) {
-    message += `
-${failedCount} 個分頁刪除失敗: ${failedNames.join(', ')}。`;
+    message += `\n${failedCount} 個分頁刪除失敗: ${failedNames.join(', ')}。`;
   }
   
   return { success: deletedCount > 0, message: message };
 }
+
