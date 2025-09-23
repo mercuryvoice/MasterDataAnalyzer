@@ -262,8 +262,8 @@ function deleteExampleSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const allSheets = ss.getSheets();
 
-  const en_T = TRANSLATIONS.en;
-  const zh_TW_T = TRANSLATIONS.zh_TW;
+  const en_T = MasterData.TRANSLATIONS.en;
+  const zh_TW_T = MasterData.TRANSLATIONS.zh_TW;
   
   en_T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   zh_TW_T.exampleCustomerMasterSheet_Sales = '[來源] 客戶清單';
