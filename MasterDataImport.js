@@ -961,7 +961,7 @@ function runCompareProcess() {
             }
         }
 
-        SpreadsheetApp.getActiveSpreadsheet().toast('開始執行資料比對...', '處理中', 10);
+        SpreadsheetApp.getActiveSpreadsheet().toast(T.compareStartToast, T.toastTitleProcessing, 10);
 
         const targetSs = SpreadsheetApp.getActiveSpreadsheet();
         const targetSsId = targetSs.getId(); // Get target ID
@@ -1000,7 +1000,7 @@ function runCompareProcess() {
         const targetStartRow = settings.targetStartRow;
         const lastRow = targetSheet.getLastRow();
         if (lastRow < targetStartRow) {
-            SpreadsheetApp.getActiveSpreadsheet().toast('目標分頁沒有需要比對的資料。', '提示', 5);
+            SpreadsheetApp.getActiveSpreadsheet().toast(T.compareNoDataInTargetToast, T.toastTitleInfo, 5);
             return;
         }
 
@@ -1063,9 +1063,10 @@ function runCompareProcess() {
                 }
            });
 
-            SpreadsheetApp.getActiveSpreadsheet().toast(`資料比對完成！已更新 ${resultsToWrite.length} 筆資料。`, '成功', 5);
+            const completeMessage = T.compareCompleteToast.replace('{COUNT}', resultsToWrite.length);
+            SpreadsheetApp.getActiveSpreadsheet().toast(completeMessage, T.toastTitleSuccess, 5);
         } else {
-            SpreadsheetApp.getActiveSpreadsheet().toast('沒有找到任何可比對的資料。', '提示', 5);
+            SpreadsheetApp.getActiveSpreadsheet().toast(T.compareNoDataToast, T.toastTitleInfo, 5);
         }
 
     } catch (e) {
