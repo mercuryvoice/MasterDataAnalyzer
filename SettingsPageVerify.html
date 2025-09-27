@@ -968,7 +968,7 @@
         const createMappingItem = (item, type, checked) => {
             const isPerfect = type === 'perfect';
             const matchText = isPerfect ? '<?!= T.mappingSuccessFormat ?>' : '<?!= T.mappingFailureFormat ?>';
-            const displayText = `${item.targetHeader} (${item.targetCol}) ${matchText} ${item.sourceHeader} (${item.sourceCol})`;
+            const displayText = `${item.targetHeader} (${item.targetCol}) <strong>${matchText}</strong><br>${item.sourceHeader} (${item.sourceCol})`;
 
             return `
               <div class="mapping-item">
