@@ -1,11 +1,11 @@
 Welcome to use MasterDataAnalyzer Tool	
 
-Visit to our official site mda.design, then click the "make a copy", and start to experience powerful MasterDataAnalyzer.
+Visit to our official site [https://mda.design], then click the "make a copy", and start to experience powerful MasterDataAnalyzer.
 	
 	
 歡迎使用資料分析大師工具	
 
-請訪問我們的官方網站 mda.design, 接著點擊 "複製副本" 開始體驗強大的 MasterDataAnalyzer。
+請訪問我們的官方網站 [https://mda.design], 接著點擊 "複製副本" 開始體驗強大的 MasterDataAnalyzer。
  
 	
 MasterDataAnalyzer Features：	
