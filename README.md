@@ -1,16 +1,11 @@
 Welcome to use MasterDataAnalyzer Tool	
 
-This is a CB Test Version, please make a copy and browse "Guide & Examples" interactive tutorial.	
-
-Enjoy the powerful MasterDataAnalyzer Tool help you.	
+Visit to our official site [https://mda.design], then click the "make a copy", and start to experience powerful MasterDataAnalyzer.
 	
 	
 歡迎使用資料分析大師工具	
 
-這是封閉測試版本，請複製副本與瀏覽互動式 "範例生成與功能說明教學"。	
-
-開始享受資料分析大師的幫忙。	
-
+請訪問我們的官方網站 [https://mda.design], 接著點擊 "複製副本" 開始體驗強大的 MasterDataAnalyzer。
  
 	
 MasterDataAnalyzer Features：	
