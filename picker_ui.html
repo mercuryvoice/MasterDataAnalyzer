@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; padding: 10px; }
+    #status { margin-top: 10px; font-weight: bold; }
+    #result { margin-top: 10px; padding: 10px; border: 1px solid #ccc; }
+    button { padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h2>Google Picker API 測試 (V15)</h2>
+  <p>點擊下方的按鈕來開啟 Google 檔案選擇器。</p>
+  <button id="picker-button" disabled>載入中... (GAPI...)</button>
+  <div id="status">狀態：等待 GAPI 載入...</div>
+  <div id="result" style="display: none;">
+    <h4>選擇的檔案資訊：</h4>
+    <pre id="result-content"></pre>
+  </div>
+
+  <script type="text/javascript">
+    console.log("HTML script block 執行。");
+    
+    // --- V15 狀態變數 ---
+    let keys = null;
+    let pickerApiLoaded = false;
+    
+    const statusDiv = document.getElementById('status');
+    const pickerButton = document.getElementById('picker-button');
+
+    // --- 1. 動態載入 GAPI ---
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOMContentLoaded 事件觸發。正在動態載入 GAPI...");
+      statusDiv.textContent = "狀態：正在載入 Google API...";
+      
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => {
+        console.log("GAPI 指令碼已載入。正在呼叫 gapi.load('picker', ...)");
+        statusDiv.textContent = "狀態：GAPI 已載入。正在載入 Picker API...";
+        gapi.load('picker', { 'callback': onPickerApiLoad });
+      };
+      script.onerror = () => {
+        console.error("GAPI 指令碼載入失敗。");
+        statusDiv.textContent = "錯誤：無法載入 Google API。請檢查您的網路連線。";
+      };
+      document.head.appendChild(script);
+    });
+
+    // --- 2. Picker API 載入回呼 & 獲取金鑰 ---
+    function onPickerApiLoad() {
+      console.log("onPickerApiLoad() 已執行。Picker API 已載入。");
+      pickerApiLoaded = true;
+      
+      // 現在 GAPI 已載入，可以安全地呼叫 google.script.run
+      console.log("正在呼叫 google.script.run.getPickerKeys()");
+      statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
+      
+      google.script.run
+        .withSuccessHandler(serverKeys => {
+          console.log("getPickerKeys() 成功。");
+          keys = serverKeys;
+          checkIfReady(); // 檢查是否可以啟用按鈕
+        })
+        .withFailureHandler(err => {
+          console.error("getPickerKeys() 失敗：", err);
+          statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
+          pickerButton.textContent = "初始化失敗";
+        })
+        .getPickerKeys();
+    }
+
+    // --- 3. 檢查是否兩者都已就緒 ---
+    function checkIfReady() {
+      if (keys && pickerApiLoaded) {
+        console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
+        statusDiv.textContent = "狀態：準備就緒。";
+        pickerButton.disabled = false;
+        pickerButton.textContent = '開啟檔案選擇器';
+      } else if (keys) {
+        // 這是預期不會發生的情況，因為 getPickerKeys 是在 pickerApiLoaded 之後才呼叫的
+        statusDiv.textContent = "狀態：金鑰已獲取。等待 Picker API 載入...";
+      } else if (pickerApiLoaded) {
+        statusDiv.textContent = "狀態：Picker API 已載入。等待金鑰獲取...";
+      }
+    }
+
+    // --- 4. 按鈕點擊 ---
+    document.getElementById('picker-button').addEventListener('click', () => {
+      console.log("按鈕被點擊。");
+      createPicker();
+    });
+    
+    // --- 5. 建立 Picker ---
+    function createPicker() {
+      console.log("createPicker() 執行。");
+      try {
+        const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+          .setIncludeFolders(true)
+          .setMimeTypes("application/vnd.google-apps.spreadsheet");
+        
+        console.log("Building picker step-by-step...");
+        
+        const builder = new google.picker.PickerBuilder();
+        console.log("1. PickerBuilder created.");
+
+        // IFRAME 模式下的呼叫順序
+      // V16 修正：setApiKey 不存在，應使用 setDeveloperKey
+      builder.setDeveloperKey(keys.apiKey);
+      console.log("2. setDeveloperKey called.");
+
+        builder.setAppId(keys.appId); // <-- 必須是 12 位數字的 Project Number
+        console.log("3. setAppId called.");
+
+        builder.setOAuthToken(keys.oauthToken);
+        console.log("4. setOAuthToken called.");
+
+        builder.addView(docsView);
+        console.log("5. addView called.");
+
+        builder.setCallback(pickerCallback);
+        console.log("6. setCallback called.");
+
+      // V17 修正：設定來源以解決 "Incorrect origin value" 錯誤
+      builder.setOrigin(google.script.host.origin);
+      console.log("7. setOrigin called.");
+
+        const picker = builder.build();
+        console.log("7. build() called.");
+        
+        picker.setVisible(true);
+        console.log("8. setVisible(true) called.");
+
+      } catch (e) {
+        console.error("createPicker() 內部失敗：", e);
+        statusDiv.textContent = "錯誤: " + e.message;
+      }
+    }
+
+    // --- 6. Picker 回呼 ---
+    function pickerCallback(data) {
+      console.log("Picker 回呼 (Callback) 觸發。", data);
+      const statusDiv = document.getElementById('status');
+      const resultContent = document.getElementById('result-content');
+      const resultDiv = document.getElementById('result');
+
+      if (data.action == google.picker.Action.PICKED) {
+        const doc = data.docs[0];
+        const fileId = doc.id;
+        
+        let infoText = '動作: PICKED\n';
+        infoText += '檔案名稱: ' + doc.name + '\n';
+        infoText += '檔案 ID: ' + fileId + '\n';
+        infoText += 'URL: ' + doc.url + '\n';
+        
+        resultDiv.style.display = 'block';
+        resultContent.textContent = infoText;
+        statusDiv.textContent = '已成功選擇檔案！正在驗證後端讀取權限...';
+
+        // [NEW] 呼叫後端函式來處理檔案
+        google.script.run
+          .withSuccessHandler(message => {
+            console.log("processPickedFile() 成功:", message);
+            statusDiv.textContent = message; // 在狀態列顯示後端回傳的成功訊息
+          })
+          .withFailureHandler(err => {
+            console.error("processPickedFile() 失敗:", err);
+            statusDiv.textContent = "錯誤：" + err.message; // 在狀態列顯示後端回傳的錯誤訊息
+          })
+          .processPickedFile(fileId);
+
+      } else if (data.action == google.picker.Action.CANCEL) {
+        statusDiv.textContent = '操作已取消。';
+        resultContent.textContent = '動作: CANCELLED (使用者關閉了選擇器)';
+      }
+    }
+  </script>
+</body>
+</html>

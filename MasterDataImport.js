@@ -99,6 +99,12 @@ function onOpen() {
     mainMenu.addSeparator();
     mainMenu.addItem(T.privacyPolicyItem, 'showPrivacyPolicy');
 
+    // --- [NEW] Sub-Menu: Developer Tests ---
+    const devMenu = ui.createMenu('Developer Tests')
+        .addItem('Google Picker Test (V15)', 'showPickerTestDialog_V14');
+    mainMenu.addSeparator();
+    mainMenu.addSubMenu(devMenu);
+
     mainMenu.addToUi();
 }
 
