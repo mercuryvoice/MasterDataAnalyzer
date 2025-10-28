@@ -101,7 +101,8 @@ function onOpen() {
 
     // --- [NEW] Sub-Menu: Developer Tests ---
     const devMenu = ui.createMenu('Developer Tests')
-        .addItem('Google Picker Test (V15)', 'showPickerTestDialog_V14');
+        .addItem('Google Picker Test (V15)', 'showPickerTestDialog_V14')
+        .addItem('Data Import Picker Test', 'showDataImportPicker');
     mainMenu.addSeparator();
     mainMenu.addSubMenu(devMenu);
 
