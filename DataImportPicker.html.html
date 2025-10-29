@@ -1076,7 +1076,7 @@
         google.script.run
           .withSuccessHandler(onSaveSuccess)
           .withFailureHandler(onSaveFailure)
-          .saveImportSettings(settings, currentSheetName);
+          .saveImportPickerSettings(settings, currentSheetName);
       }
 
       function onSaveSuccess(result) {

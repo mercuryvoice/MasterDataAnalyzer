@@ -38,7 +38,7 @@ function getPickerKeys() {
  * @param {string} sheetName The target sheet name.
  * @returns {{success: boolean, message: string}} Result object.
  */
-function saveImportSettings(settings, sheetName) {
+function saveImportPickerSettings(settings, sheetName) {
     const T = MasterData.getTranslations();
     try {
         if (!sheetName) {
@@ -113,15 +113,47 @@ function getImportSettings(sheetName) {
 function getSheetNamesFromFileId(fileId) {
     const T = MasterData.getTranslations();
     try {
-        const ss = fileId ? SpreadsheetApp.openById(fileId) : SpreadsheetApp.getActiveSpreadsheet();
-        const sheets = ss.getSheets();
-        if (sheets.length === 0) {
-            throw new Error(T.noSheetsFound);
+        // Handle the case where we want sheets from the currently active spreadsheet
+        if (!fileId) {
+            const activeSs = SpreadsheetApp.getActiveSpreadsheet();
+            if (activeSs) {
+                return activeSs.getSheets().map(sheet => sheet.getName());
+            }
+            throw new Error("No active spreadsheet found.");
         }
-        return sheets.map(sheet => sheet.getName());
+
+        // Use the Sheets API for files selected via Picker
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets.properties.title`;
+        const options = {
+            method: 'get',
+            headers: {
+                Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+            },
+            muteHttpExceptions: true,
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        const responseBody = response.getContentText();
+
+        if (responseCode === 200) {
+            const data = JSON.parse(responseBody);
+            if (data.sheets && data.sheets.length > 0) {
+                return data.sheets.map(sheet => sheet.properties.title);
+            }
+            throw new Error(T.noSheetsFound);
+        } else {
+            Logger.log(`Sheets API Error for fileId ${fileId}: ${responseCode} - ${responseBody}`);
+            throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+        }
+
     } catch (e) {
-        Logger.log(`Error in getSheetNamesFromFileId: ${e.message}`);
-        throw new Error(T.errorInvalidUrl); // Consider a more appropriate error message
+        Logger.log(`Critical Error in getSheetNamesFromFileId for fileId '${fileId}': ${e.message}`);
+        // Provide a more specific error message based on the error type if possible
+        if (e.message.includes(T.noSheetsFound)) {
+            throw e;
+        }
+        throw new Error(T.errorInvalidUrl);
     }
 }
 
