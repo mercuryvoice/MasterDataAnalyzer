@@ -370,9 +370,13 @@
       <!-- Section: Source & Target -->
       <div class="section">
         <h4><?!= T.sectionSourceAndTarget ?></h4>
-        <label for="sourceUrl"><?!= T.sourceSpreadsheetUrlLabel ?></label>
-        <input type="url" id="sourceUrl" name="sourceUrl">
-        <p id="sourceUrl-validation" class="validation-message help-text"></p>
+        <label for="select-source-file-btn"><?!= T.sourceSpreadsheetUrlLabel ?></label>
+        <div class="input-group">
+          <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="尚未選擇任何檔案">
+          <button type="button" id="select-source-file-btn" disabled>載入中...</button>
+        </div>
+        <input type="hidden" id="sourceFileId" name="sourceFileId">
+        <p id="sourceFileId-validation" class="validation-message help-text"></p>
 
         <label for="sourceSheetName"><?!= T.sourceDataSheetNameLabel ?></label>
         <div class="input-group">
@@ -497,6 +501,9 @@
     </template>
 
     <script>
+      // --- V15 狀態變數 ---
+      let keys = null;
+      let pickerApiLoaded = false;
       let isPinned = false;
       let isExpanded = false;
       let activeKeywordInput = null;
@@ -504,13 +511,14 @@
       let masterHeaderOptions = []; // Global store for all available headers
       let currentSheetName = ''; // [NEW] Store the active sheet name
 
+      // --- DOM Elements ---
       const pinToggle = document.getElementById('pin-toggle');
       const expandToggle = document.getElementById('expand-toggle');
       const saveBtn = document.getElementById('save-btn');
       const closeBtn = document.getElementById('close-btn');
       const statusDiv = document.getElementById('status');
       
-      const formFields = ['sourceUrl', 'sourceSheetName', 'targetSheetName', 'targetHeaderRow', 'targetStartRow', 'sourceIdentifierRange', 'sourceHeaderRange', 'sourceValueMatrixRange'];
+      const formFields = ['sourceFileId', 'sourceSheetName', 'targetSheetName', 'targetHeaderRow', 'targetStartRow', 'sourceIdentifierRange', 'sourceHeaderRange', 'sourceValueMatrixRange'];
 
       const filterContainer = document.getElementById('filter-container');
       const addFilterBtn = document.getElementById('add-filter-btn');
@@ -520,7 +528,9 @@
       const keywordModal = document.getElementById('keyword-modal');
       const sheetSelectModal = document.getElementById('sheet-select-modal');
       
-      const sourceUrlInput = document.getElementById('sourceUrl');
+      const selectSourceFileBtn = document.getElementById('select-source-file-btn');
+      const sourceFileIdInput = document.getElementById('sourceFileId');
+      const sourceFileNameInput = document.getElementById('sourceFileName');
       const sourceSheetNameInput = document.getElementById('sourceSheetName');
       const targetSheetNameInput = document.getElementById('targetSheetName');
       const selectSourceSheetBtn = document.getElementById('select-source-sheet-btn');
@@ -528,6 +538,116 @@
       
       const sourceIdentifierRangeInput = document.getElementById('sourceIdentifierRange');
       const importFilterHeadersInput = document.getElementById('importFilterHeaders');
+
+      // --- 1. 動態載入 GAPI ---
+      document.addEventListener('DOMContentLoaded', () => {
+        pinToggle.title = '<?!= T.pinWindowTooltip ?>';
+        expandToggle.title = '<?!= T.expandWindowTooltip ?>';
+        loadAndPopulateSettings();
+        
+        console.log("DOMContentLoaded 事件觸發。正在動態載入 GAPI...");
+        statusDiv.textContent = "狀態：正在載入 Google API...";
+        
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = () => {
+          console.log("GAPI 指令碼已載入。正在呼叫 gapi.load('picker', ...)");
+          statusDiv.textContent = "狀態：GAPI 已載入。正在載入 Picker API...";
+          gapi.load('picker', { 'callback': onPickerApiLoad });
+        };
+        script.onerror = () => {
+          console.error("GAPI 指令碼載入失敗。");
+          statusDiv.textContent = "錯誤：無法載入 Google API。請檢查您的網路連線。";
+        };
+        document.head.appendChild(script);
+      });
+
+      // --- 2. Picker API 載入回呼 & 獲取金鑰 ---
+      function onPickerApiLoad() {
+        console.log("onPickerApiLoad() 已執行。Picker API 已載入。");
+        pickerApiLoaded = true;
+        
+        console.log("正在呼叫 google.script.run.getPickerKeys()");
+        statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
+        
+        google.script.run
+          .withSuccessHandler(serverKeys => {
+            console.log("getPickerKeys() 成功。");
+            keys = serverKeys;
+            checkIfReady();
+          })
+          .withFailureHandler(err => {
+            console.error("getPickerKeys() 失敗：", err);
+            statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
+            selectSourceFileBtn.textContent = "初始化失敗";
+          })
+          .getPickerKeys();
+      }
+
+      // --- 3. 檢查是否兩者都已就緒 ---
+      function checkIfReady() {
+        if (keys && pickerApiLoaded) {
+          console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
+          statusDiv.textContent = "狀態：準備就緒。";
+          selectSourceFileBtn.disabled = false;
+          selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
+        }
+      }
+
+      // --- 4. 按鈕點擊 ---
+      selectSourceFileBtn.addEventListener('click', createPicker);
+      
+      // --- 5. 建立 Picker ---
+      function createPicker() {
+        try {
+          // DocsView 允許使用者從他們的 Google Drive 中挑選試算表。
+          // 它本身就支援在搜尋框中貼上 URL 來尋找檔案。
+          const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+            .setIncludeFolders(true);
+
+          const builder = new google.picker.PickerBuilder()
+            .setDeveloperKey(keys.apiKey)
+            .setAppId(keys.appId)
+            .setOAuthToken(keys.oauthToken)
+            .addView(docsView) // 只需加入 DocsView 即可
+            .setCallback(pickerCallback)
+            .setOrigin(google.script.host.origin);
+          
+          // 我們只需要使用者選取一個檔案
+          builder.enableFeature(google.picker.Feature.NAV_HIDDEN);
+          builder.disableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+          
+          const picker = builder.build();
+          picker.setVisible(true);
+        } catch (e) {
+          console.error("createPicker() 內部失敗：", e);
+          statusDiv.textContent = "錯誤: " + e.message;
+        }
+      }
+
+      // --- 6. Picker 回呼 ---
+      function pickerCallback(data) {
+        if (data.action == google.picker.Action.PICKED) {
+          // 無論是透過點選還是貼上 URL 搜尋，回應都來自 data.docs
+          if (data.docs && data.docs.length > 0) {
+            const doc = data.docs[0];
+            const fileId = doc.id;
+            const fileName = doc.name;
+            
+            // 直接更新 UI 並觸發後續流程
+            sourceFileIdInput.value = fileId;
+            sourceFileNameInput.value = fileName;
+            statusDiv.textContent = '已選擇檔案: ' + fileName;
+            
+            // 當檔案被選取時，觸發驗證和標頭選項填充
+            fetchAndPopulateHeaderOptions();
+            // 啟用來源工作表選擇按鈕
+            selectSourceSheetBtn.disabled = false;
+          }
+        } else if (data.action == google.picker.Action.CANCEL) {
+          statusDiv.textContent = '操作已取消。';
+        }
+      }
       
       // --- Pinning & Expansion Logic ---
       pinToggle.addEventListener('click', () => {
@@ -568,26 +688,14 @@
       
       // --- Sheet Selection Handlers ---
       selectSourceSheetBtn.addEventListener('click', () => {
-          openSheetSelectModal(sourceUrlInput.value, sourceSheetNameInput);
+          openSheetSelectModal(sourceFileIdInput.value, sourceSheetNameInput);
       });
 
       selectTargetSheetBtn.addEventListener('click', () => {
           openSheetSelectModal('', targetSheetNameInput);
       });
 
-      function checkUrlAndEnableButton() {
-          const url = sourceUrlInput.value;
-          const isValidUrl = url && url.startsWith('https://docs.google.com/spreadsheets/d/');
-          selectSourceSheetBtn.disabled = !isValidUrl;
-      }
-
       // --- Event listeners for validation and header fetching ---
-      sourceUrlInput.addEventListener('blur', () => {
-          checkUrlAndEnableButton();
-          fetchAndPopulateHeaderOptions();
-      });
-      sourceUrlInput.addEventListener('input', checkUrlAndEnableButton);
-
       sourceSheetNameInput.addEventListener('blur', fetchAndPopulateHeaderOptions);
       sourceIdentifierRangeInput.addEventListener('blur', fetchAndPopulateHeaderOptions);
       importFilterHeadersInput.addEventListener('blur', fetchAndPopulateHeaderOptions);
@@ -598,12 +706,12 @@
        */
       function fetchAndPopulateHeaderOptions() {
         validateAll();
-        const url = sourceUrlInput.value;
+        const fileId = sourceFileIdInput.value;
         const sheetName = sourceSheetNameInput.value;
         const range = sourceIdentifierRangeInput.value;
         const importFilter = importFilterHeadersInput.value;
 
-        if (url && sheetName) {
+        if (fileId && sheetName) {
           google.script.run
             .withSuccessHandler(headers => {
                 masterHeaderOptions = headers || [];
@@ -614,7 +722,7 @@
                 masterHeaderOptions = [];
                 updateAllFilterHeaderOptions();
             })
-            .getFilterHeaderOptions(url, sheetName, range, importFilter);
+            .getFilterHeaderOptions(fileId, sheetName, range, importFilter);
         } else {
             masterHeaderOptions = [];
             updateAllFilterHeaderOptions();
@@ -683,7 +791,7 @@
       /**
        * Opens the sheet selection modal.
        */
-      function openSheetSelectModal(url, targetInput) {
+      function openSheetSelectModal(fileId, targetInput) {
         statusDiv.textContent = '<?!= T.validatingMessage ?>';
         activeSheetInput = targetInput;
         
@@ -718,7 +826,7 @@
                 statusDiv.textContent = '';
                 showModal('<?!= T.errorDialogTitle ?>', err.message);
             })
-            .getSheetNames(url);
+            .getSheetNames(fileId);
       }
 
       /**
@@ -735,11 +843,11 @@
           return;
         }
 
-        const url = sourceUrlInput.value;
+        const fileId = sourceFileIdInput.value;
         const sheetName = sourceSheetNameInput.value;
         const range = sourceIdentifierRangeInput.value;
 
-        if (url && sheetName && range) {
+        if (fileId && sheetName && range) {
           statusDiv.textContent = '<?!= T.validatingMessage ?>';
           google.script.run
             .withSuccessHandler(values => {
@@ -774,9 +882,9 @@
               statusDiv.textContent = '';
               showModal('Failed to fetch keyword values: ' + err.message);
             })
-            .getUniqueValuesForHeader(url, sheetName, range, headerName);
+            .getUniqueValuesForHeader(fileId, sheetName, range, headerName);
         } else {
-          showModal('Please fill in Source URL, Sheet Name, and Data Range first.');
+          showModal('Please fill in Source File, Sheet Name, and Data Range first.');
         }
       }
 
@@ -829,7 +937,7 @@
         saveBtn.disabled = true;
 
         const inputs = {
-          sourceUrl: sourceUrlInput.value,
+          sourceFileId: sourceFileIdInput.value,
           sourceSheetName: sourceSheetNameInput.value,
           targetSheetName: targetSheetNameInput.value,
           sourceIdentifierRange: sourceIdentifierRangeInput.value,
@@ -852,7 +960,7 @@
               statusDiv.textContent = '';
               saveBtn.disabled = false;
           })
-          .validateSourceAndTarget(inputs.sourceUrl, inputs.sourceSheetName, inputs.targetSheetName);
+          .validateSourceAndTarget(inputs.sourceFileId, inputs.sourceSheetName, inputs.targetSheetName);
 
         google.script.run
           .withSuccessHandler(handleFilterValidation)
@@ -865,12 +973,12 @@
       }
       
       function handleCoreValidation(errors) {
-        clearValidationState(sourceUrlInput, 'sourceUrl-validation');
+        clearValidationState(sourceFileNameInput, 'sourceFileId-validation');
         clearValidationState(sourceSheetNameInput, 'sourceSheetName-validation');
         clearValidationState(targetSheetNameInput, 'targetSheetName-validation');
 
-        if (errors.sourceUrlError) {
-          setValidationError(sourceUrlInput, 'sourceUrl-validation', errors.sourceUrlError);
+        if (errors.sourceFileIdError) {
+          setValidationError(sourceFileNameInput, 'sourceFileId-validation', errors.sourceFileIdError);
         }
         if (errors.sourceSheetError) {
           setValidationError(sourceSheetNameInput, 'sourceSheetName-validation', errors.sourceSheetError);
@@ -950,6 +1058,7 @@
         });
         
         settings.rawImportFilterHeaders = document.getElementById('importFilterHeaders').value;
+        settings.sourceFileName = document.getElementById('sourceFileName').value; // Save file name for display
 
         settings.keywordFilters = [];
         const filterRows = filterContainer.querySelectorAll('.filter-row');
@@ -971,7 +1080,6 @@
       }
 
       function onSaveSuccess(result) {
-        //Check the success flag from the backend
         if (result.success) {
             statusDiv.textContent = result.message;
             saveBtn.disabled = false;
@@ -980,7 +1088,6 @@
               setTimeout(() => { google.script.host.close(); }, 1000);
             }
         } else {
-            // If the backend validation failed, treat it as a failure
             onSaveFailure({ message: result.message });
         }
       }
@@ -1013,24 +1120,20 @@
               });
               
               document.getElementById('importFilterHeaders').value = settings.rawImportFilterHeaders || '';
+              document.getElementById('sourceFileName').value = settings.sourceFileName || '尚未選擇任何檔案';
 
               if (settings.keywordFilters && Array.isArray(settings.keywordFilters)) {
                 settings.keywordFilters.forEach(filter => {
                   addFilterRow(filter.header, filter.keywords);
                 });
               }
+              // If a file is already selected, enable the source sheet button.
+              selectSourceSheetBtn.disabled = !settings.sourceFileId;
               fetchAndPopulateHeaderOptions();
-              checkUrlAndEnableButton();
             }
           }).getImportSettings(currentSheetName);
         }).getActiveSheetName();
       }
-
-      document.addEventListener('DOMContentLoaded', function() {
-        pinToggle.title = '<?!= T.pinWindowTooltip ?>';
-        expandToggle.title = '<?!= T.expandWindowTooltip ?>';
-        loadAndPopulateSettings();
-      });
     </script>
   </body>
 </html>

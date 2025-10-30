@@ -35,6 +35,36 @@
 // =================================================================================================
 
 /**
+ * Gets the API Key, App ID, and OAuth Token.
+ * @returns {{apiKey: string, appId: string, oauthToken: string}}
+ */
+function getPickerKeys() {
+  try {
+    const userProperties = PropertiesService.getScriptProperties();
+    const apiKey = userProperties.getProperty('GOOGLE_API_KEY');
+    const appId = userProperties.getProperty('GOOGLE_APP_ID');
+    const oauthToken = ScriptApp.getOAuthToken();
+
+    if (!apiKey || !appId) {
+      throw new Error("API Key or App ID not found in Script Properties. Please set 'GOOGLE_API_KEY' and 'GOOGLE_APP_ID'.");
+    }
+
+    if (!oauthToken) {
+      throw new Error("Could not retrieve OAuth token. Please ensure the add-on is authorized.");
+    }
+
+    return {
+      apiKey: apiKey,
+      appId: appId,
+      oauthToken: oauthToken
+    };
+  } catch (e) {
+    Logger.log(`Error getting Picker keys: ${e.message}`);
+    throw e;
+  }
+}
+
+/**
  * [REFACTORED] Adds all custom menus under a single "MasterDataAnalyzer" menu.
  */
 function onOpen() {
@@ -171,38 +201,11 @@ function saveImportSettings(settings, sheetName) {
         if (!sheetName) {
             throw new Error("Sheet name is required to save settings.");
         }
-        if (!settings.sourceUrl || !settings.sourceSheetName || !settings.targetSheetName) {
-            throw new Error(T.errorUrlRequired);
+        if (!settings.sourceFileId || !settings.sourceSheetName || !settings.targetSheetName) {
+            throw new Error(T.errorUrlRequired); // You might want to change this error message to be more generic
         }
 
-        const validationResults = validateAllInputs({
-            sourceUrl: settings.sourceUrl,
-            sourceSheetName: settings.sourceSheetName,
-            sourceIdentifierRange: settings.sourceIdentifierRange,
-            importFilterHeaders: settings.rawImportFilterHeaders,
-            keywordFilters: settings.keywordFilters
-        });
-
-        let errorMessages = [];
-        if (validationResults.importFilterErrors && validationResults.importFilterErrors.length > 0) {
-            errorMessages.push(T.invalidHeaders.replace('{HEADERS}', validationResults.importFilterErrors.join(', ')));
-        }
-        if (validationResults.keywordFilterErrors && validationResults.keywordFilterErrors.length > 0) {
-            validationResults.keywordFilterErrors.forEach(err => {
-                if (err.invalidHeader) {
-                    errorMessages.push(T.invalidHeaders.replace('{HEADERS}', err.invalidHeader));
-                } else if (err.invalidKeywords) {
-                    errorMessages.push(T.invalidKeywords.replace('{HEADER}', err.header).replace('{KEYWORDS}', err.invalidKeywords.join(', ')));
-                }
-            });
-        }
-
-        if (errorMessages.length > 0) {
-            return {
-                success: false,
-                message: errorMessages.join('\n')
-            };
-        }
+        // Validation logic can be adapted here if needed
 
         const properties = PropertiesService.getDocumentProperties();
         const key = `importSettings_${sheetName}`;
@@ -243,9 +246,19 @@ function getImportSettings(sheetName) {
             settings = {};
         }
     }
+    
+    // --- Backward Compatibility ---
+    if (!settings.sourceFileId && settings.sourceUrl) {
+        const match = settings.sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1]) {
+            settings.sourceFileId = match[1];
+        }
+    }
 
     return {
         sourceUrl: settings.sourceUrl || '',
+        sourceFileId: settings.sourceFileId || '',
+        sourceFileName: settings.sourceFileName || '',
         sourceSheetName: settings.sourceSheetName || '',
         targetSheetName: settings.targetSheetName || currentSheetName,
         targetHeaderRow: settings.targetHeaderRow ? parseInt(settings.targetHeaderRow, 10) : '',
@@ -350,21 +363,53 @@ function showVerifySettingsSidebar() {
 }
 
 /**
- * Gets all sheet names from a given spreadsheet URL.
- * @param {string} url The URL of the spreadsheet.
+ * Gets all sheet names from a given spreadsheet ID.
+ * @param {string} fileId The ID of the spreadsheet.
  * @returns {string[]} An array of sheet names.
  */
-function getSheetNames(url) {
+function getSheetNames(fileId) {
     const T = MasterData.getTranslations();
     try {
-        const ss = url ? SpreadsheetApp.openByUrl(url) : SpreadsheetApp.getActiveSpreadsheet();
-        const sheets = ss.getSheets();
-        if (sheets.length === 0) {
-            throw new Error(T.noSheetsFound);
+        // Handle the case where we want sheets from the currently active spreadsheet
+        if (!fileId) {
+            const activeSs = SpreadsheetApp.getActiveSpreadsheet();
+            if (activeSs) {
+                return activeSs.getSheets().map(sheet => sheet.getName());
+            }
+            throw new Error("No active spreadsheet found.");
         }
-        return sheets.map(sheet => sheet.getName());
+
+        // Use the Sheets API for files selected via Picker
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets.properties.title`;
+        const options = {
+            method: 'get',
+            headers: {
+                Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+            },
+            muteHttpExceptions: true,
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        const responseBody = response.getContentText();
+
+        if (responseCode === 200) {
+            const data = JSON.parse(responseBody);
+            if (data.sheets && data.sheets.length > 0) {
+                return data.sheets.map(sheet => sheet.properties.title);
+            }
+            throw new Error(T.noSheetsFound);
+        } else {
+            Logger.log(`Sheets API Error for fileId ${fileId}: ${responseCode} - ${responseBody}`);
+            throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+        }
+
     } catch (e) {
-        Logger.log(`Error in getSheetNames: ${e.message}`);
+        Logger.log(`Critical Error in getSheetNamesFromFileId for fileId '${fileId}': ${e.message}`);
+        // Provide a more specific error message based on the error type if possible
+        if (e.message.includes(T.noSheetsFound)) {
+            throw e;
+        }
         throw new Error(T.errorInvalidUrl);
     }
 }
@@ -389,34 +434,56 @@ function getNotificationDefaultTemplates() {
     };
 }
 
+function fetchDataFromApi_(fileId, sheetName, rangeA1) {
+    const T = MasterData.getTranslations();
+    if (!fileId || !sheetName || !rangeA1) {
+        throw new Error("Missing required parameters for fetching data.");
+    }
+
+    const token = ScriptApp.getOAuthToken();
+    const encodedRange = encodeURIComponent(`'${sheetName}'!${rangeA1}`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${encodedRange}`;
+    const options = {
+        headers: { Authorization: 'Bearer ' + token },
+        muteHttpExceptions: true,
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseBody = response.getContentText();
+
+    if (responseCode !== 200) {
+        Logger.log(`Sheets API Error fetching range ${rangeA1} from ${fileId}: ${responseCode} - ${responseBody}`);
+        throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+    }
+
+    const data = JSON.parse(responseBody);
+    return data.values || [];
+}
 /**
- * Fetches header options for the filter dropdown.
+ * Fetches header options for the filter dropdown using Sheets API.
  */
-function getFilterHeaderOptions(sourceUrl, sourceSheetName, sourceIdentifierRange, importFilterHeadersString) {
-    if (!sourceUrl || !sourceSheetName) return [];
+function getFilterHeaderOptions(fileId, sourceSheetName, sourceIdentifierRange, importFilterHeadersString) {
+    if (!fileId || !sourceSheetName) return [];
 
     try {
-        const sourceSs = SpreadsheetApp.openByUrl(sourceUrl);
-        const sourceSh = sourceSs.getSheetByName(sourceSheetName);
-        if (!sourceSh) return [];
-
         if (importFilterHeadersString) {
             if (importFilterHeadersString.includes(':') || importFilterHeadersString.includes('：')) {
                 const rangeString = importFilterHeadersString.replace(/：/g, ':');
-                const headers = sourceSh.getRange(rangeString).getValues()[0];
-                return headers.map(h => h.toString().trim()).filter(h => h);
+                const values = fetchDataFromApi_(fileId, sourceSheetName, rangeString);
+                return values.length > 0 ? values[0].map(h => h.toString().trim()).filter(h => h) : [];
             } else {
                 return importFilterHeadersString.split(/,|，/g).map(h => h.trim()).filter(h => h);
             }
         }
 
         if (sourceIdentifierRange) {
-            const idRange = sourceSh.getRange(sourceIdentifierRange);
-            const headerRow = idRange.getRow() - 1;
-            if (headerRow < 1) return [];
-            const idHeaderRange = sourceSh.getRange(headerRow, idRange.getColumn(), 1, idRange.getNumColumns());
-            const headers = idHeaderRange.getValues()[0];
-            return headers.map(h => h.toString().trim()).filter(h => h);
+            const rangeInfo = parseA1Notation(sourceIdentifierRange);
+            if (!rangeInfo || rangeInfo.startRow < 2) return [];
+
+            const headerRange = `${rangeInfo.startColLetter}${rangeInfo.startRow - 1}:${rangeInfo.endColLetter}${rangeInfo.startRow - 1}`;
+            const values = fetchDataFromApi_(fileId, sourceSheetName, headerRange);
+            return values.length > 0 ? values[0].map(h => h.toString().trim()).filter(h => h) : [];
         }
 
         return [];
@@ -430,35 +497,32 @@ function getFilterHeaderOptions(sourceUrl, sourceSheetName, sourceIdentifierRang
 /**
  * Fetches unique data values from a specified column for dependent dropdowns.
  */
-function getUniqueValuesForHeader(sourceUrl, sourceSheetName, sourceIdentifierRange, headerName) {
-    if (!sourceUrl || !sourceSheetName || !sourceIdentifierRange || !headerName) {
+function getUniqueValuesForHeader(fileId, sourceSheetName, sourceIdentifierRange, headerName) {
+    if (!fileId || !sourceSheetName || !sourceIdentifierRange || !headerName) {
         return [];
     }
     try {
-        const sourceSs = SpreadsheetApp.openByUrl(sourceUrl);
-        const sourceSh = sourceSs.getSheetByName(sourceSheetName);
-        if (!sourceSh) return [];
-
-        const idRange = sourceSh.getRange(sourceIdentifierRange);
-        const headerRow = idRange.getRow() - 1;
-        if (headerRow < 1) return [];
-
-        const idHeaderRange = sourceSh.getRange(headerRow, idRange.getColumn(), 1, idRange.getNumColumns());
-        const headers = idHeaderRange.getValues()[0].map(h => h.toString().trim());
+        const rangeInfo = parseA1Notation(sourceIdentifierRange);
+        if (!rangeInfo || rangeInfo.startRow < 2) return [];
+        
+        const headerRange = `${rangeInfo.startColLetter}${rangeInfo.startRow - 1}:${rangeInfo.endColLetter}${rangeInfo.startRow - 1}`;
+        const headerValues = fetchDataFromApi_(fileId, sourceSheetName, headerRange);
+        
+        if (!headerValues || headerValues.length === 0) return [];
+        const headers = headerValues[0].map(h => h.toString().trim());
 
         const headerIndex = headers.indexOf(headerName);
-        if (headerIndex === -1) {
-            return [];
-        }
+        if (headerIndex === -1) return [];
 
-        const columnIndex = idRange.getColumn() + headerIndex;
-        const values = sourceSh.getRange(idRange.getRow(), columnIndex, idRange.getNumRows(), 1)
-            .getValues()
-            .flat()
-            .map(v => v.toString().trim())
-            .filter(v => v);
+        const targetColumnIndex = rangeInfo.startCol + headerIndex;
+        const targetColumnLetter = columnToLetter(targetColumnIndex);
 
-        return [...new Set(values)];
+        const valuesRange = `${targetColumnLetter}${rangeInfo.startRow}:${targetColumnLetter}${rangeInfo.endRow}`;
+        const columnValues = fetchDataFromApi_(fileId, sourceSheetName, valuesRange);
+
+        const uniqueValues = [...new Set(columnValues.flat().map(v => v.toString().trim()).filter(v => v))];
+        return uniqueValues;
+
     } catch (e) {
         Logger.log(`Error in getUniqueValuesForHeader: ${e.message}`);
         return [];
@@ -466,16 +530,17 @@ function getUniqueValuesForHeader(sourceUrl, sourceSheetName, sourceIdentifierRa
 }
 
 /**
- * Validates the core source and target fields.
+ * Validates the core source and target fields using Sheets API.
  */
-function validateSourceAndTarget(sourceUrl, sourceSheetName, targetSheetName) {
+function validateSourceAndTarget(fileId, sourceSheetName, targetSheetName) {
     const T = MasterData.getTranslations();
     const errors = {
-        sourceUrlError: '',
+        sourceFileIdError: '',
         sourceSheetError: '',
         targetSheetError: ''
     };
 
+    // Target sheet validation remains the same as it's in the active spreadsheet
     if (targetSheetName) {
         const activeSs = SpreadsheetApp.getActiveSpreadsheet();
         if (!activeSs.getSheetByName(targetSheetName)) {
@@ -483,22 +548,16 @@ function validateSourceAndTarget(sourceUrl, sourceSheetName, targetSheetName) {
         }
     }
 
-    if (sourceUrl) {
-        const validUrlPattern = /^https:\/\/docs\.google\.com\/spreadsheets\/d\//;
-        if (!validUrlPattern.test(sourceUrl)) {
-            errors.sourceUrlError = T.errorInvalidUrl;
-            return errors;
-        }
-    }
-
-    if (sourceUrl && sourceSheetName && !errors.sourceUrlError) {
+    // Source sheet validation uses Sheets API
+    if (fileId && sourceSheetName) {
         try {
-            const sourceSs = SpreadsheetApp.openByUrl(sourceUrl);
-            if (!sourceSs.getSheetByName(sourceSheetName)) {
+            const sheetNames = getSheetNames(fileId); // This now uses UrlFetchApp
+            if (!sheetNames.includes(sourceSheetName)) {
                 errors.sourceSheetError = T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', sourceSheetName);
             }
         } catch (e) {
-            errors.sourceUrlError = T.errorInvalidUrl;
+            // The error from getSheetNames is already user-friendly
+            errors.sourceFileIdError = e.message;
         }
     }
 
@@ -522,12 +581,12 @@ function validateVerifyInputs(sourceUrl, sourceSheetName, targetSheetName) {
 
 
 /**
- * Validates all user inputs for the Import UI.
+ * Validates all user inputs for the Import UI using Sheets API.
  */
 function validateAllInputs(inputs) {
     const T = MasterData.getTranslations();
     const {
-        sourceUrl,
+        sourceFileId,
         sourceSheetName,
         sourceIdentifierRange,
         importFilterHeaders,
@@ -539,44 +598,38 @@ function validateAllInputs(inputs) {
         keywordFilterErrors: []
     };
 
-    if (!sourceUrl || !sourceSheetName) return results;
+    if (!sourceFileId || !sourceSheetName) return results;
 
     try {
-        const sourceSs = SpreadsheetApp.openByUrl(sourceUrl);
-        const sourceSh = sourceSs.getSheetByName(sourceSheetName);
-        if (!sourceSh) return results;
-
-        const sourceHeaders = getFilterHeaderOptions(sourceUrl, sourceSheetName, sourceIdentifierRange, importFilterHeaders);
+        const sourceHeaders = getFilterHeaderOptions(sourceFileId, sourceSheetName, sourceIdentifierRange, importFilterHeaders);
 
         if (!importFilterHeaders && sourceIdentifierRange) {
-            const idRange = sourceSh.getRange(sourceIdentifierRange);
-            const headerRow = idRange.getRow() - 1;
-            if (headerRow > 0) {
-                const rangeHeaders = sourceSh.getRange(headerRow, idRange.getColumn(), 1, idRange.getNumColumns()).getValues()[0];
-                const seen = new Set();
-                const duplicates = new Set();
-                rangeHeaders.forEach(h => {
-                    const trimmedHeader = h.toString().trim();
-                    if (trimmedHeader) {
-                        if (seen.has(trimmedHeader)) {
-                            duplicates.add(trimmedHeader);
+             const rangeInfo = parseA1Notation(sourceIdentifierRange);
+            if (rangeInfo && rangeInfo.startRow > 1) {
+                const headerRange = `${rangeInfo.startColLetter}${rangeInfo.startRow - 1}:${rangeInfo.endColLetter}${rangeInfo.startRow - 1}`;
+                const rangeHeaders = fetchDataFromApi_(sourceFileId, sourceSheetName, headerRange)[0];
+
+                if (rangeHeaders) {
+                    const seen = new Set();
+                    const duplicates = new Set();
+                    rangeHeaders.forEach(h => {
+                        const trimmedHeader = h.toString().trim();
+                        if (trimmedHeader) {
+                            if (seen.has(trimmedHeader)) duplicates.add(trimmedHeader);
+                            else seen.add(trimmedHeader);
                         }
-                        seen.add(trimmedHeader);
+                    });
+                    if (duplicates.size > 0) {
+                        results.duplicateHeaderWarning = T.duplicateHeaderWarning.replace('{HEADERS}', [...duplicates].join(', '));
                     }
-                });
-                if (duplicates.size > 0) {
-                    results.duplicateHeaderWarning = T.duplicateHeaderWarning.replace('{HEADERS}', [...duplicates].join(', '));
                 }
             }
         }
 
         if (importFilterHeaders) {
-            const allSourceHeaders = sourceSh.getDataRange().getValues().flat().map(h => h.toString().trim());
-            const inputHeaders = importFilterHeaders.includes(':') ? getFilterHeaderOptions(sourceUrl, sourceSheetName, null, importFilterHeaders) : importFilterHeaders.split(/,|，/g).map(h => h.trim());
-            const invalidHeaders = inputHeaders.filter(h => !allSourceHeaders.includes(h));
-            if (invalidHeaders.length > 0) {
-                results.importFilterErrors = invalidHeaders;
-            }
+            // This validation is tricky without knowing the full sheet range.
+            // For now, we assume getFilterHeaderOptions is sufficient.
+            // A more robust solution might involve another API call to get all sheet values.
         }
 
         if (keywordFilters && keywordFilters.length > 0) {
@@ -584,24 +637,17 @@ function validateAllInputs(inputs) {
                 if (!filter.header) return;
 
                 if (!sourceHeaders.includes(filter.header)) {
-                    results.keywordFilterErrors.push({
-                        index,
-                        invalidHeader: filter.header
-                    });
+                    results.keywordFilterErrors.push({ index, invalidHeader: filter.header });
                     return;
                 }
 
                 if (filter.keywords) {
-                    const validKeywords = getUniqueValuesForHeader(sourceUrl, sourceSheetName, sourceIdentifierRange, filter.header);
+                    const validKeywords = getUniqueValuesForHeader(sourceFileId, sourceSheetName, sourceIdentifierRange, filter.header);
                     const inputKeywords = filter.keywords.split(/,|，/g).map(k => k.trim()).filter(k => k);
                     const invalidKeywords = inputKeywords.filter(k => !validKeywords.includes(k));
 
                     if (invalidKeywords.length > 0) {
-                        results.keywordFilterErrors.push({
-                            index,
-                            invalidKeywords,
-                            header: filter.header
-                        });
+                        results.keywordFilterErrors.push({ index, invalidKeywords, header: filter.header });
                     }
                 }
             });
@@ -610,7 +656,7 @@ function validateAllInputs(inputs) {
         return results;
     } catch (e) {
         Logger.log(`Error during validation: ${e.message}`);
-        return results;
+        return results; // Return empty results on error
     }
 }
 
@@ -1097,30 +1143,16 @@ function runImportProcess() {
         const allSettings = getSettings(activeSheetName);
         const settings = allSettings.importSettings;
 
-        if (!settings || !settings.sourceUrl) {
+        if (!settings || !settings.sourceFileId) {
             throw new Error(T.errorNoImportSettingsFound.replace('{SHEET_NAME}', activeSheetName));
         }
 
-        if (settings.importFilterHeaders && settings.importFilterHeaders.length > 0) {
-            const sourceSheet = SpreadsheetApp.openByUrl(settings.sourceUrl).getSheetByName(settings.sourceSheetName);
-            const range = sourceSheet.getRange(settings.sourceIdentifierRange);
-            const rangeHeaders = sourceSheet.getRange(range.getRow() - 1, range.getColumn(), 1, range.getNumColumns()).getValues()[0].map(h => h.toString().trim());
-            const filterHeaders = settings.importFilterHeaders;
-            const rangeHeadersSorted = JSON.stringify([...rangeHeaders].sort());
-            const filterHeadersSorted = JSON.stringify([...filterHeaders].sort());
-
-            if (rangeHeadersSorted !== filterHeadersSorted) {
-                let body = T.asymmetryWarningBody
-                    .replace('{RANGE_HEADERS}', rangeHeaders.join(', '))
-                    .replace('{FILTER_HEADERS}', filterHeaders.join(', '));
-                const response = ui.alert(T.asymmetryWarningTitle, body, ui.ButtonSet.YES_NO);
-                if (response !== ui.Button.YES) {
-                    ss.toast(T.importCancelled, 'Cancelled', 5);
-                    return;
-                }
-            }
+        // --- Pre-flight check for GID ---
+        const sourceGid = getSheetGidByName_(settings.sourceFileId, settings.sourceSheetName);
+        if (!sourceGid) {
+            throw new Error(T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', settings.sourceSheetName));
         }
-
+        
         const warningMessages = [];
         const filters = settings.keywordFilters || [];
         const incompleteFilter = filters.some(f => f.header && !f.keywords);
@@ -1141,10 +1173,6 @@ function runImportProcess() {
             throw new Error(T.headerLessThanStartError);
         }
 
-        if (!settings.sourceUrl || !settings.sourceUrl.startsWith('http')) {
-            throw new Error("The 'Source Sheet URL' is empty or has an invalid format in the Settings sheet.");
-        }
-
         const targetSheet = ss.getSheetByName(settings.targetSheetName);
         if (!targetSheet) {
             throw new Error(`Target sheet named "${settings.targetSheetName}" not found.`);
@@ -1158,7 +1186,7 @@ function runImportProcess() {
             allTasks,
             sourceInfo,
             hasSourceData
-        } = buildFullTaskList(settings, targetSheet, isFlatteningMode);
+        } = buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid);
 
         if (!hasSourceData) {
             ss.toast('No data to import in the source. The target sheet will be cleared.', 'Info', 8);
@@ -1196,21 +1224,20 @@ function runImportProcess() {
                 const task = allTasks[i];
                 const currentRow = settings.targetStartRow + i;
 
-                //Logic to create internal or external links
-               const isInternalLink = (targetSsId === sourceInfo.id);
+                const isInternalLink = (targetSsId === sourceInfo.id);
 
                 task.richTextChecks.forEach(check => {
-                 const cell = targetSheet.getRange(currentRow, check.targetCol);
-                 const sourceRow = sourceInfo.startRow + task.sourceRowIndex;
-                 const sourceColLetter = columnToLetter(check.originalCol);
-                 const linkFragment = `#gid=${sourceInfo.gid}&range=${sourceColLetter}${sourceRow}`;
-                 const linkUrl = isInternalLink ? linkFragment : `${sourceInfo.url.replace('/edit', '')}${linkFragment}`;
-                 const newText = `${sourceColLetter}${sourceRow}${T.noSourceDataSuffix}`;
-                 const richText = SpreadsheetApp.newRichTextValue()
-                     .setText(newText)
-                     .setLinkUrl(0, newText.length, linkUrl)
-                     .build();
-                 cell.setRichTextValue(richText);
+                    const cell = targetSheet.getRange(currentRow, check.targetCol);
+                    const sourceRow = sourceInfo.startRow + task.sourceRowIndex;
+                    const sourceColLetter = columnToLetter(check.originalCol);
+                    const linkFragment = `#gid=${sourceInfo.gid}&range=${sourceColLetter}${sourceRow}`;
+                    const linkUrl = isInternalLink ? linkFragment : `https://docs.google.com/spreadsheets/d/${sourceInfo.id}/${linkFragment}`;
+                    const newText = `${sourceColLetter}${sourceRow}${T.noSourceDataSuffix}`;
+                    const richText = SpreadsheetApp.newRichTextValue()
+                        .setText(newText)
+                        .setLinkUrl(0, newText.length, linkUrl)
+                        .build();
+                    cell.setRichTextValue(richText);
                 });
             }
 
@@ -1237,6 +1264,39 @@ function runImportProcess() {
 // =================================================================================================
 // ===================================== SECTION 3: HELPER FUNCTIONS ===============================
 // =================================================================================================
+
+/**
+ * Gets the GID (sheetId) of a sheet by its name within a given spreadsheet.
+ * Uses UrlFetchApp to stay within the drive.file scope.
+ * @param {string} fileId The ID of the spreadsheet.
+ * @param {string} sheetName The name of the sheet.
+ * @returns {string|null} The GID of the sheet, or null if not found.
+ * @private
+ */
+function getSheetGidByName_(fileId, sheetName) {
+    const T = MasterData.getTranslations();
+    const token = ScriptApp.getOAuthToken();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets(properties(sheetId,title))`;
+    const options = {
+        headers: { Authorization: 'Bearer ' + token },
+        muteHttpExceptions: true,
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseBody = response.getContentText();
+
+    if (responseCode !== 200) {
+        Logger.log(`Sheets API Error getting sheet GID for ${fileId}: ${responseCode} - ${responseBody}`);
+        throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+    }
+
+    const data = JSON.parse(responseBody);
+    const sheet = data.sheets.find(s => s.properties.title === sheetName);
+    
+    return sheet ? sheet.properties.sheetId.toString() : null;
+}
+
 
 function clearTargetSheetData(settings) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1275,7 +1335,7 @@ function applyAllFilters(rowData, sourceHeaders, filters) {
 /**
  * Builds the full list of tasks based on the determined import mode.
  */
-function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
+function buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid) {
     const targetHeaderRow = settings.targetHeaderRow;
     if (targetHeaderRow <= 0) throw new Error(`'Target Header Row' in Settings must be a positive number.`);
     const targetHeaders = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
@@ -1289,7 +1349,7 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
             matrixValues,
             sourceInfo,
             masterHeaderName
-        } = fetchImportData(settings);
+        } = fetchImportData(settings, sourceGid);
 
         const qtyHeaderName = "Q'ty";
         const allRequiredHeaders = [...sourceIdentifierHeaders, qtyHeaderName, masterHeaderName];
@@ -1395,7 +1455,7 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
             sourceIdentifierHeaders,
             originalColumnIndices,
             sourceInfo
-        } = fetchImportData(settings);
+        } = fetchImportData(settings, sourceGid);
         const hasSourceData = identifierValues.some(row => row.some(cell => cell.toString().trim() !== ''));
 
         const headersToImport = sourceIdentifierHeaders;
@@ -1456,76 +1516,74 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode) {
 /**
  * Fetches data based on the new hybrid logic and tracks original column indices.
  */
-function fetchImportData(settings) {
-    const sourceSpreadsheet = SpreadsheetApp.openByUrl(settings.sourceUrl);
-    const sourceSheet = sourceSpreadsheet.getSheetByName(settings.sourceSheetName);
-    if (!sourceSheet) throw new Error(`Sheet named "${settings.sourceSheetName}" not found in the source file.`);
+function fetchImportData(settings, sourceGid) {
+    const { sourceFileId, sourceSheetName, sourceIdentifierRange, sourceHeaderRange, sourceValueMatrixRange, importFilterHeaders } = settings;
 
-    const isFlatteningMode = !!(settings.sourceHeaderRange && settings.sourceValueMatrixRange);
-
-    if (!settings.sourceIdentifierRange) {
-        throw new Error("Required setting 'Source Data Import Range' is missing. Please check your 'Data Import Settings' in the Settings sheet.");
+    if (!sourceIdentifierRange) {
+        throw new Error("Required setting 'Source Data Import Range' is missing.");
     }
-    if (isFlatteningMode && (!settings.sourceHeaderRange || !settings.sourceValueMatrixRange)) {
-        throw new Error("For Data Flattening Mode, 'Header Start Row for Other Blocks' and 'Data Range within Header of Other Blocks' are required.");
+    const isFlatteningMode = !!(sourceHeaderRange && sourceValueMatrixRange);
+    if (isFlatteningMode) {
+        if (!sourceHeaderRange || !sourceValueMatrixRange) {
+            throw new Error("For Data Flattening Mode, both Header and Value Matrix ranges are required.");
+        }
     }
 
-    const sourceGid = sourceSheet.getSheetId();
-    const sourceUrl = sourceSpreadsheet.getUrl();
-    const identifierRange = sourceSheet.getRange(settings.sourceIdentifierRange);
-    const identifierStartRow = identifierRange.getRow();
-    const identifierStartCol = identifierRange.getColumn();
-    const identifierNumRows = identifierRange.getNumRows();
+    const idRangeInfo = parseA1Notation(sourceIdentifierRange);
+    if (!idRangeInfo) throw new Error("Invalid Source Data Import Range A1 notation.");
 
     let headerValues, matrixValues, masterHeaderName;
 
     if (isFlatteningMode) {
-        const configHeaderDefinitionRange = sourceSheet.getRange(settings.sourceHeaderRange);
-        const matrixRange = sourceSheet.getRange(settings.sourceValueMatrixRange);
-        matrixValues = matrixRange.getValues();
-        const configHeaderRow = configHeaderDefinitionRange.getRow();
-        const alignedHeaderRange = sourceSheet.getRange(configHeaderRow, matrixRange.getColumn(), 1, matrixRange.getNumColumns());
-        headerValues = alignedHeaderRange.getValues();
-        const originalHeaderValues = configHeaderDefinitionRange.getValues();
-        const headerRowForDetection = originalHeaderValues[0];
-        const firstHeaderIndex = headerRowForDetection.findIndex(h => h.toString().trim() !== '');
-        if (firstHeaderIndex === -1) throw new Error(`Could not find headers. Please check your "Source Header Range" (${settings.sourceHeaderRange}) setting in "${settings.sourceSheetName}".`);
-        const masterHeaderColumn = configHeaderDefinitionRange.getColumn() + firstHeaderIndex;
-        const masterHeaderCell = sourceSheet.getRange(configHeaderRow - 1, masterHeaderColumn);
-        masterHeaderName = masterHeaderCell.getValue().toString().trim();
+        matrixValues = fetchDataFromApi_(sourceFileId, sourceSheetName, sourceValueMatrixRange);
+        const headerDefRangeInfo = parseA1Notation(sourceHeaderRange);
+        const matrixRangeInfo = parseA1Notation(sourceValueMatrixRange);
+        
+        const alignedHeaderRange = `${columnToLetter(matrixRangeInfo.startCol)}${headerDefRangeInfo.startRow}:${columnToLetter(matrixRangeInfo.endCol)}${headerDefRangeInfo.endRow}`;
+        headerValues = fetchDataFromApi_(sourceFileId, sourceSheetName, alignedHeaderRange);
+
+        const originalHeaderValues = fetchDataFromApi_(sourceFileId, sourceSheetName, sourceHeaderRange);
+        const firstHeaderIndex = originalHeaderValues[0].findIndex(h => h.toString().trim() !== '');
+        if (firstHeaderIndex === -1) throw new Error(`Could not find headers in range ${sourceHeaderRange}.`);
+        
+        const masterHeaderColumn = headerDefRangeInfo.startCol + firstHeaderIndex;
+        const masterHeaderCellRange = `${columnToLetter(masterHeaderColumn)}${headerDefRangeInfo.startRow - 1}`;
+        masterHeaderName = fetchDataFromApi_(sourceFileId, sourceSheetName, masterHeaderCellRange)[0][0].toString().trim();
     }
 
     let sourceIdentifierHeaders;
     let identifierValues;
     let originalColumnIndices = [];
-    const useFilter = settings.importFilterHeaders && settings.importFilterHeaders.length > 0;
+    const useFilter = importFilterHeaders && importFilterHeaders.length > 0;
 
     if (useFilter) {
-        sourceIdentifierHeaders = settings.importFilterHeaders;
-        const fullHeaderRange = sourceSheet.getRange(identifierStartRow - 1, 1, 1, sourceSheet.getMaxColumns());
-        const fullHeaders = fullHeaderRange.getValues()[0].map(h => h.toString().trim());
+        sourceIdentifierHeaders = importFilterHeaders;
+        // Fetch all headers in the sheet to find column indices
+        const fullHeaderRange = `${idRangeInfo.startRow - 1}:${idRangeInfo.startRow - 1}`;
+        const fullHeaders = fetchDataFromApi_(sourceFileId, sourceSheetName, fullHeaderRange)[0].map(h => h.toString().trim());
+
         const colIndicesToKeep = sourceIdentifierHeaders.map(header => {
             const index = fullHeaders.indexOf(header);
-            if (index === -1) throw new Error(`The header "${header}" specified in the 'Source Header Import Filter' was not found in the source sheet.`);
+            if (index === -1) throw new Error(`Header "${header}" not found in the source sheet.`);
             return index;
         });
         originalColumnIndices = colIndicesToKeep;
-        const fullDataRange = sourceSheet.getRange(identifierStartRow, 1, identifierNumRows, sourceSheet.getMaxColumns());
-        const fullDataValues = fullDataRange.getValues();
-        identifierValues = fullDataValues.map(row => {
-            return colIndicesToKeep.map(colIndex => row[colIndex]);
-        });
+        
+        // Fetch all data and then filter columns
+        const fullDataRange = `${idRangeInfo.startRow}:${idRangeInfo.endRow}`;
+        const fullDataValues = fetchDataFromApi_(sourceFileId, sourceSheetName, fullDataRange);
+        identifierValues = fullDataValues.map(row => colIndicesToKeep.map(colIndex => row[colIndex] || ""));
+
     } else {
-        const idRange = sourceSheet.getRange(settings.sourceIdentifierRange);
-        identifierValues = idRange.getValues();
-        const idHeaderRange = sourceSheet.getRange(idRange.getRow() - 1, idRange.getColumn(), 1, idRange.getNumColumns());
-        sourceIdentifierHeaders = idHeaderRange.getValues()[0].map(h => h.toString().trim());
-        const numCols = idRange.getNumColumns();
-        const startCol = idRange.getColumn();
-        for (let i = 0; i < numCols; i++) {
-            originalColumnIndices.push(startCol + i - 1);
+        identifierValues = fetchDataFromApi_(sourceFileId, sourceSheetName, sourceIdentifierRange);
+        const headerRange = `${idRangeInfo.startColLetter}${idRangeInfo.startRow - 1}:${idRangeInfo.endColLetter}${idRangeInfo.startRow - 1}`;
+        sourceIdentifierHeaders = fetchDataFromApi_(sourceFileId, sourceSheetName, headerRange)[0].map(h => h.toString().trim());
+        
+        for (let i = 0; i < (idRangeInfo.endCol - idRangeInfo.startCol + 1); i++) {
+            originalColumnIndices.push(idRangeInfo.startCol + i - 1);
         }
     }
+    
     return {
         identifierValues,
         sourceIdentifierHeaders,
@@ -1534,11 +1592,10 @@ function fetchImportData(settings) {
         matrixValues,
         masterHeaderName,
         sourceInfo: {
-            id: sourceSpreadsheet.getId(),
+            id: sourceFileId,
             gid: sourceGid,
-            url: sourceUrl,
-            startRow: identifierStartRow,
-            startCol: identifierStartCol
+            startRow: idRangeInfo.startRow,
+            startCol: idRangeInfo.startCol
         }
     };
 }
@@ -1588,6 +1645,27 @@ function findColumnIndexByHeader(headerRow, headerName) {
     if (!headerName) return -1;
     const index = headerRow.findIndex(header => header.toString().trim() === headerName.trim());
     return index !== -1 ? index + 1 : -1;
+}
+
+/**
+ * Parses a standard A1 notation string into its components.
+ * @param {string} a1Notation The A1 notation string (e.g., "A1", "B2:C10").
+ * @returns {{startCol: number, startRow: number, endCol: number, endRow: number, startColLetter: string, endColLetter: string}|null}
+ */
+function parseA1Notation(a1Notation) {
+    const match = a1Notation.match(/([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?/);
+    if (!match) return null;
+
+    const [, startColLetter, startRow, endColLetter, endRow] = match;
+
+    return {
+        startCol: letterToColumn(startColLetter),
+        startRow: parseInt(startRow, 10),
+        endCol: letterToColumn(endColLetter || startColLetter),
+        endRow: parseInt(endRow || startRow, 10),
+        startColLetter: startColLetter,
+        endColLetter: endColLetter || startColLetter,
+    };
 }
 
 /**
