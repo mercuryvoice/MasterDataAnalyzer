@@ -13,7 +13,9 @@
  * MasterDataAnalyzer - A Google Sheets Add-on for intelligent data operations.
  *
  * Copyright (c) 2025 Tata Sum (mda.design)
- *
+ */
+
+ /*
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
 
@@ -30,22 +32,102 @@
  */
 
 /**
+ * Gets the API Key, App ID, and OAuth Token for the Report section.
+ * @returns {{apiKey: string, appId: string, oauthToken: string}}
+ */
+function report_getPickerKeys() {
+  try {
+    const userProperties = PropertiesService.getScriptProperties();
+    const apiKey = userProperties.getProperty('GOOGLE_API_KEY');
+    const appId = userProperties.getProperty('GOOGLE_APP_ID');
+    const oauthToken = ScriptApp.getOAuthToken();
+
+    if (!apiKey || !appId) {
+      throw new Error("API Key or App ID not found in Script Properties. Please set 'GOOGLE_API_KEY' and 'GOOGLE_APP_ID'.");
+    }
+
+    if (!oauthToken) {
+      throw new Error("Could not retrieve OAuth token. Please ensure the add-on is authorized.");
+    }
+
+    return {
+      apiKey: apiKey,
+      appId: appId,
+      oauthToken: oauthToken
+    };
+  } catch (e) {
+    Logger.log(`Error getting Picker keys: ${e.message}`);
+    throw e;
+  }
+}
+
+
+/**
+ * Gets all sheet names from a given spreadsheet ID for the Report section.
+ * @param {string} fileId The ID of the spreadsheet.
+ * @returns {string[]} An array of sheet names.
+ */
+function report_getSheetNames(fileId) {
+    const T = MasterData.getTranslations();
+    try {
+        if (!fileId) {
+            const activeSs = SpreadsheetApp.getActiveSpreadsheet();
+            if (activeSs) {
+                return activeSs.getSheets().map(sheet => sheet.getName());
+            }
+            throw new Error("No active spreadsheet found.");
+        }
+
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets.properties.title`;
+        const options = {
+            method: 'get',
+            headers: {
+                Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+            },
+            muteHttpExceptions: true,
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        const responseBody = response.getContentText();
+
+        if (responseCode === 200) {
+            const data = JSON.parse(responseBody);
+            if (data.sheets && data.sheets.length > 0) {
+                return data.sheets.map(sheet => sheet.properties.title);
+            }
+            throw new Error(T.noSheetsFound);
+        } else {
+            Logger.log(`Sheets API Error for fileId ${fileId}: ${responseCode} - ${responseBody}`);
+            throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+        }
+
+    } catch (e) {
+        Logger.log(`Critical Error in report_getSheetNames for fileId '${fileId}': ${e.message}`);
+        if (e.message.includes(T.noSheetsFound)) {
+            throw e;
+        }
+        throw new Error(T.errorInvalidUrl);
+    }
+}
+
+/**
  * Saves the report settings for a specific sheet.
  * @param {object} settings The settings object from the UI.
  * @param {string} sheetName The name of the sheet to save settings for.
  * @returns {{success: boolean, message: string}} Result object.
  */
-function saveReportSettings(settings, sheetName) {
+function report_saveReportSettings(settings, sheetName) {
     const T = MasterData.getTranslations();
     try {
-        if (!sheetName) throw new Error(T.saveFailureMissingSheetName); //mod
+        if (!sheetName) throw new Error(T.saveFailureMissingSheetName);
         const properties = PropertiesService.getDocumentProperties();
         const key = `reportSettings_${sheetName}`;
         properties.setProperty(key, JSON.stringify(settings));
-        return { success: true, message: T.saveSuccess }; //mod
+        return { success: true, message: T.saveSuccess };
     } catch (e) {
         Logger.log(`Error saving report settings for ${sheetName}: ${e.message}`);
-        return { success: false, message: `${T.saveFailure}: ${e.message}` }; //mod
+        return { success: false, message: `${T.saveFailure}: ${e.message}` };
     }
 }
 
@@ -54,12 +136,25 @@ function saveReportSettings(settings, sheetName) {
  * @param {string} sheetName The name of the sheet to get settings for.
  * @returns {object} The saved settings object.
  */
-function getReportSettings(sheetName) {
+function report_getReportSettings(sheetName) {
     try {
         const properties = PropertiesService.getDocumentProperties();
         const key = `reportSettings_${sheetName}`;
         const settingsString = properties.getProperty(key);
-        return settingsString ? JSON.parse(settingsString) : null;
+        let settings = settingsString ? JSON.parse(settingsString) : {};
+
+        if (!settings.sourceFileId && settings.sourceUrl) {
+            const match = settings.sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            if (match && match[1]) {
+                settings.sourceFileId = match[1];
+            }
+        }
+
+        if (settings.sourceFileId && !settings.sourceUrl) {
+            settings.sourceUrl = `https://docs.google.com/spreadsheets/d/${settings.sourceFileId}/`;
+        }
+        
+        return settings;
     } catch (e) {
         Logger.log(`Error getting report settings for ${sheetName}: ${e.message}`);
         return null;
@@ -69,73 +164,58 @@ function getReportSettings(sheetName) {
 
 /**
  * Validates the report inputs for source URL, sheet name, and range.
- * @param {string} url The source spreadsheet URL.
+ * @param {string} fileId The source spreadsheet ID.
  * @param {string} sheetName The source sheet name.
  * @param {string} rangeA1 The source data range.
  * @returns {object} An object containing any validation error messages.
  */
-function validateReportInputs(url, sheetName, rangeA1) {
+function report_validateReportInputs(fileId, sheetName, rangeA1) {
     const T = MasterData.getTranslations();
     const errors = { sourceUrlError: '', sheetError: '', rangeError: '' };
-    let ss;
 
-    try {
-        if (url) {
-            const validUrlPattern = /^https:\/\/docs\.google\.com\/spreadsheets\/d\//;
-            if (!validUrlPattern.test(url)) {
-                errors.sourceUrlError = T.errorInvalidUrl; //mod
-                return errors;
+    if (fileId) {
+        try {
+            const availableSheets = report_getSheetNames(fileId);
+            if (!availableSheets.includes(sheetName)) {
+                errors.sheetError = T.sheetNotFound.replace('{SHEET_NAME}', sheetName);
             }
-            ss = SpreadsheetApp.openByUrl(url);
-        } else {
-            ss = SpreadsheetApp.getActiveSpreadsheet();
+        } catch (e) {
+            errors.sourceUrlError = e.message;
+            return errors; 
         }
-
-        if (!sheetName) {
-             errors.sheetError = T.reportSheetNameRequired; //mod
-             return errors;
-        }
-
-        const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) {
-            errors.sheetError = T.sheetNotFound.replace('{SHEET_NAME}', sheetName); //mod
-            return errors;
-        }
-
-        if (rangeA1) {
-            try {
-                sheet.getRange(rangeA1);
-            } catch (e) {
-                errors.rangeError = T.errorInvalidHeaderRange.replace('{RANGE}', rangeA1); //mod
-            }
-        } else {
-            errors.rangeError = T.reportRangeRequired; //mod
-        }
-
-    } catch (e) {
-        errors.sourceUrlError = T.errorInvalidUrl; //mod
     }
 
+    if (!sheetName) {
+         errors.sheetError = T.reportSheetNameRequired;
+    }
+
+    if (!rangeA1) {
+        errors.rangeError = T.reportRangeRequired;
+    }
+    
     return errors;
 }
 
 /**
  * Fetches headers from a specified range.
- * @param {string} url The source spreadsheet URL.
+ * @param {string} fileId The source spreadsheet ID.
  * @param {string} sheetName The name of the source sheet.
  * @param {string} rangeA1 The A1 notation of the data range.
  * @returns {string[]} An array of header strings.
  */
-function getHeadersFromRange(url, sheetName, rangeA1) {
+function report_getHeadersFromRange(fileId, sheetName, rangeA1) {
     try {
-        if (!sheetName || !rangeA1) return [];
-        const ss = url ? SpreadsheetApp.openByUrl(url) : SpreadsheetApp.getActiveSpreadsheet();
-        const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) throw new Error(`找不到工作表: ${sheetName}`);
+        if (!fileId || !sheetName || !rangeA1) return [];
+        const rangeInfo = report_parseA1Notation(rangeA1);
+        if (!rangeInfo) throw new Error("Invalid A1 notation for header range.");
 
-        const range = sheet.getRange(rangeA1);
-        const headers = sheet.getRange(range.getRow(), range.getColumn(), 1, range.getNumColumns()).getValues()[0];
-        return headers.filter(h => h.toString().trim() !== '');
+        const headerRange = `${rangeInfo.startColLetter}${rangeInfo.startRow}:${rangeInfo.endColLetter}${rangeInfo.startRow}`;
+        const headerValues = report_fetchDataFromApi_(fileId, sheetName, headerRange);
+        
+        if (headerValues && headerValues.length > 0) {
+            return headerValues[0].filter(h => h.toString().trim() !== '');
+        }
+        return [];
     } catch (e) {
         Logger.log(`Error getting headers: ${e.stack}`);
         throw e;
@@ -143,22 +223,19 @@ function getHeadersFromRange(url, sheetName, rangeA1) {
 }
 
 /**
- * Checks specified metric fields for non-numeric values.
- * @param {string} url The source spreadsheet URL.
+ * Checks specified metric fields for non-numeric values using the Sheets API.
+ * @param {string} fileId The source spreadsheet ID.
  * @param {string} sheetName The name of the source sheet.
  * @param {string} rangeA1 The A1 notation of the data range.
  * @param {string[]} metricHeaders An array of header names to check.
  * @returns {string[]} An array of header names that contain non-numeric data.
  */
-function checkMetricFields(url, sheetName, rangeA1, metricHeaders) {
-    if (!sheetName || !rangeA1 || !metricHeaders || metricHeaders.length === 0) return [];
+function report_checkMetricFields(fileId, sheetName, rangeA1, metricHeaders) {
+    if (!fileId || !sheetName || !rangeA1 || !metricHeaders || metricHeaders.length === 0) return [];
     try {
-        const ss = url ? SpreadsheetApp.openByUrl(url) : SpreadsheetApp.getActiveSpreadsheet();
-        const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) return metricHeaders;
+        const allValues = report_fetchDataFromApi_(fileId, sheetName, rangeA1);
+        if (allValues.length < 2) return [];
 
-        const range = sheet.getRange(rangeA1);
-        const allValues = range.getValues();
         const allHeaders = allValues[0];
         const dataRows = allValues.slice(1);
         const nonNumericFields = [];
@@ -167,11 +244,15 @@ function checkMetricFields(url, sheetName, rangeA1, metricHeaders) {
             const colIndex = allHeaders.indexOf(metricHeader);
             if (colIndex === -1) return;
 
-            for (let i = 0; i < Math.min(dataRows.length, 5); i++) { // Check first 5 rows
+            for (let i = 0; i < Math.min(dataRows.length, 5); i++) {
                 const cellValue = dataRows[i][colIndex];
-                if (cellValue !== null && cellValue !== '' && isNaN(Number(cellValue))) {
-                    nonNumericFields.push(metricHeader);
-                    return;
+                if (cellValue !== null && cellValue !== '') {
+                    const strValue = String(cellValue).trim();
+                    // A value is considered non-numeric if it's not a plain number AND it doesn't match the percentage format.
+                    if (isNaN(Number(strValue)) && !/^-?\d+(\.\d+)?\s*%$/.test(strValue)) {
+                        nonNumericFields.push(metricHeader);
+                        return; // Found a non-numeric value, move to the next header
+                    }
                 }
             }
         });
@@ -187,29 +268,39 @@ function checkMetricFields(url, sheetName, rangeA1, metricHeaders) {
  * @param {object} settings The settings object from the UI, including analysisFields.
  * @returns {object} A structured object with all analysis results or an error.
  */
-function runDynamicAnalysis(settings) {
-    const T = MasterData.getTranslations(); //mod
+function report_runDynamicAnalysis(settings) {
+    const T = MasterData.getTranslations();
     try {
-        const { sheetName, rangeA1, analysisFields } = settings;
-        if (!sheetName || !rangeA1) throw new Error(T.reportSheetOrRangeMissing); //mod
-        if (!analysisFields || analysisFields.length === 0) throw new Error(T.reportAnalysisFieldsMissing); //mod
+        const { sourceFileId, sheetName, rangeA1, analysisFields } = settings;
+        if (!sheetName || !rangeA1) throw new Error(T.reportSheetOrRangeMissing);
+        if (!analysisFields || analysisFields.length === 0) throw new Error(T.reportAnalysisFieldsMissing);
 
         const dimensions = analysisFields.filter(f => f.type === 'dimension').map(f => f.header);
         const metrics = analysisFields.filter(f => f.type === 'metric').map(f => f.header);
         
-        if (dimensions.length === 0) throw new Error(T.reportDimensionMissing); //mod
-        if (metrics.length === 0) throw new Error(T.reportMetricMissing); //mod
+        if (dimensions.length === 0) throw new Error(T.reportDimensionMissing);
+        if (metrics.length === 0) throw new Error(T.reportMetricMissing);
 
-        const ss = settings.sourceUrl ? SpreadsheetApp.openByUrl(settings.sourceUrl) : SpreadsheetApp.getActiveSpreadsheet();
-        const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) throw new Error(T.sheetNotFound.replace('{SHEET_NAME}', sheetName)); //mod
+        const dataValues = sourceFileId ? report_fetchDataFromApi_(sourceFileId, sheetName, rangeA1) : SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName).getRange(rangeA1).getValues();
 
-        const dataValues = sheet.getRange(rangeA1).getValues();
         const headers = dataValues[0];
         const data = dataValues.slice(1).map(row => {
             let obj = {};
             headers.forEach((header, i) => {
-                 obj[header] = (metrics.includes(header)) ? (parseFloat(row[i]) || 0) : row[i];
+                 const rawValue = row[i];
+                 if (metrics.includes(header) && rawValue) {
+                    const strValue = String(rawValue).trim();
+                    if (strValue.endsWith('%')) {
+                        // Handles "xx.xx%" format by converting to decimal
+                        obj[header] = parseFloat(strValue) / 100;
+                    } else {
+                        // Handles regular numbers
+                        obj[header] = parseFloat(strValue) || 0;
+                    }
+                 } else {
+                    // Keep non-metric or empty values as is
+                    obj[header] = rawValue;
+                 }
             });
             return obj;
         });
@@ -274,7 +365,7 @@ const REPORT_COLORS = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58', '#AB47BC', '#
  * Returns the standard color palette for reports.
  * @returns {string[]} An array of hex color codes.
  */
-function getReportColors() {
+function report_getReportColors() {
   return REPORT_COLORS;
 }
 
@@ -284,17 +375,15 @@ function getReportColors() {
  * @param {object} reportData The full analysis result data.
  * @returns {{success: boolean, message?: string, sheetName?: string, url?: string, error?: string}} Result object.
  */
-function exportReport(exportOptions, reportData) {
-  const T = MasterData.getTranslations(); //mod
+function report_exportReport(exportOptions, reportData) {
+  const T = MasterData.getTranslations();
   try {
     const { format } = exportOptions;
     switch (format) {
       case 'sheet':
-        return exportToSheet(exportOptions, reportData);
-      case 'doc':
-        return exportToDoc(exportOptions, reportData);
+        return report_exportToSheet_(exportOptions, reportData);
       default:
-        throw new Error(T.reportUnsupportedFormat); //mod
+        throw new Error(T.reportUnsupportedFormat);
     }
   } catch(e) {
     Logger.log(`Report export failed: ${e.stack}`);
@@ -305,8 +394,8 @@ function exportReport(exportOptions, reportData) {
 /**
  * Helper function to export data to a new Google Sheet.
  */
-function exportToSheet(exportOptions, reportData) {
-    const T = MasterData.getTranslations(); //mod
+function report_exportToSheet_(exportOptions, reportData) {
+    const T = MasterData.getTranslations();
     const { selections } = exportOptions;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const prefix = T.reportExportSheetNamePrefix || 'MasterDataAnalyzer';
@@ -339,7 +428,7 @@ function exportToSheet(exportOptions, reportData) {
                   const metric = cardId.replace('kpi-', '');
                   const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                   const displayValue = isRateField ? reportData.overallMetrics[metric].average : reportData.overallMetrics[metric].sum;
-                  const cardTitle = (T.locale === 'zh_TW' && !metric.startsWith('總')) ? `總 ${metric}` : metric; //mod
+                  const cardTitle = (T.locale === 'zh_TW' && !metric.startsWith('總')) ? `總 ${metric}` : metric;
                   const range = newSheet.getRange(dataWriteRow, 1, 1, 2);
                   range.setValues([[cardTitle, displayValue]]);
                   range.getCell(1, 1).setFontWeight('bold');
@@ -464,7 +553,6 @@ function exportToSheet(exportOptions, reportData) {
                     }
                 }
 
-                // Specific options for bar charts that are not part of the generic options
                 if (chartType === Charts.ChartType.BAR) {
                     const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
                     const seriesOptions = { 
@@ -512,133 +600,109 @@ function exportToSheet(exportOptions, reportData) {
     }
     
     newSheet.autoResizeColumns(1, 2);
-    return { success: true, message: T.reportExportSuccess, sheetName: sheetName }; //mod
+    return { success: true, message: T.reportExportSuccess, sheetName: sheetName };
 }
 
+
+// =================================================================================================
+// ===================================== SECTION 3: HELPER FUNCTIONS ===============================
+// =================================================================================================
+
+/**
+ * Gets the name of the active sheet in the current spreadsheet.
+ * This is a workaround for client-side limitations.
+ * @returns {string} The name of the active sheet.
+ */
+function report_getActiveSheetName() {
+    try {
+        const sheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
+        return sheetName;
+    } catch (e) {
+        Logger.log(`Error getting active sheet name: ${e.message}`);
+        // In case of error, returning a default or null might be better
+        // depending on how the client handles it.
+        return 'Sheet1';
+    }
+}
 
 
 /**
- * Helper function to export data to a new Google Doc.
+ * Fetches data from a spreadsheet using the Google Sheets API v4.
+ * @param {string} fileId The ID of the spreadsheet.
+ * @param {string} sheetName The name of the sheet.
+ * @param {string} rangeA1 The A1 notation of the range to fetch.
+ * @returns {Array<Array<any>>} The values from the specified range.
+ * @private
  */
-function exportToDoc(exportOptions, reportData) {
-  const T = MasterData.getTranslations(); //mod
-  const { selections, chartImages } = exportOptions;
-  const prefix = T.reportExportDocNamePrefix || 'MasterDataAnalyzer';
-  const doc = DocumentApp.create(prefix + new Date().toLocaleString('sv-se').replace(/ /g, '_').replace(/:/g, '-'));
-  const body = doc.getBody();
-
-  // Define styles
-  const titleStyle = {};
-  titleStyle[DocumentApp.Attribute.HORIZONTAL_ALIGNMENT] = DocumentApp.HorizontalAlignment.CENTER;
-  titleStyle[DocumentApp.Attribute.FONT_SIZE] = 18;
-  titleStyle[DocumentApp.Attribute.BOLD] = true;
-
-  const heading1Style = {};
-  heading1Style[DocumentApp.Attribute.FONT_SIZE] = 14;
-  heading1Style[DocumentApp.Attribute.BOLD] = true;
-  
-  const tableHeaderStyle = {};
-  tableHeaderStyle[DocumentApp.Attribute.BACKGROUND_COLOR] = '#F2F2F2';
-  tableHeaderStyle[DocumentApp.Attribute.BOLD] = true;
-
-  // --- Start building document ---
-  body.appendParagraph(T.reportAnalysisReportTitle).setAttributes(titleStyle); //mod
-  body.appendParagraph(''); // Spacer
-  
-  const tabOrder = [T.overviewTab, ...reportData.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
-
-  for (const tabName of tabOrder) {
-    if (selections[tabName] && selections[tabName].length > 0) {
-      body.appendParagraph(tabName).setAttributes(heading1Style);
-      body.appendHorizontalRule();
-      
-      const kpis = [];
-      const charts = [];
-      const tables = [];
-
-      selections[tabName].forEach(cardId => {
-        if(cardId.startsWith('kpi-')) kpis.push(cardId);
-        else if (cardId.startsWith('chart-')) charts.push(cardId);
-        else if (cardId.startsWith('table-')) tables.push(cardId);
-      });
-
-      // Render KPIs in a table
-      if (kpis.length > 0) {
-        const kpiTableCells = [];
-        kpis.forEach(cardId => {
-          const metric = cardId.replace('kpi-', '');
-          const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
-          const displayValue = isRateField ? (reportData.overallMetrics[metric].average * 100).toFixed(1) + '%' : reportData.overallMetrics[metric].sum.toLocaleString();
-          const cardTitle = (T.locale === 'zh_TW' && !metric.startsWith('總')) ? `總 ${metric}` : metric; //mod
-          kpiTableCells.push([cardTitle, displayValue]);
-        });
-        const kpiTable = body.appendTable(kpiTableCells);
-        for(let i = 0; i < kpiTable.getNumRows(); i++){
-            kpiTable.getRow(i).getCell(0).editAsText().setBold(true);
-        }
-      }
-
-      // Render Charts
-      charts.forEach((cardId, index) => {
-        if (chartImages[cardId]) {
-            let chartTitle = '';
-            const dimensionName = reportData.dimensions[0];
-            if (cardId === 'chart-overview-pie') {
-                chartTitle = T.pieChartLegendLabel.replace('{DIMENSION}', dimensionName);
-            } else if (cardId === 'chart-overview-pie-labeled') {
-                chartTitle = T.pieChartValuesLabel.replace('{DIMENSION}', dimensionName);
-            } else if (cardId === 'chart-overview-bar') {
-                chartTitle = T.barChartLabel.replace('{DIMENSION}', dimensionName);
-            } else {
-              const parts = cardId.replace('chart-', '').split('_');
-              const metric = parts.pop().replace(/_/g, ' ');
-              const dimension = parts.join('_').replace(/_/g, ' ');
-              chartTitle = T.chartByTitle.replace('{METRIC}', metric).replace('{DIMENSION}', dimension);
-            }
-
-            body.appendParagraph(chartTitle).setBold(true).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-            const imageDataString = chartImages[cardId].split(',')[1];
-            const imageBlob = Utilities.newBlob(Utilities.base64Decode(imageDataString), 'image/png', `${cardId}.png`);
-            
-            const p = body.appendParagraph('');
-            const image = p.appendInlineImage(imageBlob);
-            
-            const newWidth = 500;
-            const imageWidth = image.getWidth();
-            if (imageWidth > newWidth) {
-                const aspect = image.getHeight() / imageWidth;
-                image.setWidth(newWidth).setHeight(newWidth * aspect);
-            }
-
-            p.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-
-            // Add separator if there are more charts to follow in the same section
-            if (index < charts.length - 1) {
-                body.appendHorizontalRule();
-                body.appendParagraph('');
-            }
-        }
-      });
-      
-      // Render Tables
-      tables.forEach(cardId => {
-          if (cardId === 'table-raw') {
-              body.appendParagraph('原始數據').setBold(true);
-              const headers = reportData.headers;
-              const data = reportData.data.map(row => headers.map(header => row[header] === null || row[header] === undefined ? '' : String(row[header])));
-              const table = body.appendTable([headers, ...data]);
-              const headerRow = table.getRow(0);
-              for(let i = 0; i < headerRow.getNumCells(); i++){
-                   headerRow.getCell(i).setAttributes(tableHeaderStyle);
-              }
-          }
-      });
-
-      body.appendParagraph(''); // Add space
+function report_fetchDataFromApi_(fileId, sheetName, rangeA1) {
+    const T = MasterData.getTranslations();
+    if (!fileId || !sheetName || !rangeA1) {
+        throw new Error("Missing required parameters for fetching data.");
     }
-  }
 
-  doc.saveAndClose();
-  return { success: true, url: doc.getUrl() };
+    const token = ScriptApp.getOAuthToken();
+    const encodedRange = encodeURIComponent(`'${sheetName}'!${rangeA1}`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${encodedRange}`;
+    const options = {
+        headers: { Authorization: 'Bearer ' + token },
+        muteHttpExceptions: true,
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseBody = response.getContentText();
+
+    if (responseCode !== 200) {
+        Logger.log(`Sheets API Error fetching range ${rangeA1} from ${fileId}: ${responseCode} - ${responseBody}`);
+        throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+    }
+
+    const data = JSON.parse(responseBody);
+    return data.values || [];
 }
 
+/**
+ * Parses a standard A1 notation string into its components.
+ * @param {string} a1Notation The A1 notation string (e.g., "A1", "B2:C10").
+ * @returns {{startCol: number, startRow: number, endCol: number, endRow: number, startColLetter: string, endColLetter: string}|null}
+ * @private
+ */
+function report_parseA1Notation(a1Notation) {
+    const match = a1Notation.match(/([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?/);
+    if (!match) return null;
+
+    const [, startColLetter, startRow, endColLetter, endRow] = match;
+
+    const letterToColumn = (letter) => {
+        let column = 0, length = letter.length;
+        for (let i = 0; i < length; i++) {
+            column += (letter.charCodeAt(i) - 64) * Math.pow(26, length - i - 1);
+        }
+        return column;
+    };
+
+    return {
+        startCol: letterToColumn(startColLetter),
+        startRow: parseInt(startRow, 10),
+        endCol: letterToColumn(endColLetter || startColLetter),
+        endRow: parseInt(endRow || startRow, 10),
+        startColLetter: startColLetter,
+        endColLetter: endColLetter || startColLetter,
+    };
+}
+
+/**
+ * Converts a 1-based column index to a letter.
+ * @param {number} column The 1-based column index.
+ * @return {string} The column letter.
+ * @private
+ */
+function report_columnToLetter(column) {
+    let temp, letter = '';
+    while (column > 0) {
+        temp = (column - 1) % 26;
+        letter = String.fromCharCode(temp + 65) + letter;
+        column = (column - temp - 1) / 26;
+    }
+    return letter;
+}

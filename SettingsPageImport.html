@@ -567,21 +567,21 @@
         console.log("onPickerApiLoad() 已執行。Picker API 已載入。");
         pickerApiLoaded = true;
         
-        console.log("正在呼叫 google.script.run.getPickerKeys()");
+        console.log("正在呼叫 google.script.run.import_getPickerKeys()");
         statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
         
         google.script.run
           .withSuccessHandler(serverKeys => {
-            console.log("getPickerKeys() 成功。");
+            console.log("import_getPickerKeys() 成功。");
             keys = serverKeys;
             checkIfReady();
           })
           .withFailureHandler(err => {
-            console.error("getPickerKeys() 失敗：", err);
+            console.error("import_getPickerKeys() 失敗：", err);
             statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
             selectSourceFileBtn.textContent = "初始化失敗";
           })
-          .getPickerKeys();
+          .import_getPickerKeys();
       }
 
       // --- 3. 檢查是否兩者都已就緒 ---
@@ -722,7 +722,7 @@
                 masterHeaderOptions = [];
                 updateAllFilterHeaderOptions();
             })
-            .getFilterHeaderOptions(fileId, sheetName, range, importFilter);
+            .import_getFilterHeaderOptions(fileId, sheetName, range, importFilter);
         } else {
             masterHeaderOptions = [];
             updateAllFilterHeaderOptions();
@@ -826,7 +826,7 @@
                 statusDiv.textContent = '';
                 showModal('<?!= T.errorDialogTitle ?>', err.message);
             })
-            .getSheetNames(fileId);
+            .import_getSheetNames(fileId);
       }
 
       /**
@@ -882,7 +882,7 @@
               statusDiv.textContent = '';
               showModal('Failed to fetch keyword values: ' + err.message);
             })
-            .getUniqueValuesForHeader(fileId, sheetName, range, headerName);
+            .import_getUniqueValuesForHeader(fileId, sheetName, range, headerName);
         } else {
           showModal('Please fill in Source File, Sheet Name, and Data Range first.');
         }
@@ -960,7 +960,7 @@
               statusDiv.textContent = '';
               saveBtn.disabled = false;
           })
-          .validateSourceAndTarget(inputs.sourceFileId, inputs.sourceSheetName, inputs.targetSheetName);
+          .import_validateSourceAndTarget(inputs.sourceFileId, inputs.sourceSheetName, inputs.targetSheetName);
 
         google.script.run
           .withSuccessHandler(handleFilterValidation)
@@ -969,7 +969,7 @@
               statusDiv.textContent = '';
               saveBtn.disabled = false;
           })
-          .validateAllInputs(inputs);
+          .import_validateAllInputs(inputs);
       }
       
       function handleCoreValidation(errors) {
@@ -1076,7 +1076,7 @@
         google.script.run
           .withSuccessHandler(onSaveSuccess)
           .withFailureHandler(onSaveFailure)
-          .saveImportSettings(settings, currentSheetName);
+          .import_saveImportSettings(settings, currentSheetName);
       }
 
       function onSaveSuccess(result) {
@@ -1131,8 +1131,8 @@
               selectSourceSheetBtn.disabled = !settings.sourceFileId;
               fetchAndPopulateHeaderOptions();
             }
-          }).getImportSettings(currentSheetName);
-        }).getActiveSheetName();
+          }).import_getImportSettings(currentSheetName);
+        }).import_getActiveSheetName();
       }
     </script>
   </body>

@@ -161,9 +161,13 @@
             <div class="section">
                 <h4><?!= T.dataSourceTitle ?></h4>
                 <div>
-                    <label for="sourceUrl"><?!= T.sourceSpreadsheetUrlLabel ?></label>
-                    <input type="text" id="sourceUrl" placeholder="<?!= T.sourceUrlPlaceholder ?>">
-                    <p id="sourceUrl-validation" class="validation-message help-text"></p>
+                    <label for="select-source-file-btn"><?!= T.sourceSpreadsheetUrlLabel ?></label>
+                    <div class="input-group">
+                        <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="尚未選擇任何檔案">
+                        <button type="button" id="select-source-file-btn" disabled>載入中...</button>
+                    </div>
+                    <input type="hidden" id="sourceFileId" name="sourceFileId">
+                    <p id="sourceFileId-validation" class="validation-message help-text"></p>
                 </div>
                 <div style="margin-top: 15px;">
                     <label for="sourceSheetName"><?!= T.sourceDataSheetNameLabel ?></label>
@@ -222,7 +226,6 @@
                     <h5><?!= T.exportFormatTitle ?></h5>
                      <ul class="export-options-list">
                          <li><label><input type="radio" name="exportFormat" value="sheet" checked> <?!= T.exportToSheetLabel ?></label></li>
-                         <li><label><input type="radio" name="exportFormat" value="doc"> <?!= T.exportToDocLabel ?></label></li>
                      </ul>
                 </div>
                 <div class="export-section">
@@ -266,11 +269,16 @@
         let currentResultData = null; 
         let drawnCharts = {}; // Object to store drawn chart instances
         
+        // --- V15 狀態變數 ---
+        let keys = null;
+        let pickerApiLoaded = false;
+        
         // DOM Elements
         const pinToggle = document.getElementById('pin-toggle'), expandToggle = document.getElementById('expand-toggle'), minimizeToggle = document.getElementById('minimize-toggle');
         const generateBtn = document.getElementById('generate-btn'), saveBtn = document.getElementById('save-btn'), closeBtn = document.getElementById('close-btn');
         const statusDiv = document.getElementById('status');
-        const sourceUrlInput = document.getElementById('sourceUrl'), sourceSheetNameInput = document.getElementById('sourceSheetName'), sourceRangeInput = document.getElementById('sourceRange');
+        const sourceFileIdInput = document.getElementById('sourceFileId'), sourceFileNameInput = document.getElementById('sourceFileName'), sourceSheetNameInput = document.getElementById('sourceSheetName'), sourceRangeInput = document.getElementById('sourceRange');
+        const selectSourceFileBtn = document.getElementById('select-source-file-btn');
         const selectSheetBtn = document.getElementById('select-sheet-btn'), addFieldBtn = document.getElementById('add-field-btn');
         const mappingContainer = document.getElementById('field-mapping-container'), fieldsContainer = document.getElementById('analysis-fields-container');
         const alertModal = document.getElementById('alert-modal'), sheetSelectModal = document.getElementById('sheet-select-modal');
@@ -282,6 +290,100 @@
         const exportConfirmBtn = document.getElementById('export-confirm-btn');
         const exportStatus = document.getElementById('export-status');
 
+        // --- 1. 動態載入 GAPI ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAndPopulateSettings();
+            
+            console.log("DOMContentLoaded 事件觸發。正在動態載入 GAPI...");
+            statusDiv.textContent = "狀態：正在載入 Google API...";
+            
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.onload = () => {
+              console.log("GAPI 指令碼已載入。正在呼叫 gapi.load('picker', ...)");
+              statusDiv.textContent = "狀態：GAPI 已載入。正在載入 Picker API...";
+              gapi.load('picker', { 'callback': onPickerApiLoad });
+            };
+            script.onerror = () => {
+              console.error("GAPI 指令碼載入失敗。");
+              statusDiv.textContent = "錯誤：無法載入 Google API。請檢查您的網路連線。";
+            };
+            document.head.appendChild(script);
+        });
+
+        // --- 2. Picker API 載入回呼 & 獲取金鑰 ---
+        function onPickerApiLoad() {
+            console.log("onPickerApiLoad() 已執行。Picker API 已載入。");
+            pickerApiLoaded = true;
+            
+            console.log("正在呼叫 google.script.run.getPickerKeys()");
+            statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
+            
+            google.script.run
+              .withSuccessHandler(serverKeys => {
+                console.log("getPickerKeys() 成功。");
+                keys = serverKeys;
+                checkIfReady();
+              })
+              .withFailureHandler(err => {
+                console.error("getPickerKeys() 失敗：", err);
+                statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
+                selectSourceFileBtn.textContent = "初始化失敗";
+              })
+              .report_getPickerKeys();
+        }
+
+        // --- 3. 檢查是否兩者都已就緒 ---
+        function checkIfReady() {
+            if (keys && pickerApiLoaded) {
+              console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
+              statusDiv.textContent = "狀態：準備就緒。";
+              selectSourceFileBtn.disabled = false;
+              selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
+            }
+        }
+
+        // --- 4. 按鈕點擊 ---
+        selectSourceFileBtn.addEventListener('click', createPicker);
+      
+        // --- 5. 建立 Picker ---
+        function createPicker() {
+            try {
+              const docsView = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
+
+              const builder = new google.picker.PickerBuilder()
+                .setDeveloperKey(keys.apiKey)
+                .setAppId(keys.appId)
+                .setOAuthToken(keys.oauthToken)
+                .addView(docsView)
+                .setCallback(pickerCallback)
+                .setOrigin(google.script.host.origin);
+              
+              builder.enableFeature(google.picker.Feature.NAV_HIDDEN);
+              builder.disableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+              
+              const picker = builder.build();
+              picker.setVisible(true);
+            } catch (e) {
+              console.error("createPicker() 內部失敗：", e);
+              statusDiv.textContent = "錯誤: " + e.message;
+            }
+        }
+
+        // --- 6. Picker 回呼 ---
+        function pickerCallback(data) {
+            if (data.action == google.picker.Action.PICKED) {
+              if (data.docs && data.docs.length > 0) {
+                const doc = data.docs[0];
+                sourceFileIdInput.value = doc.id;
+                sourceFileNameInput.value = doc.name;
+                statusDiv.textContent = '已選擇檔案: ' + doc.name;
+                validateAndFetchHeaders();
+              }
+            } else if (data.action == google.picker.Action.CANCEL) {
+              statusDiv.textContent = '操作已取消。';
+            }
+        }
 
         // --- UI Interaction Logic ---
         pinToggle.addEventListener('click', () => { isPinned = !isPinned; pinToggle.classList.toggle('pinned'); pinToggle.title = isPinned ? T.unpinHint : T.pinHint; });
@@ -308,11 +410,9 @@
             minimizeToggle.title = isMinimized ? T.unminimizeHint : T.minimizeHint;
             
             if (isMinimized) {
-                // When minimizing, always shrink to the small, standard size
                 google.script.host.setWidth(500);
                 google.script.host.setHeight(150);
             } else {
-                // When un-minimizing, restore to the appropriate size based on expand state
                 const targetWidth = isExpanded ? 1200 : 500;
                 const targetHeight = isExpanded ? 850 : 650;
                 google.script.host.setWidth(targetWidth);
@@ -328,8 +428,7 @@
         exportBtn.addEventListener('click', openExportModal);
         exportConfirmBtn.addEventListener('click', handleExport);
 
-
-        [sourceUrlInput, sourceSheetNameInput, sourceRangeInput].forEach(el => {
+        [sourceSheetNameInput, sourceRangeInput].forEach(el => {
             el.addEventListener('blur', validateAndFetchHeaders);
             el.addEventListener('input', validateAndFetchHeaders);
         });
@@ -365,7 +464,7 @@
                     body.appendChild(item);
                 });
                 sheetSelectModal.style.display = 'flex';
-            }).withFailureHandler(err => { statusDiv.textContent = ''; showModal(T.errorTitle, err.message); }).getSheetNames(sourceUrlInput.value.trim());
+            }).withFailureHandler(err => { statusDiv.textContent = ''; showModal(T.errorTitle, err.message); }).report_getSheetNames(sourceFileIdInput.value.trim());
         }
 
         // --- Export Modal Logic ---
@@ -434,12 +533,11 @@
                     });
                 });
                 
-                // Add listeners to all checkboxes to clear the validation message upon interaction
                 container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.addEventListener('change', () => {
                         if (exportStatus.textContent === T.errorExportContent) {
                             exportStatus.textContent = '';
-                            exportStatus.style.color = '#007bff'; // Revert to default color
+                            exportStatus.style.color = '#007bff';
                         }
                     });
                 });
@@ -465,23 +563,13 @@
 
             if (Object.keys(selections).length === 0) {
                 exportStatus.textContent = T.errorExportContent;
-                exportStatus.style.color = '#dc3545'; // Red error color
+                exportStatus.style.color = '#dc3545';
                 return;
             }
 
             exportStatus.textContent = T.exportingMessage;
-            exportStatus.style.color = '#007bff'; // Revert to default color
+            exportStatus.style.color = '#007bff';
             exportConfirmBtn.disabled = true;
-
-            if (format === 'doc' || format === 'pdf') {
-                for (const tabName in selections) {
-                    for (const cardId of selections[tabName]) {
-                        if (cardId.startsWith('chart-') && drawnCharts[cardId]) {
-                            chartImages[cardId] = drawnCharts[cardId].getImageURI();
-                        }
-                    }
-                }
-            }
 
             const exportOptions = { format, selections, chartImages };
 
@@ -505,11 +593,9 @@
                     exportStatus.textContent = `${T.errorTitle}: ${err.message}`;
                     exportConfirmBtn.disabled = false;
                 })
-                .exportReport(exportOptions, currentResultData);
+                .report_exportReport(exportOptions, currentResultData);
         }
 
-
-        // --- Dynamic Fields Logic ---
         function addAnalysisField(field = { type: 'dimension', header: '' }) {
             const content = fieldTemplate.content.cloneNode(true);
             const newRow = content.querySelector('.analysis-row');
@@ -532,12 +618,12 @@
             validateFieldType(newRow);
         }
         
-        // --- Data and Settings Logic ---
         function handleSave() {
             statusDiv.textContent = T.savingMessage;
             [saveBtn, generateBtn].forEach(b => b.disabled = true);
             const settings = {
-                sourceUrl: sourceUrlInput.value.trim(),
+                sourceFileId: sourceFileIdInput.value.trim(),
+                sourceFileName: sourceFileNameInput.value.trim(),
                 sheetName: sourceSheetNameInput.value,
                 rangeA1: sourceRangeInput.value,
                 analysisFields: Array.from(document.querySelectorAll('.analysis-row')).map(row => ({
@@ -550,12 +636,12 @@
                 if (!res.success) showModal(T.errorTitle, res.message);
                 setTimeout(() => statusDiv.textContent = '', 3000);
                 [saveBtn, generateBtn].forEach(b => b.disabled = false);
-            }).withFailureHandler(err => { showModal(T.errorTitle, err.message); statusDiv.textContent = ''; [saveBtn, generateBtn].forEach(b => b.disabled = false); }).saveReportSettings(settings, currentSheetName);
+            }).withFailureHandler(err => { showModal(T.errorTitle, err.message); statusDiv.textContent = ''; [saveBtn, generateBtn].forEach(b => b.disabled = false); }).report_saveReportSettings(settings, currentSheetName);
         }
 
         function handleGenerate() {
             const settings = {
-                sourceUrl: sourceUrlInput.value.trim(),
+                sourceFileId: sourceFileIdInput.value.trim(),
                 sheetName: sourceSheetNameInput.value,
                 rangeA1: sourceRangeInput.value,
                 analysisFields: Array.from(document.querySelectorAll('.analysis-row')).map(row => ({
@@ -573,7 +659,7 @@
                 loader.style.display = 'none';
                 if (result.success) {
                     currentResultData = result;
-                    drawnCharts = {}; // Clear previous charts
+                    drawnCharts = {};
                     resultsContent.style.display = 'block';
                     exportBtn.style.display = 'inline-block';
                     displayResults(result);
@@ -587,7 +673,7 @@
                 showModal(T.executionError, err.message);
                 [generateBtn, saveBtn, exportBtn].forEach(b => { b.disabled = false; });
                 generateBtn.textContent = T.generateReportButton;
-            }).runDynamicAnalysis(settings);
+            }).report_runDynamicAnalysis(settings);
         }
 
         function loadAndPopulateSettings() {
@@ -596,34 +682,38 @@
                 currentSheetName = sheetName;
                 document.getElementById('current-sheet-hint').textContent = T.settingsForSheetHint.replace('{SHEET_NAME}', sheetName);
                 google.script.run.withSuccessHandler(settings => {
-                    if (settings && settings.analysisFields) {
-                        sourceUrlInput.value = settings.sourceUrl || '';
+                    if (settings) {
+                        sourceFileIdInput.value = settings.sourceFileId || '';
+                        sourceFileNameInput.value = settings.sourceFileName || '';
                         sourceSheetNameInput.value = settings.sheetName || sheetName;
                         sourceRangeInput.value = settings.rangeA1 || '';
-                        validateAndFetchHeaders(settings.analysisFields);
+                        if (settings.analysisFields) {
+                          validateAndFetchHeaders(settings.analysisFields);
+                        } else {
+                          validateAndFetchHeaders();
+                        }
                     } else {
                         validateAndFetchHeaders();
                     }
                 }).withFailureHandler(err => {
                     statusDiv.textContent = `${T.loadSettingsFailure} ${err.message}`;
                     setTimeout(() => statusDiv.textContent = '', 5000);
-                }).getReportSettings(currentSheetName);
-            }).getActiveSheetName();
+                }).report_getReportSettings(currentSheetName);
+            }).report_getActiveSheetName();
         }
 
-        // --- Validation and Data Fetching ---
         function validateAndFetchHeaders(savedFields = []) {
-            const sourceUrl = sourceUrlInput.value.trim(), sheetName = sourceSheetNameInput.value, rangeA1 = sourceRangeInput.value;
+            const sourceFileId = sourceFileIdInput.value.trim(), sheetName = sourceSheetNameInput.value, rangeA1 = sourceRangeInput.value;
             google.script.run
                 .withSuccessHandler(errors => {
-                    const urlEl = document.getElementById('sourceUrl'), sheetEl = document.getElementById('sourceSheetName'), rangeEl = document.getElementById('sourceRange');
-                    const urlValEl = document.getElementById('sourceUrl-validation'), sheetValEl = document.getElementById('sourceSheetName-validation'), rangeValEl = document.getElementById('sourceRange-validation');
+                    const fileEl = document.getElementById('sourceFileName'), sheetEl = document.getElementById('sourceSheetName'), rangeEl = document.getElementById('sourceRange');
+                    const fileValEl = document.getElementById('sourceFileId-validation'), sheetValEl = document.getElementById('sourceSheetName-validation'), rangeValEl = document.getElementById('sourceRange-validation');
 
-                    const hasUrlError = !!errors.sourceUrlError, hasSheetError = !!errors.sheetError, hasRangeError = !!errors.rangeError;
+                    const hasFileError = !!errors.sourceUrlError, hasSheetError = !!errors.sheetError, hasRangeError = !!errors.rangeError;
 
-                    urlValEl.textContent = errors.sourceUrlError || '';
-                    urlEl.classList.toggle('invalid', hasUrlError);
-                    urlValEl.className = hasUrlError ? 'validation-message error-message' : 'validation-message help-text';
+                    fileValEl.textContent = errors.sourceUrlError || '';
+                    fileEl.classList.toggle('invalid', hasFileError);
+                    fileValEl.className = hasFileError ? 'validation-message error-message' : 'validation-message help-text';
 
                     sheetValEl.textContent = errors.sheetError || '';
                     sheetEl.classList.toggle('invalid', hasSheetError);
@@ -633,7 +723,7 @@
                     rangeEl.classList.toggle('invalid', hasRangeError);
                     rangeValEl.className = hasRangeError ? 'validation-message error-message' : 'validation-message help-text';
                     
-                    const hasAnyError = hasUrlError || hasSheetError || hasRangeError;
+                    const hasAnyError = hasFileError || hasSheetError || hasRangeError;
                     const inputsAreFilled = sheetName && rangeA1;
 
                     if (!hasAnyError && inputsAreFilled) {
@@ -649,7 +739,7 @@
                     statusDiv.textContent = '';
                     mappingContainer.style.display = 'none';
                 })
-                .validateReportInputs(sourceUrl, sheetName, rangeA1);
+                .report_validateReportInputs(sourceFileId, sheetName, rangeA1);
         }
         
         function fetchHeaders(savedFields = []) {
@@ -678,7 +768,7 @@
               mappingContainer.style.display = 'none'; 
               statusDiv.textContent = T.loadSettingsFailure;
               setTimeout(() => statusDiv.textContent = '', 5000);
-            }).getHeadersFromRange(sourceUrlInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value);
+            }).report_getHeadersFromRange(sourceFileIdInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value);
         }
 
         function validateFieldType(rowElement) {
@@ -693,7 +783,7 @@
                     } else {
                         warningIcon.style.display = 'none';
                     }
-                }).checkMetricFields(sourceUrlInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value, [headerSelect.value]);
+                }).report_checkMetricFields(sourceFileIdInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value, [headerSelect.value]);
             } else {
                 warningIcon.style.display = 'none';
             }
@@ -706,7 +796,6 @@
 
             const tabNames = [T.overviewTab, ...result.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
             
-            // Create all tabs and content containers first
             tabNames.forEach((name, index) => {
                 const tab = document.createElement('div');
                 tab.className = 'tab' + (index === 0 ? ' active' : '');
@@ -727,7 +816,6 @@
                 });
             });
             
-            // Now, populate all content immediately to ensure charts are drawn
             const populateAllTabs = () => {
                 tabNames.forEach(name => {
                     populateTabContent(name, result);
@@ -1082,7 +1170,7 @@
             }).withFailureHandler(err => {
                 console.error("Could not load report colors", err);
                 loadAndPopulateSettings();
-            }).getReportColors();
+            }).report_getReportColors();
         });
     </script>
 </body>
