@@ -279,12 +279,14 @@ function import_getImportSettings(sheetName) {
  * @returns {{success: boolean, error?: string}} Result object.
  */
 function import_saveCompareSettings(settings, sheetName) {
+    const T = MasterData.getTranslations();
     try {
         if (!sheetName) {
             throw new Error("Sheet name is required to save settings.");
         }
-        if (!settings.sourceUrl || !settings.sourceSheetName || !settings.targetSheetName) {
-            throw new Error("Source/Target URL and Sheet Name are required.");
+        // Use sourceFileId for the primary check
+        if (!settings.sourceFileId || !settings.sourceSheetName || !settings.targetSheetName) {
+            throw new Error("Source File, Source Sheet Name, and Target Sheet Name are required.");
         }
         if (!settings.sourceCompareRange || !settings.targetLookupCol || !settings.sourceLookupCol || !settings.sourceReturnCol || !settings.targetWriteCol) {
             throw new Error("All comparison and mapping fields are required.");
@@ -328,9 +330,19 @@ function import_getCompareSettings(sheetName) {
         }
     }
 
+    // --- Backward Compatibility ---
+    if (!settings.sourceFileId && settings.sourceUrl) {
+        const match = settings.sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1]) {
+            settings.sourceFileId = match[1];
+        }
+    }
+
     return {
         targetSheetName: settings.targetSheetName || currentSheetName,
         sourceUrl: settings.sourceUrl || '',
+        sourceFileId: settings.sourceFileId || '',
+        sourceFileName: settings.sourceFileName || '',
         sourceSheetName: settings.sourceSheetName || '',
         targetHeaderRow: settings.targetHeaderRow ? parseInt(settings.targetHeaderRow, 10) : '',
         targetStartRow: settings.targetStartRow ? parseInt(settings.targetStartRow, 10) : '',
@@ -567,8 +579,8 @@ function import_validateSourceAndTarget(fileId, sourceSheetName, targetSheetName
 /**
  * Validates the core source and target fields for the Compare UI.
  */
-function import_validateCompareCoreInputs(sourceUrl, sourceSheetName, targetSheetName) {
-    return import_validateSourceAndTarget(sourceUrl, sourceSheetName, targetSheetName);
+function compare_validateCoreInputs(fileId, sourceSheetName, targetSheetName) {
+    return import_validateSourceAndTarget(fileId, sourceSheetName, targetSheetName);
 }
 
 
@@ -748,37 +760,33 @@ function import_runAutoMapping(settings) {
  * @param {object} settings The comparison settings.
  * @returns {{isValid: boolean, message: string}} An object containing the validation result.
  */
+
 function import_checkSourceCompareField(settings) {
     const {
-        sourceUrl,
+        sourceFileId,
         sourceSheetName,
         sourceCompareRange,
         sourceLookupCol
     } = settings;
     const T = MasterData.getTranslations();
 
-    if (!sourceUrl || !sourceSheetName || !sourceCompareRange || !sourceLookupCol) {
+    if (!sourceFileId || !sourceSheetName || !sourceCompareRange || !sourceLookupCol) {
         return {
             isValid: false,
-            message: "請先填寫來源 URL、分頁、比對範圍與比對欄位。"
+            message: "請先填寫來源檔案、分頁、比對範圍與比對欄位。"
         };
     }
 
     try {
-        const sourceSs = SpreadsheetApp.openByUrl(sourceUrl);
-        const sourceSheet = sourceSs.getSheetByName(sourceSheetName);
-        if (!sourceSheet) {
-            return {
-                isValid: false,
-                message: T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', sourceSheetName)
-            };
+        const rangeInfo = parseA1Notation(sourceCompareRange);
+        if (!rangeInfo) {
+            return { isValid: false, message: T.errorInvalidA1Notation.replace('{RANGE}', sourceCompareRange) };
         }
 
-        const sourceRange = sourceSheet.getRange(sourceCompareRange);
-        const sourceData = sourceRange.getValues();
+        const sourceData = import_fetchDataFromApi_(sourceFileId, sourceSheetName, sourceCompareRange);
         const lookupColNum = letterToColumn(sourceLookupCol);
 
-        if (lookupColNum < sourceRange.getColumn() || lookupColNum >= (sourceRange.getColumn() + sourceRange.getNumColumns())) {
+        if (lookupColNum < rangeInfo.startCol || lookupColNum > rangeInfo.endCol) {
             const errorMessage = T.sourceCompareFieldCheckError
                 .replace('{COLUMN}', sourceLookupCol)
                 .replace('{RANGE}', sourceCompareRange);
@@ -788,7 +796,7 @@ function import_checkSourceCompareField(settings) {
             };
         }
 
-        const lookupColIndex = lookupColNum - sourceRange.getColumn();
+        const lookupColIndex = lookupColNum - rangeInfo.startCol;
 
         const valuesSeen = new Map();
         const duplicates = new Map();
@@ -796,7 +804,7 @@ function import_checkSourceCompareField(settings) {
 
         sourceData.forEach((row, index) => {
             const key = row[lookupColIndex];
-            const a1NotationRow = sourceRange.getRow() + index;
+            const a1NotationRow = rangeInfo.startRow + index;
 
             if (key === null || key === "") {
                 emptyRows.push(a1NotationRow);
@@ -984,7 +992,7 @@ function runCompareProcess() {
     const T = MasterData.getTranslations();
     try {
         const settings = import_getCompareSettings(activeSheetName);
-        if (!settings || Object.keys(settings).length <= 1 || !settings.sourceUrl) {
+        if (!settings || !settings.sourceFileId) {
             throw new Error(T.errorNoCompareSettingsFound);
         }
 
@@ -1017,25 +1025,27 @@ function runCompareProcess() {
         SpreadsheetApp.getActiveSpreadsheet().toast(T.compareStartToast, T.toastTitleProcessing, 10);
 
         const targetSs = SpreadsheetApp.getActiveSpreadsheet();
-        const targetSsId = targetSs.getId(); // Get target ID
+        const targetSsId = targetSs.getId();
         const targetSheet = targetSs.getSheetByName(settings.targetSheetName);
         if (!targetSheet) throw new Error(`找不到目標分頁: ${settings.targetSheetName}`);
 
-        const sourceSs = SpreadsheetApp.openByUrl(settings.sourceUrl);
-        const sourceSsId = sourceSs.getId(); // Get source ID
-        // *** FIX: Corrected a syntax error in the following line ***
-        const sourceSheet = sourceSs.getSheetByName(settings.sourceSheetName);
-        if (!sourceSheet) throw new Error(`在來源檔案中找不到分頁: ${settings.sourceSheetName}`);
+        const sourceSsId = settings.sourceFileId;
+        const sourceGid = import_getSheetGidByName_(sourceSsId, settings.sourceSheetName);
+        if (!sourceGid) {
+            throw new Error(T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', settings.sourceSheetName));
+        }
 
-        const sourceGid = sourceSheet.getSheetId();
-        const sourceUrlForLink = sourceSs.getUrl().replace('/edit', '');
+        const rangeInfo = parseA1Notation(settings.sourceCompareRange);
+        if (!rangeInfo) {
+            throw new Error(T.errorInvalidA1Notation.replace('{RANGE}', settings.sourceCompareRange));
+        }
+        
+        const sourceData = import_fetchDataFromApi_(sourceSsId, settings.sourceSheetName, settings.sourceCompareRange);
+        const lookupColIndex = letterToColumn(settings.sourceLookupCol) - rangeInfo.startCol;
+        const returnColIndex = letterToColumn(settings.sourceReturnCol) - rangeInfo.startCol;
+        const numColsInData = rangeInfo.endCol - rangeInfo.startCol + 1;
 
-        const sourceRange = sourceSheet.getRange(settings.sourceCompareRange);
-        const sourceData = sourceRange.getValues();
-        const lookupColIndex = letterToColumn(settings.sourceLookupCol) - sourceRange.getColumn();
-        const returnColIndex = letterToColumn(settings.sourceReturnCol) - sourceRange.getColumn();
-
-        if (lookupColIndex < 0 || returnColIndex < 0 || lookupColIndex >= sourceRange.getNumColumns() || returnColIndex >= sourceRange.getNumColumns()) {
+        if (lookupColIndex < 0 || returnColIndex < 0 || lookupColIndex >= numColsInData || returnColIndex >= numColsInData) {
             throw new Error("來源比對欄位或返回欄位不在指定的比對範圍內。");
         }
 
@@ -1045,7 +1055,7 @@ function runCompareProcess() {
             if (key !== null && key !== "") {
                 lookupMap.set(key.toString().trim(), {
                     value: row[returnColIndex],
-                    sourceRowIndex: index
+                    sourceRowIndex: index // Store index relative to fetched data array
                 });
             }
         });
@@ -1065,6 +1075,7 @@ function runCompareProcess() {
 
         const resultsToWrite = [];
         const richTextTasks = [];
+        const sourceUrlForLink = `https://docs.google.com/spreadsheets/d/${sourceSsId}/`;
 
         targetLookupValues.forEach((row, index) => {
             const lookupValue = row[0];
@@ -1075,7 +1086,7 @@ function runCompareProcess() {
                     const foundValue = result.value;
 
                     if (foundValue === null || foundValue === "") {
-                        const sourceRowForDisplay = sourceRange.getRow() + result.sourceRowIndex;
+                        const sourceRowForDisplay = rangeInfo.startRow + result.sourceRowIndex;
                         const sourceColLetterForDisplay = settings.sourceReturnCol;
                         const displayText = `${sourceColLetterForDisplay}${sourceRowForDisplay}${T.noSourceDataSuffix}`;
 
@@ -1084,7 +1095,8 @@ function runCompareProcess() {
                             targetRow: targetStartRow + index,
                             targetCol: targetWriteColNum,
                             sourceRow: sourceRowForDisplay,
-                            sourceColLetter: sourceColLetterForDisplay
+                            sourceColLetter: sourceColLetterForDisplay,
+                            sourceGid: sourceGid // Pass GID for link creation
                         });
                     } else {
                         resultsToWrite.push([foundValue]);
@@ -1101,20 +1113,20 @@ function runCompareProcess() {
             targetSheet.getRange(targetStartRow, targetWriteColNum, resultsToWrite.length, 1).setValues(resultsToWrite);
 
             // Logic to create internal or external links
-           const isInternalLink = (targetSsId === sourceSsId);
-           richTextTasks.forEach(task => {
-            const cell = targetSheet.getRange(task.targetRow, task.targetCol);
-            const linkFragment = `#gid=${sourceGid}&range=${task.sourceColLetter}${task.sourceRow}`;
-            const linkUrl = isInternalLink ? linkFragment : `${sourceUrlForLink}${linkFragment}`;
-            const newText = cell.getValue();
-            if (typeof newText === 'string' && newText.includes(T.noSourceDataSuffix)) {
-            const richText = SpreadsheetApp.newRichTextValue()
-                .setText(newText)
-                .setLinkUrl(0, newText.length, linkUrl)
-                .build();
-            cell.setRichTextValue(richText);
+            const isInternalLink = (targetSsId === sourceSsId);
+            richTextTasks.forEach(task => {
+                const cell = targetSheet.getRange(task.targetRow, task.targetCol);
+                const linkFragment = `#gid=${task.sourceGid}&range=${task.sourceColLetter}${task.sourceRow}`;
+                const linkUrl = isInternalLink ? linkFragment : `${sourceUrlForLink}${linkFragment}`;
+                const newText = cell.getValue();
+                if (typeof newText === 'string' && newText.includes(T.noSourceDataSuffix)) {
+                    const richText = SpreadsheetApp.newRichTextValue()
+                        .setText(newText)
+                        .setLinkUrl(0, newText.length, linkUrl)
+                        .build();
+                    cell.setRichTextValue(richText);
                 }
-           });
+            });
 
             const completeMessage = T.compareCompleteToast.replace('{COUNT}', resultsToWrite.length);
             SpreadsheetApp.getActiveSpreadsheet().toast(completeMessage, T.toastTitleSuccess, 5);
