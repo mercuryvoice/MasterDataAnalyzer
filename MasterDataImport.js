@@ -587,8 +587,8 @@ function compare_validateCoreInputs(fileId, sourceSheetName, targetSheetName) {
 /**
  * Validates the core source and target fields for the Verify UI.
  */
-function import_validateVerifyInputs(sourceUrl, sourceSheetName, targetSheetName) {
-    return import_validateSourceAndTarget(sourceUrl, sourceSheetName, targetSheetName);
+function import_validateVerifyInputs(fileId, sourceSheetName, targetSheetName) {
+    return import_validateSourceAndTarget(fileId, sourceSheetName, targetSheetName);
 }
 
 

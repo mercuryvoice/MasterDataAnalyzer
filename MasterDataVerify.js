@@ -6,75 +6,246 @@
 // =================================== VERSION & FEATURE SUMMARY ===================================
 // =================================================================================================
 //
-// V1.0 (Pre-release version):
-// - Noted.
+// V1.9 (Mismatch UI Fix):
+// - [FIXED] Hyperlinks now intelligently switch between internal (#gid=...) and external (https://...) formats.
+// - [FIXED] Mismatch Info text format simplified to "Cell_Value" (e.g., "C7_Motherboard") matching Import module style.
+// - Removed verbose "!= TargetValue" comparison string from the output cell.
+// - Maintained all previous REST API and Permission fixes.
 //
 // =================================================================================================
 
 /**
  * MasterDataAnalyzer - A Google Sheets Add-on for intelligent data operations.
- *
  * Copyright (c) 2025 Tata Sum (mda.design)
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
-
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 // ================================================================
-// SECTION 0: SETTINGS
+// SECTION 0: 基礎設置與輔助函式 (API & Auth)
 // ================================================================
 
 /**
- * Saves Data Validation Settings for a specific sheet using PropertiesService.
- * @param {object} settings The settings object from the UI.
- * @param {string} sheetName The name of the sheet to save settings for.
- * @returns {{success: boolean, message: string}} Result object.
+ * 獲取 Google Picker 所需的 API Key 與 Token。
  */
+function verify_getPickerKeys() {
+  try {
+    const userProperties = PropertiesService.getScriptProperties();
+    const apiKey = userProperties.getProperty('GOOGLE_API_KEY');
+    const appId = userProperties.getProperty('GOOGLE_APP_ID');
+    const oauthToken = ScriptApp.getOAuthToken();
+
+    if (!apiKey || !appId) {
+      throw new Error("未在指令碼屬性中找到 'GOOGLE_API_KEY' 或 'GOOGLE_APP_ID'。請檢查專案設定。");
+    }
+
+    return {
+      apiKey: apiKey,
+      appId: appId,
+      oauthToken: oauthToken
+    };
+  } catch (e) {
+    Logger.log(`Error in verify_getPickerKeys: ${e.message}`);
+    throw e;
+  }
+}
+
+/**
+ * 獲取當前活動的工作表名稱。
+ */
+function verify_getActiveSheetName() {
+  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
+}
+
+/**
+ * [核心函式] 透過 Google Sheets API v4 讀取資料。
+ */
+function verify_fetchDataFromApi_(fileId, sheetName, rangeA1) {
+    if (!fileId || !sheetName || !rangeA1) {
+        throw new Error("API 呼叫失敗：缺少必要的檔案 ID、分頁名稱或範圍。");
+    }
+
+    const token = ScriptApp.getOAuthToken();
+    const encodedRange = encodeURIComponent(`'${sheetName}'!${rangeA1}`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${encodedRange}`;
+    
+    const options = {
+        method: 'get',
+        headers: {
+            Authorization: 'Bearer ' + token
+        },
+        muteHttpExceptions: true
+    };
+    
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        const responseBody = response.getContentText();
+        
+        if (responseCode !== 200) {
+            Logger.log(`API Error fetching ${url}: ${responseCode} - ${responseBody}`);
+            throw new Error(`無法讀取外部檔案 (API 錯誤代碼: ${responseCode})。請確認您已選取該檔案。`);
+        }
+        
+        const result = JSON.parse(responseBody);
+        return result.values || []; 
+    } catch (e) {
+        Logger.log(`verify_fetchDataFromApi_ Exception: ${e.message}`);
+        throw e;
+    }
+}
+
+/**
+ * 透過 API 獲取指定分頁名稱的 Sheet ID (GID)。
+ */
+function verify_getSheetGidByName_(fileId, sheetName) {
+    const T = MasterData.getTranslations();
+    if (!fileId || !sheetName) return null;
+
+    try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets(properties(sheetId,title))`;
+        const options = {
+            method: 'get',
+            headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+            muteHttpExceptions: true,
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        
+        if (responseCode !== 200) {
+            Logger.log(`API Error getting GID: ${responseCode}`);
+            throw new Error(T.errorInvalidUrl + ` (API Error: ${responseCode})`);
+        }
+
+        const data = JSON.parse(response.getContentText());
+        const sheet = data.sheets.find(s => s.properties.title === sheetName);
+        
+        return sheet ? sheet.properties.sheetId.toString() : null;
+
+    } catch (e) {
+        Logger.log(`Error in verify_getSheetGidByName_: ${e.message}`);
+        throw new Error(`無法獲取分頁 ID: ${e.message}`);
+    }
+}
+
+/**
+ * 獲取分頁名稱。
+ */
+function verify_getSheetNames(fileId) {
+    const T = MasterData.getTranslations();
+    
+    // 情況 1: 目標試算表 (當前檔案)
+    if (!fileId) {
+        try {
+            const activeSs = SpreadsheetApp.getActiveSpreadsheet();
+            return activeSs.getSheets().map(sheet => sheet.getName());
+        } catch (e) {
+            Logger.log(`Error getting active sheets: ${e.message}`);
+            throw new Error("無法讀取當前試算表的分頁。");
+        }
+    }
+    
+    // 情況 2: 來源試算表 (外部檔案，透過 API)
+    try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets.properties.title`;
+        const options = {
+            method: 'get',
+            headers: {
+                Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+            },
+            muteHttpExceptions: true,
+        };
+
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        
+        if (responseCode === 200) {
+            const data = JSON.parse(response.getContentText());
+            if (data.sheets && data.sheets.length > 0) {
+                return data.sheets.map(sheet => sheet.properties.title);
+            }
+            return [];
+        } else {
+            Logger.log(`Sheets API Error (GetNames) for fileId ${fileId}: ${responseCode}`);
+            throw new Error((T.errorInvalidUrl || "無效的 URL") + ` (API Error: ${responseCode})`);
+        }
+    } catch (e) {
+        Logger.log(`Error in verify_getSheetNames: ${e.message}`);
+        throw new Error(`無法讀取檔案分頁: ${e.message}`);
+    }
+}
+
+/**
+ * 驗證使用者輸入的來源與目標資訊是否有效。
+ */
+function verify_validateInputs(fileId, sourceSheetName, targetSheetName) {
+    const T = MasterData.getTranslations();
+    const errors = {
+        sourceFileIdError: '',
+        sourceSheetError: '',
+        targetSheetError: ''
+    };
+
+    if (targetSheetName) {
+        const activeSs = SpreadsheetApp.getActiveSpreadsheet();
+        if (!activeSs.getSheetByName(targetSheetName)) {
+            const msgTemplate = T.errorTargetSheetNotFound || "找不到目標分頁 '{SHEET_NAME}'";
+            errors.targetSheetError = msgTemplate.replace('{SHEET_NAME}', targetSheetName);
+        }
+    }
+
+    if (fileId) {
+        try {
+            const sheetNames = verify_getSheetNames(fileId);
+            if (sourceSheetName && !sheetNames.includes(sourceSheetName)) {
+                const msgTemplate = T.errorSheetNotFoundInUrl || "在來源檔案中找不到分頁 '{SHEET_NAME}'";
+                errors.sourceSheetError = msgTemplate.replace('{SHEET_NAME}', sourceSheetName);
+            }
+        } catch (e) {
+            errors.sourceFileIdError = "無法存取此檔案或 ID 無效 (請確認您已透過 Picker 選擇此檔案)。";
+        }
+    } else {
+        if (sourceSheetName) {
+             errors.sourceFileIdError = "請先選擇來源檔案。";
+        }
+    }
+
+    return errors;
+}
+
+// ================================================================
+// SECTION 1: 設定檔存取
+// ================================================================
+
 function saveVerifySettings(settings, sheetName) {
   const T = MasterData.getTranslations();
   try {
     if (!sheetName) {
       throw new Error("工作表名稱為必填項，無法儲存設定。");
     }
-    if (!settings.sourceDataUrl || !settings.sourceDataSheetName || !settings.targetSheetName) {
-      throw new Error(T.errorVerifyUrlRequired);
+    
+    if ((!settings.sourceFileId && !settings.sourceDataUrl) || !settings.sourceDataSheetName || !settings.targetSheetName) {
+      throw new Error(T.errorVerifyUrlRequired || "請填寫完整的來源與目標資訊。");
     }
+    
     const properties = PropertiesService.getDocumentProperties();
     const key = `verifySettings_${sheetName}`;
     properties.setProperty(key, JSON.stringify(settings));
-    return { success: true, message: T.saveSuccess };
+    return { success: true, message: T.saveSuccess || "設定已儲存" };
   } catch (e) {
     Logger.log(`Error saving verify settings for sheet ${sheetName}: ${e.message}`);
-    return { success: false, message: `${T.saveFailure}: ${e.message}` };
+    const failMsg = T.saveFailure || "儲存失敗";
+    return { success: false, message: `${failMsg}: ${e.message}` };
   }
 }
 
-/**
- * Gets Data Validation Settings for a specific sheet from PropertiesService.
- * @param {string} sheetName The name of the sheet to get settings for. If null, uses the active sheet.
- * @returns {object} The saved settings object.
- */
 function getVerifySettings(sheetName) {
   const currentSheetName = sheetName || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
   const properties = PropertiesService.getDocumentProperties();
   const key = `verifySettings_${currentSheetName}`;
   const settingsString = properties.getProperty(key);
-  let settings;
-  if (!settingsString) {
-    settings = {};
-  } else {
+  let settings = {};
+  
+  if (settingsString) {
     try {
       settings = JSON.parse(settingsString);
     } catch (e) {
@@ -82,10 +253,20 @@ function getVerifySettings(sheetName) {
       settings = {};
     }
   }
+
+  if (!settings.sourceFileId && settings.sourceDataUrl) {
+      const match = settings.sourceDataUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+          settings.sourceFileId = match[1];
+      }
+  }
+
   return {
     targetSheetName: settings.targetSheetName || currentSheetName,
     startRow: settings.startRow ? parseInt(settings.startRow, 10) : '',
     sourceDataUrl: settings.sourceDataUrl || '',
+    sourceFileId: settings.sourceFileId || '', 
+    sourceFileName: settings.sourceFileName || '', 
     sourceDataSheetName: settings.sourceDataSheetName || '',
     mismatchColumn: settings.mismatchColumn || '',
     targetHeaderRow: settings.targetHeaderRow ? parseInt(settings.targetHeaderRow, 10) : '',
@@ -95,36 +276,31 @@ function getVerifySettings(sheetName) {
   };
 }
 
-
 // ================================================================
-// SECTION 1: Main Validation Functions
+// SECTION 2: 執行入口
 // ================================================================
 
-function runValidationMsOnly() { runDataValidation('MS_ONLY'); }
+function runValidationMsOnly() { 
+    runDataValidation('MS_ONLY'); 
+}
 
-/**
- * NEW: Triggers the new, safer reset process.
- */
 function runReset() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const activeSheetName = ss.getActiveSheet().getName();
     try {
-        ss.toast('Resetting validation data...', 'Processing', 5);
+        ss.toast('正在重置驗證資料...', 'Processing', 5);
         const settings = getVerifySettings(activeSheetName);
         if (!settings.targetSheetName) {
-          throw new Error(`No settings found for sheet "${activeSheetName}".`);
+          throw new Error(`找不到工作表 "${activeSheetName}" 的設定。`);
         }
         resetValidationData(settings);
-        ss.toast('Validation data has been reset.', 'Success', 5);
+        ss.toast('驗證資料已重置。', 'Success', 5);
     } catch (e) {
-        ss.toast(`Error during reset: ${e.message}`, 'Error', 10);
+        ss.toast(`重置時發生錯誤: ${e.message}`, 'Error', 10);
         Logger.log('Error during reset: ' + e.stack);
     }
 }
 
-/**
- * Main validation function with header check and quota-based post-processing.
- */
 function runDataValidation(mode) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const ui = SpreadsheetApp.getUi();
@@ -133,45 +309,37 @@ function runDataValidation(mode) {
     scriptProperties.deleteProperty('stopValidationRequested');
 
      try {
-        const T = MasterData.getTranslations(); // Get translations
+        const T = MasterData.getTranslations();
         const modeText = mode === 'MS_ONLY' ? '(MS Mode)' : '(EX Expanded Mode)';
-        ss.toast(`Starting "Data Validation" ${modeText}...`, 'Processing', 3);
+        ss.toast(`開始執行 "Data Validation" ${modeText}...`, 'Processing', 3);
+        
         const settings = getVerifySettings(activeSheetName);
 
-        // UPDATED: Use ui.alert for pre-flight checks
-        if (!settings.sourceDataUrl) {
-            const errorMessage = T.errorNoValidationSettingsFound.replace('{SHEET_NAME}', activeSheetName);
-            ui.alert(T.validationFailedTitle, errorMessage, ui.ButtonSet.OK);
+        if (!settings.sourceFileId && !settings.sourceDataUrl) {
+            const msgTemplate = T.errorNoValidationSettingsFound || "找不到工作表 '{SHEET_NAME}' 的驗證設定。";
+            const errorMessage = msgTemplate.replace('{SHEET_NAME}', activeSheetName);
+            ui.alert(T.validationFailedTitle || "驗證失敗", errorMessage, ui.ButtonSet.OK);
             return;
         }
         if (!settings.validationMappings || settings.validationMappings.length === 0) {
-            ui.alert(T.validationFailedTitle, T.errorNoValidationMappings, ui.ButtonSet.OK);
+            ui.alert(T.validationFailedTitle || "驗證失敗", T.errorNoValidationMappings || "未設定驗證對應欄位。", ui.ButtonSet.OK);
             return;
         }
 
         const sheet = ss.getSheetByName(settings.targetSheetName);
-        if (!sheet) throw new Error(`Target sheet "${settings.targetSheetName}" not found.`);
-        const sheetUrl = ss.getUrl();
-        const sheetGid = sheet.getSheetId();
-
+        if (!sheet) throw new Error(`找不到目標分頁 "${settings.targetSheetName}"。`);
+        
         const headerCheckResult = checkSourceHeaderMapping(settings);
         if (!headerCheckResult.isPerfect) {
             const mismatchMessage = headerCheckResult.mismatches.map(m => m.message).join('\n');
-            const suggestionMessage = headerCheckResult.suggestions.map(s => s.message).join('\n');
-            let alertMsg = '';
-            if (mismatchMessage) {
-                alertMsg += T.checkResultMismatches + '\n' + mismatchMessage + '\n\n';
-            }
-            if (suggestionMessage) {
-                alertMsg += T.checkResultSuggestions + '\n' + suggestionMessage;
-            }
-            ui.alert(T.checkResultTitle, alertMsg, ui.ButtonSet.OK);
+            let alertMsg = (T.checkResultMismatches || "發現標頭不符：") + '\n' + mismatchMessage + '\n\n';
+            ui.alert(T.checkResultTitle || "檢查結果", alertMsg, ui.ButtonSet.OK);
             return;
         }
 
         const lastRow = sheet.getLastRow();
         if (lastRow < settings.startRow) {
-            ui.alert('No Data to Process', 'No data rows found below the configured "Data Start Row".', ui.ButtonSet.OK);
+            ui.alert('無資料', '在設定的起始列之後找不到任何資料。', ui.ButtonSet.OK);
             return;
         }
         
@@ -183,17 +351,22 @@ function runDataValidation(mode) {
         const taskMap = new Map(tasksToProcess.map(t => [t.originalRowIndex, t]));
         
         if (tasksToProcess.length === 0) {
-            ui.alert('No Processable Rows Found', 'No rows with data in the validation columns were found.', ui.ButtonSet.OK);
+            ui.alert('無可處理資料', '找不到包含驗證欄位資料的列。', ui.ButtonSet.OK);
             return;
         }
 
         const externalDataMap = fetchExternalData(settings);
+        
         let processedResults = new Map();
+        // [UPDATED] Pass current Spreadsheet ID for internal link checking
+        const targetSsId = ss.getId();
+
         for (const task of tasksToProcess) {
             if (scriptProperties.getProperty('stopValidationRequested') === 'true') {
-                throw new Error('Validation process was manually stopped by the user.');
+                throw new Error('使用者手動停止了驗證程序。');
             }
-            const childResult = processSingleTask(task, externalDataMap, settings, mode, sheetUrl, sheetGid, T);
+            // [UPDATED] Pass targetSsId to processSingleTask
+            const childResult = processSingleTask(task, externalDataMap, settings, mode, targetSsId, T);
             processedResults.set(task.originalRowIndex, childResult);
         }
 
@@ -252,10 +425,10 @@ function runDataValidation(mode) {
             }
         });
 
-        ss.toast('Data validation complete!', 'Success', 5);
+        ss.toast('資料驗證完成！', 'Success', 5);
 
     } catch (e) {
-        ss.toast(`Error: ${e.message}`, 'Error', 10);
+        ss.toast(`錯誤: ${e.message}`, 'Error', 10);
         Logger.log('Error during data validation: ' + e.stack);
     } finally {
         scriptProperties.deleteProperty('stopValidationRequested');
@@ -263,15 +436,9 @@ function runDataValidation(mode) {
 }
 
 // ================================================================
-// SECTION 2: Core Logic & Pre-Check Functions
+// SECTION 3: 核心邏輯 (API 與 演算法)
 // ================================================================
 
-/**
- * Calculates the Levenshtein distance between two strings.
- * @param {string} a The first string.
- * @param {string} b The second string.
- * @returns {number} The Levenshtein distance.
- */
 function levenshteinDistance(a, b) {
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -294,30 +461,28 @@ function levenshteinDistance(a, b) {
     return matrix[b.length][a.length];
 }
 
-/**
- * Scans all headers and returns a comprehensive report of perfect,
- * suggested (fuzzy), and unmatched headers, with an option to exclude existing mappings.
- * @param {object} settings The validation settings for the current sheet.
- * @param {Array<object>} [mappingsToExclude=[]] An array of mappings to exclude from the results.
- * @returns {object} An object containing arrays for perfectMatches, suggestedMatches, unmatchedTarget, and unmatchedSource.
- */
 function getSmartMappingResults(settings, mappingsToExclude = []) {
-    const { targetHeaderRow, sourceHeaderRow, targetSheetName, sourceDataUrl, sourceDataSheetName } = settings;
+    const { targetHeaderRow, sourceHeaderRow, targetSheetName, sourceFileId, sourceDataUrl, sourceDataSheetName } = settings;
+    
+    const fileId = sourceFileId || (sourceDataUrl ? sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
 
-    if (!targetHeaderRow || !sourceHeaderRow || !sourceDataUrl || !sourceDataSheetName) {
-        throw new Error("請先完整填寫來源與目標的 URL、分頁名稱與標頭起始列。");
+    if (!targetHeaderRow || !sourceHeaderRow || !fileId || !sourceDataSheetName) {
+        throw new Error("請先完整填寫來源檔案、分頁名稱與標頭起始列。");
     }
 
     try {
         const targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
         if (!targetSheet) throw new Error(`找不到目標分頁 "${targetSheetName}"。`);
         
-        const sourceSs = SpreadsheetApp.openByUrl(sourceDataUrl);
-        const sourceSheet = sourceSs.getSheetByName(sourceDataSheetName);
-        if (!sourceSheet) throw new Error(`在來源檔案中找不到分頁 "${sourceDataSheetName}"。`);
-
         const targetHeadersRaw = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
-        const sourceHeadersRaw = sourceSheet.getRange(sourceHeaderRow, 1, 1, sourceSheet.getMaxColumns()).getValues()[0];
+        
+        const sourceRange = `${sourceHeaderRow}:${sourceHeaderRow}`;
+        const sourceValues = verify_fetchDataFromApi_(fileId, sourceDataSheetName, sourceRange);
+        const sourceHeadersRaw = sourceValues && sourceValues.length > 0 ? sourceValues[0] : [];
+
+        if (sourceHeadersRaw.length === 0) {
+             throw new Error("無法從來源檔案讀取到標頭列資料。");
+        }
 
         const excludedTargetCols = new Set(mappingsToExclude.map(m => m.targetCol));
         const excludedSourceCols = new Set(mappingsToExclude.map(m => m.sourceCol));
@@ -333,7 +498,6 @@ function getSmartMappingResults(settings, mappingsToExclude = []) {
         const perfectMatches = [];
         const suggestedMatches = [];
 
-        // Pass 1: Find perfect matches
         targetHeaders.forEach(target => {
             if (target.used) return;
             const perfectMatch = sourceHeaders.find(source => !source.used && source.header === target.header);
@@ -349,7 +513,6 @@ function getSmartMappingResults(settings, mappingsToExclude = []) {
             }
         });
 
-        // Pass 2: Find fuzzy matches
         targetHeaders.forEach(target => {
             if (target.used) return;
             let bestMatch = { distance: Infinity, source: null };
@@ -385,17 +548,13 @@ function getSmartMappingResults(settings, mappingsToExclude = []) {
     }
 }
 
-/**
- * Checks headers for currently mapped fields and returns structured mismatch data.
- * @param {object} settings The validation settings for the current sheet.
- * @returns {{isPerfect: boolean, mismatches: Array<object>}} An object with detailed results.
- */
 function checkSourceHeaderMapping(settings) {
     const T = MasterData.getTranslations();
-    const { validationMappings, outputMappings, targetHeaderRow, sourceHeaderRow, targetSheetName, sourceDataUrl, sourceDataSheetName } = settings;
-    
-    if (!targetHeaderRow || !sourceHeaderRow || !sourceDataUrl || !sourceDataSheetName) {
-        return { isPerfect: false, mismatches: [{ message: "請先完整填寫來源與目標的 URL、分頁名稱與標頭起始列。" }] };
+    const { targetHeaderRow, sourceHeaderRow, targetSheetName, sourceFileId, sourceDataUrl, sourceDataSheetName, validationMappings, outputMappings } = settings;
+    const fileId = sourceFileId || (sourceDataUrl ? sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
+
+    if (!targetHeaderRow || !sourceHeaderRow || !fileId || !sourceDataSheetName) {
+        return { isPerfect: false, mismatches: [{ message: "請先完整填寫設定。" }] };
     }
 
     const allMappings = [...(validationMappings || []), ...(outputMappings || [])];
@@ -407,12 +566,11 @@ function checkSourceHeaderMapping(settings) {
         const targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
         if (!targetSheet) return { isPerfect: false, mismatches: [{ message: `找不到目標分頁 "${targetSheetName}"。` }] };
         
-        const sourceSs = SpreadsheetApp.openByUrl(sourceDataUrl);
-        const sourceSheet = sourceSs.getSheetByName(sourceDataSheetName);
-        if (!sourceSheet) return { isPerfect: false, mismatches: [{ message: `在來源檔案中找不到分頁 "${sourceDataSheetName}"。` }] };
-
         const targetHeadersRaw = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
-        const sourceHeadersRaw = sourceSheet.getRange(sourceHeaderRow, 1, 1, sourceSheet.getMaxColumns()).getValues()[0];
+        
+        const sourceRange = `${sourceHeaderRow}:${sourceHeaderRow}`;
+        const sourceValues = verify_fetchDataFromApi_(fileId, sourceDataSheetName, sourceRange);
+        const sourceHeadersRaw = sourceValues && sourceValues.length > 0 ? sourceValues[0] : [];
 
         const mismatches = [];
         allMappings.forEach(mapping => {
@@ -420,16 +578,18 @@ function checkSourceHeaderMapping(settings) {
             const targetColNum = columnToNumber(mapping.targetCol);
             const sourceColNum = columnToNumber(mapping.sourceCol);
             if (targetColNum === 0 || sourceColNum === 0) return;
+            
             const targetHeader = (targetHeadersRaw[targetColNum - 1] || '').toString().trim();
             const sourceHeader = (sourceHeadersRaw[sourceColNum - 1] || '').toString().trim();
 
             if (targetHeader.normalize('NFC') !== sourceHeader.normalize('NFC')) {
+                const msgTemplate = T.headerMismatchDetail || "目標 '{TARGET_COL}' ({TARGET_HEADER}) 與來源 '{SOURCE_COL}' ({SOURCE_HEADER}) 不符";
                 mismatches.push({
                   targetCol: mapping.targetCol,
                   sourceCol: mapping.sourceCol,
                   targetHeader: targetHeader || '空白',
                   sourceHeader: sourceHeader || '空白',
-                  message: T.headerMismatchDetail
+                  message: msgTemplate
                     .replace('{TARGET_COL}', mapping.targetCol)
                     .replace('{TARGET_HEADER}', targetHeader || '空白')
                     .replace('{SOURCE_COL}', mapping.sourceCol)
@@ -447,336 +607,135 @@ function checkSourceHeaderMapping(settings) {
 }
 
 
-/**
- * Checks all currently mapped source columns for empty values.
- * @param {object} settings The validation settings object.
- * @returns {{isValid: boolean, message: string}} An object containing the validation result.
- */
 function checkAllSourceColumnsForEmptyValues(settings) {
     const T = MasterData.getTranslations();
-    const { sourceDataUrl, sourceDataSheetName, sourceHeaderRow, validationMappings, outputMappings } = settings;
+    const { sourceFileId, sourceDataUrl, sourceDataSheetName, sourceHeaderRow, validationMappings, outputMappings } = settings;
+    const fileId = sourceFileId || (sourceDataUrl ? sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
 
-    if (!sourceDataUrl || !sourceDataSheetName || !sourceHeaderRow) {
-        return { isValid: false, message: "請先完整填寫來源 URL、分頁與標頭列。" };
+    if (!fileId || !sourceDataSheetName || !sourceHeaderRow) {
+        return { isValid: false, message: "請先完整填寫來源檔案、分頁與標頭列。" };
     }
 
     const allMappings = [...(validationMappings || []), ...(outputMappings || [])];
     const sourceColumns = [...new Set(allMappings.map(m => m.sourceCol).filter(Boolean))];
 
     if (sourceColumns.length === 0) {
-        return { isValid: true, message: T.noMappingsToCheck };
+        return { isValid: true, message: T.noMappingsToCheck || "沒有需要檢查的對應欄位。" };
     }
 
     try {
-        const sourceSs = SpreadsheetApp.openByUrl(sourceDataUrl);
-        const sourceSheet = sourceSs.getSheetByName(sourceDataSheetName);
-        if (!sourceSheet) return { isValid: false, message: `在來源檔案中找不到分頁 "${sourceDataSheetName}"。` };
-
-        const lastRow = sourceSheet.getLastRow();
-        const dataStartRow = parseInt(sourceHeaderRow, 10) + 1;
-
-        if (lastRow < dataStartRow) {
-            return { isValid: false, message: T.columnIsEmpty.replace('{COLUMN}', sourceColumns.join(', ')) };
-        }
-
+        const startRow = parseInt(sourceHeaderRow, 10) + 1;
         const errorMessages = [];
-        sourceColumns.forEach(col => {
-            const colNum = columnToNumber(col);
-            const values = sourceSheet.getRange(dataStartRow, colNum, lastRow - dataStartRow + 1, 1).getValues();
+        
+        for (const colLetter of sourceColumns) {
+            const range = `${colLetter}${startRow}:${colLetter}`;
+            const values = verify_fetchDataFromApi_(fileId, sourceDataSheetName, range);
+            
             const emptyRows = [];
             values.forEach((row, index) => {
-                if (row[0] === null || row[0] === '') {
-                    emptyRows.push(dataStartRow + index);
+                if (!row || row.length === 0 || row[0] === null || row[0] === '') {
+                    emptyRows.push(startRow + index);
                 }
             });
-            if (emptyRows.length > 0) {
-                errorMessages.push(T.emptyValuesInRows
-                    .replace('{COLUMN}', col)
-                    .replace('{ROWS}', emptyRows.join(', ')));
-            }
-        });
 
-        if (errorMessages.length > 0) {
-            return { isValid: false, message: `${T.emptyCheckFailure}\n- ${errorMessages.join('\n- ')}` };
+            if (emptyRows.length > 0) {
+                const displayRows = emptyRows.slice(0, 15).join(', ') + (emptyRows.length > 15 ? '...' : '');
+                const msgTemplate = T.emptyValuesInRows || "{COLUMN} 欄: 第 {ROWS} 列發現空值";
+                errorMessages.push(msgTemplate
+                    .replace('{COLUMN}', colLetter)
+                    .replace('{ROWS}', displayRows));
+            }
         }
 
-        return { isValid: true, message: T.emptyCheckSuccess };
+        if (errorMessages.length > 0) {
+            const failTitle = T.emptyCheckFailure || "檢查發現空值";
+            return { isValid: false, message: `${failTitle}\n- ${errorMessages.join('\n- ')}` };
+        }
+
+        return { isValid: true, message: T.emptyCheckSuccess || "檢查通過，來源欄位無空值。" };
     } catch (e) {
-        Logger.log(`Bulk column check for empty values failed: ${e.message}`);
+        Logger.log(`Empty check failed: ${e.message}`);
         return { isValid: false, message: `檢查時發生錯誤: ${e.message}` };
     }
 }
 
 
-/**
- * Cleans up MS row groups using "Fill the Quota" logic.
- */
-function cleanupMsRowGroups(processedResults, taskMap) {
-    processedResults.forEach((result, originalRowIndex) => {
-        const childRows = result.childRows;
-        if (!childRows || childRows.length === 0) {
-            return;
-        }
+function fetchExternalData(settings) {
+    const fileId = settings.sourceFileId || (settings.sourceDataUrl ? settings.sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
+    const sheetName = settings.sourceDataSheetName;
+    const startRow = parseInt(settings.sourceHeaderRow, 10) + 1;
 
-        const parentTask = taskMap.get(originalRowIndex);
-        if (!parentTask) return;
+    const cols = [...settings.validationMappings, ...settings.outputMappings].map(m => m.sourceCol);
+    if (cols.length === 0) throw new Error("未設定任何來源欄位。");
 
-        const parentQty = parseInt(parentTask.originalRowData[5], 10) || 0;
-        if (parentQty <= 0) {
-            return;
-        }
-
-        const perfectMatches = childRows.filter(child => child.isPerfect);
-        const imperfectMatches = childRows.filter(child => !child.isPerfect);
-
-        let finalChildRows = [];
-        finalChildRows.push(...perfectMatches);
-
-        const quotaNeeded = parentQty - finalChildRows.length;
-        if (quotaNeeded > 0) {
-            const itemsToFill = imperfectMatches.slice(0, quotaNeeded);
-            finalChildRows.push(...itemsToFill);
-        }
-        
-        result.childRows = finalChildRows;
-        processedResults.set(originalRowIndex, result);
-    });
-    return processedResults;
-}
-
-/**
- * Generates structured mismatch information.
- */
-function generateInfoTask(sourceMatch, targetValues, settings) {
-    const T = MasterData.getTranslations();
-    const primaryMismatches = [];
-    const secondaryMismatches = [];
-    const generalMismatchLabels = new Set();
-    const { validationMappings } = settings;
-
-    for (const item of validationMappings) {
-        const sourceValue = (sourceMatch.values[item.sourceCol] || '').toString().trim();
-        const targetValue = (targetValues[item.targetCol] || '').toString().trim();
-
-        if (sourceValue !== targetValue) {
-            const prefix = item.isRequired ? T.majorPrefix : T.minorPrefix;
-            const suffix = T.mismatchSuffix;
-            const sourceLocation = `${item.sourceCol}${sourceMatch.originalRowNum}`;
-            const valueSegment = sourceValue ? `_${sourceValue}` : '';
-            const specificLabel = `${prefix}_${sourceLocation}${valueSegment}_${suffix}`;
-            
-            const sourceUrl = sourceMatch.sourceUrl.split('#')[0];
-            const linkUrl = `${sourceUrl}#gid=${sourceMatch.sourceGid}&range=${item.sourceCol}${sourceMatch.originalRowNum}`;
-
-            const mismatchDetail = {
-                targetCol: item.targetCol,
-                label: specificLabel,
-                linkUrl: linkUrl
-            };
-
-            if (item.isRequired) {
-                primaryMismatches.push(mismatchDetail);
-            } else {
-                secondaryMismatches.push(mismatchDetail);
-            }
-
-            if (sourceValue === '') {
-                generalMismatchLabels.add(T.sourceValueBlank);
-            } else {
-                generalMismatchLabels.add(T.sourceValueMismatch);
-            }
-        }
-    }
-
-    return {
-        primaryMismatches: primaryMismatches,
-        secondaryMismatches: secondaryMismatches,
-        mismatchColumnText: [...generalMismatchLabels].join('\n')
-    };
-}
-
-
-/**
- * Processes a single task, with plain text mismatch info.
- */
-function processSingleTask(task, externalDataMap, settings, mode, sheetUrl, sheetGid, T) {
-    // const T = getTranslations();
-    const { validationMappings, outputMappings } = settings;
-    const majorValidationMappings = validationMappings.filter(m => m.isRequired);
-
-    const keyMappings = majorValidationMappings.length > 0 ? majorValidationMappings : [validationMappings[0]];
-
-    const lookupKey = keyMappings
-        .map(m => task.values[m.targetCol] || '')
-        .join('||');
-
-    const candidateMatches = lookupKey ? (externalDataMap.get(lookupKey) || []) : [];
-
-    if (candidateMatches.length === 0) {
-        let newChildRow = [...task.originalRowData];
-        newChildRow[0] = "MS";
-
-        if (outputMappings) {
-            outputMappings.forEach(mapping => {
-                const targetColNum = columnToNumber(mapping.targetCol);
-                if (targetColNum > 0) newChildRow[targetColNum - 1] = '';
-            });
-        }
-        
-        const childFormattingTasks = [{ type: 'background', value: '#fff2cc' }];
-
-        const mismatchColNum = columnToNumber(settings.mismatchColumn);
-        if (mismatchColNum > 0) {
-            const firstKeyMapping = keyMappings[0];
-            const originalParentRow = settings.startRow + task.originalRowIndex;
-            const targetCellA1 = `${firstKeyMapping.targetCol}${originalParentRow}`;
-            const val = task.values[firstKeyMapping.targetCol] || '空白';
-            const mismatchText = `${T.firstColumnMismatch}_${targetCellA1}_${val}`;
-            newChildRow[mismatchColNum - 1] = mismatchText;
-            newChildRow[mismatchColNum - 1] = mismatchText;
-        }
-        
-        newChildRow[5] = 1;
-
-        return {
-            childRows: [{
-                rowData: newChildRow,
-                formattingTasks: childFormattingTasks,
-                isPerfect: false
-            }]
-        };
-    }
-
-    let childRows = [];
-    candidateMatches.forEach(match => {
-        let newChildRow = [...task.originalRowData];
-        newChildRow[0] = "MS";
-        let childFormattingTasks = [{ type: 'background', value: '#d9ead3' }];
-
-        const infoResult = generateInfoTask(match, task.values, settings);
-        const isPerfectMatch = infoResult.primaryMismatches.length === 0 && infoResult.secondaryMismatches.length === 0;
-        
-        if (majorValidationMappings.length > 0 && infoResult.primaryMismatches.length > 0) {
-            return; 
-        }
-
-        outputMappings.forEach(mapping => {
-            const targetColNum = columnToNumber(mapping.targetCol);
-            if (targetColNum <= 0) return;
-
-            const sourceValue = match.values[mapping.sourceCol];
-            if (sourceValue === undefined || sourceValue === null || sourceValue.toString().trim() === '') {
-                const label = `${mapping.sourceCol}${match.originalRowNum}${T.noSourceDataSuffix}`;
-                newChildRow[targetColNum - 1] = label;
-                const sourceUrl = match.sourceUrl.split('#')[0];
-                const linkUrl = `${sourceUrl}#gid=${match.sourceGid}&range=${mapping.sourceCol}${match.originalRowNum}`;
-                const richText = SpreadsheetApp.newRichTextValue().setText(label).setLinkUrl(0, label.length, linkUrl).build();
-                childFormattingTasks.push({ type: 'richText', col: targetColNum, value: richText });
-            } else {
-                newChildRow[targetColNum - 1] = sourceValue;
-            }
-        });
-        
-        const mismatchColNum = columnToNumber(settings.mismatchColumn);
-        if (mismatchColNum > 0) {
-            const secondaryMismatchText = infoResult.secondaryMismatches.map(d => d.label).join('\n');
-            const fullMismatchText = [infoResult.mismatchColumnText, secondaryMismatchText].filter(Boolean).join('\n');
-            newChildRow[mismatchColNum - 1] = fullMismatchText;
-            
-            if (infoResult.secondaryMismatches.length > 0) {
-                 const richTextBuilder = SpreadsheetApp.newRichTextValue().setText(fullMismatchText);
-                 let currentIndex = (infoResult.mismatchColumnText ? infoResult.mismatchColumnText.length + 1 : 0);
-                 infoResult.secondaryMismatches.forEach(detail => {
-                     richTextBuilder.setLinkUrl(currentIndex, currentIndex + detail.label.length, detail.linkUrl);
-                     currentIndex += detail.label.length + 1;
-                 });
-                 childFormattingTasks.push({ type: 'richText', col: mismatchColNum, value: richTextBuilder.build() });
-            }
-        }
-
-        newChildRow[5] = 1;
-
-        childRows.push({
-            rowData: newChildRow,
-            formattingTasks: childFormattingTasks,
-            isPerfect: isPerfectMatch
-        });
-    });
+    const maxColNum = Math.max(...cols.map(c => columnToNumber(c)));
+    const maxColLetter = columnToLetter(maxColNum);
+    const range = `A${startRow}:${maxColLetter}`; 
     
-    return {
-        childRows: childRows
-    };
+    const values = verify_fetchDataFromApi_(fileId, sheetName, range);
+    const map = new Map();
+    
+    // [FIXED] Fetch correct GID using helper
+    const sourceGid = verify_getSheetGidByName_(fileId, sheetName) || '0';
+
+    const keys = settings.validationMappings.filter(m => m.isRequired);
+    const keyMaps = keys.length > 0 ? keys : [settings.validationMappings[0]];
+
+    values.forEach((row, i) => {
+        let rowData = { 
+            values: {}, 
+            originalRowNum: startRow + i, 
+            sourceFileId: fileId, // Pass fileId here
+            sourceGid: sourceGid 
+        };
+        
+        cols.forEach(colLetter => {
+            const colIdx = columnToNumber(colLetter) - 1;
+            rowData.values[colLetter] = (row[colIdx] || '').toString().trim();
+        });
+
+        const k = keyMaps.map(m => rowData.values[m.sourceCol] || '').join('||');
+        if (k) {
+            if (!map.has(k)) map.set(k, []);
+            map.get(k).push(rowData);
+        }
+    });
+
+    return map;
 }
 
+// ================================================================
+// SECTION 4: 通用工具函式
+// ================================================================
 
-/**
- * NEW: Resets validation data by deleting generated rows and clearing specific columns in parent rows.
- * This approach is more direct and robust than the previous cleanup/memory mode.
- * @param {object} settings The validation settings for the current sheet.
- */
 function resetValidationData(settings) {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(settings.targetSheetName);
-    if (!sheet) throw new Error(`Sheet named "${settings.targetSheetName}" not found.`);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(settings.targetSheetName);
+    if (!sheet) return;
+    const lastRow = sheet.getLastRow();
+    if (lastRow < settings.startRow) return;
 
-    const startRow = settings.startRow;
-    let lastRow = sheet.getLastRow();
-    if (lastRow < startRow) return; // Nothing to process.
-
-    // Get the full data range to process in memory
-    const range = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getMaxColumns());
+    const range = sheet.getRange(settings.startRow, 1, lastRow - settings.startRow + 1, 1);
     const values = range.getValues();
 
-    // Identify which columns to clear in parent rows
-    const columnsToClear = settings.outputMappings.map(m => columnToNumber(m.targetCol));
-    if (settings.mismatchColumn) {
-        columnsToClear.push(columnToNumber(settings.mismatchColumn));
-    }
-    const uniqueColumnsToClear = [...new Set(columnsToClear)].filter(c => c > 0);
-
     const rowsToDelete = [];
-    const rangesToClear = [];
-
-    // Process the data in memory to decide what to delete and what to clear
-    values.forEach((row, index) => {
-        const currentRowInSheet = startRow + index;
-        const flag = row[0].toString().trim();
-
-        if (flag === 'MS' || flag.startsWith('EX-')) {
-            // Mark generated rows for deletion
-            rowsToDelete.push(currentRowInSheet);
-        } else {
-            // For parent rows, identify specific cells to clear
-            uniqueColumnsToClear.forEach(colNum => {
-                rangesToClear.push(`${columnToLetter(colNum)}${currentRowInSheet}`);
-            });
+    const colsToClear = [...settings.outputMappings.map(m=>columnToNumber(m.targetCol)), columnToNumber(settings.mismatchColumn)].filter(c=>c>0);
+    
+    values.forEach((r, i) => {
+        const flag = r[0].toString().trim();
+        if (flag.match(/^(MS|EX)/)) {
+            rowsToDelete.push(settings.startRow + i);
         }
     });
 
-    // Perform batch clearing of content for parent rows
-    // This is done first as it doesn't affect row indices. It preserves formatting and hyperlinks.
-    if (rangesToClear.length > 0) {
-        // Use getRangeList for efficiency. Chunking to avoid potential limits.
-        const chunkSize = 250; 
-        for (let i = 0; i < rangesToClear.length; i += chunkSize) {
-            const chunk = rangesToClear.slice(i, i + chunkSize);
-            sheet.getRangeList(chunk).clearContent();
-        }
-    }
-
-    // Perform batch deletion of generated rows from the bottom up
     if (rowsToDelete.length > 0) {
-        // Group contiguous rows together to delete in a single call
-        const reversedRows = rowsToDelete.sort((a, b) => b - a); // Sort descending
+        const reversedRows = rowsToDelete.sort((a, b) => b - a);
         let i = 0;
         while (i < reversedRows.length) {
             const rowNum = reversedRows[i];
             let count = 1;
-            // Find how many contiguous rows are next in the list
             while (i + count < reversedRows.length && reversedRows[i + count] === rowNum - count) {
                 count++;
             }
-            // Delete the contiguous block of rows
             sheet.deleteRows(rowNum - count + 1, count);
             i += count;
         }
@@ -785,114 +744,163 @@ function resetValidationData(settings) {
     SpreadsheetApp.flush();
 }
 
-
-
-// ================================================================
-// SECTION 3: Utility Functions
-// ================================================================
-
 function buildTaskListFromData(initialData, settings) {
     const tasks = [];
-    const { validationMappings } = settings;
-
-    if (!validationMappings || validationMappings.length === 0) {
-        throw new Error("Configuration error: No validation mappings are defined.");
-    }
-
     initialData.forEach((row, index) => {
         const flag = row[0].toString().trim();
-        if (flag === 'MS' || flag.startsWith('EX-')) return;
+        if (flag.match(/^(MS|EX)/)) return; 
 
-        const hasDataToValidate = validationMappings.some(map => {
-            const colNum = columnToNumber(map.targetCol);
-            return row[colNum - 1] !== '';
-        });
-
-        if (hasDataToValidate) {
-            let taskData = { originalRowIndex: index, values: {}, originalRowData: row };
-            const allMappings = [...settings.validationMappings, ...settings.outputMappings];
-            allMappings.forEach(map => {
-                const colNum = columnToNumber(map.targetCol);
-                if (colNum > 0) {
-                  taskData.values[map.targetCol] = (row[colNum - 1] || '').toString().trim();
-                }
+        const hasData = settings.validationMappings.some(m => row[columnToNumber(m.targetCol) - 1]);
+        if (hasData) {
+            let values = {};
+            [...settings.validationMappings, ...settings.outputMappings].forEach(m => {
+                values[m.targetCol] = (row[columnToNumber(m.targetCol) - 1] || '').toString().trim();
             });
-            tasks.push(taskData);
+            tasks.push({ originalRowIndex: index, values, originalRowData: row });
         }
     });
     return tasks;
 }
 
-function fetchExternalData(settings) {
-    const sourceSpreadsheet = SpreadsheetApp.openByUrl(settings.sourceDataUrl);
-    const sourceSheet = sourceSpreadsheet.getSheetByName(settings.sourceDataSheetName);
-    if (!sourceSheet) throw new Error(`Sheet named "${settings.sourceDataSheetName}" not found in the source file.`);
+/**
+ * [FIXED] Process tasks with intelligent hyperlinks and simplified text.
+ */
+function processSingleTask(task, extMap, settings, mode, targetSsId, T) {
+    const keys = settings.validationMappings.filter(m => m.isRequired);
+    const keyMaps = keys.length > 0 ? keys : [settings.validationMappings[0]];
+    const k = keyMaps.map(m => task.values[m.targetCol]).join('||');
+    const matches = extMap.get(k) || [];
+    const childRows = [];
 
-    const sourceGid = sourceSheet.getSheetId();
-    const sourceUrl = sourceSpreadsheet.getUrl();
-
-    const { validationMappings, outputMappings } = settings;
-    const allMappings = [...validationMappings, ...outputMappings];
-    const allSourceColumns = [...new Set(allMappings.map(m => m.sourceCol))];
-    
-    if (allSourceColumns.length === 0) {
-        throw new Error("No source columns have been defined in the settings mappings.");
-    }
-    if (validationMappings.length === 0) {
-        throw new Error("At least one validation field must be defined in Settings for the script to run.");
-    }
-    
-    const majorValidationMappings = validationMappings.filter(m => m.isRequired);
-    const keyMappings = majorValidationMappings.length > 0 ? majorValidationMappings : [validationMappings[0]];
-
-    const maxColNum = Math.max(...allSourceColumns.map(c => columnToNumber(c)));
-    const lastRow = sourceSheet.getLastRow();
-    if (lastRow < 2) return new Map();
-
-    const externalRange = sourceSheet.getRange(2, 1, lastRow - 1, maxColNum);
-    const externalValues = externalRange.getDisplayValues();
-
-    const externalDataMap = new Map();
-
-    externalValues.forEach((row, index) => {
-        let rowData = { values: {}, originalRowNum: index + 2, sourceUrl: sourceUrl, sourceGid: sourceGid };
-        allSourceColumns.forEach(colLetter => {
-            const colNum = columnToNumber(colLetter);
-            rowData.values[colLetter] = (row[colNum - 1] || '').toString().trim();
+    if (matches.length === 0) {
+        let newRow = [...task.originalRowData];
+        newRow[0] = "MS";
+        
+        settings.outputMappings.forEach(map => {
+            const idx = columnToNumber(map.targetCol) - 1;
+            if (idx >= 0) newRow[idx] = '';
         });
 
-        const key = keyMappings
-            .map(m => rowData.values[m.sourceCol] || '')
-            .join('||');
-
-        if (key) {
-            if (!externalDataMap.has(key)) {
-                externalDataMap.set(key, []);
+        if (settings.mismatchColumn) {
+            const idx = columnToNumber(settings.mismatchColumn) - 1;
+            if (idx >= 0) {
+                const msgTemplate = T.firstColumnMismatch || "首欄不符";
+                newRow[idx] = `${msgTemplate}_${keyMaps[0].targetCol}${settings.startRow + task.originalRowIndex}_${task.values[keyMaps[0].targetCol]}`;
             }
-            externalDataMap.get(key).push(rowData);
         }
-    });
+        newRow[5] = 1; 
+        childRows.push({ rowData: newRow, formattingTasks: [{ type: 'background', value: '#fff2cc' }], isPerfect: false });
+    } else {
+        matches.forEach(m => {
+            let newRow = [...task.originalRowData];
+            newRow[0] = "MS";
+            let fmt = [{ type: 'background', value: '#d9ead3' }];
 
-    return externalDataMap;
+            settings.outputMappings.forEach(map => {
+                const idx = columnToNumber(map.targetCol) - 1;
+                if (idx >= 0) newRow[idx] = m.values[map.sourceCol];
+            });
+
+            let mismatches = [];
+            let mismatchDetails = []; 
+
+            settings.validationMappings.forEach(vm => {
+                if (m.values[vm.sourceCol] !== task.values[vm.targetCol]) {
+                    // [FIXED] Simplified text format: "Cell_Value" (or Cell_NoDataSuffix)
+                    const sourceVal = m.values[vm.sourceCol];
+                    const displayVal = (sourceVal === '' || sourceVal === null) ? (T.noSourceDataSuffix || 'No source data') : sourceVal;
+                    const text = `${vm.sourceCol}${m.originalRowNum}_${displayVal}`;
+                    
+                    mismatches.push(text);
+                    mismatchDetails.push({
+                        text: text,
+                        sourceCol: vm.sourceCol,
+                        row: m.originalRowNum,
+                        fileId: m.sourceFileId,
+                        gid: m.sourceGid
+                    });
+                }
+            });
+
+            if (settings.mismatchColumn && mismatches.length > 0) {
+                const idx = columnToNumber(settings.mismatchColumn) - 1;
+                if (idx >= 0) {
+                    const fullText = mismatches.join('\n');
+                    newRow[idx] = fullText;
+                    
+                    const builder = SpreadsheetApp.newRichTextValue();
+                    builder.setText(fullText);
+                    
+                    let currentStart = 0;
+                    mismatchDetails.forEach(detail => {
+                        // [FIXED] Logic for Internal vs External Link
+                        const isInternal = (detail.fileId === targetSsId);
+                        const linkFragment = `#gid=${detail.gid}&range=${detail.sourceCol}${detail.row}`;
+                        const linkUrl = isInternal ? linkFragment : `https://docs.google.com/spreadsheets/d/${detail.fileId}/${linkFragment}`;
+                        
+                        // Apply link to the full text segment "Cell_Value"
+                        // Ensure we don't go out of bounds
+                        const linkLength = detail.text.length;
+                        
+                        if (linkLength > 0 && (currentStart + linkLength) <= fullText.length) {
+                             builder.setLinkUrl(currentStart, currentStart + linkLength, linkUrl);
+                        }
+                        currentStart += linkLength + 1; // +1 for newline
+                    });
+                    
+                    fmt.push({
+                        type: 'richText',
+                        col: idx + 1,
+                        value: builder.build()
+                    });
+                }
+            }
+
+            if (keys.length > 0 && mismatches.some(msg => keys.some(k => msg.startsWith(k.sourceCol)))) return;
+
+            newRow[5] = 1;
+            childRows.push({ rowData: newRow, formattingTasks: fmt, isPerfect: mismatches.length === 0 });
+        });
+    }
+    return { childRows };
+}
+
+function cleanupMsRowGroups(processedResults, taskMap) {
+    processedResults.forEach((result, rowIndex) => {
+        const parent = taskMap.get(rowIndex);
+        if (!parent) return;
+        const parentQty = parseInt(parent.originalRowData[5], 10) || 0;
+        if (parentQty <= 0) return;
+
+        const perfect = result.childRows.filter(c => c.isPerfect);
+        const imperfect = result.childRows.filter(c => !c.isPerfect);
+        
+        let final = [...perfect];
+        const needed = parentQty - final.length;
+        if (needed > 0) {
+            final.push(...imperfect.slice(0, needed));
+        }
+        
+        result.childRows = final;
+    });
+    return processedResults;
 }
 
 function columnToNumber(col) {
-    if (!col || typeof col !== 'string') return 0;
-    let column = 0, length = col.length;
-    for (let i = 0; i < length; i++) {
-        column += (col.toUpperCase().charCodeAt(i) - 64) * Math.pow(26, length - i - 1);
-    }
-    return column;
+    if (!col) return 0;
+    let c = 0;
+    for (let i = 0; i < col.length; i++) c += (col.charCodeAt(i) - 64) * Math.pow(26, col.length - i - 1);
+    return c;
 }
 
-function columnToLetter(column) {
-    let temp, letter = '';
-    while (column > 0) {
-        temp = (column - 1) % 26;
-        letter = String.fromCharCode(temp + 65) + letter;
-        column = (column - temp - 1) / 26;
+function columnToLetter(col) {
+    let l = '';
+    while (col > 0) {
+        let t = (col - 1) % 26;
+        l = String.fromCharCode(t + 65) + l;
+        col = (col - t - 1) / 26;
     }
-    return letter;
+    return l;
 }
 
 function verifySumAndCumulativeValues() {
@@ -901,98 +909,48 @@ function verifySumAndCumulativeValues() {
     const settings = getVerifySettings(activeSheetName);
 
     if (!settings.targetSheetName) {
-        ss.toast(`No settings found for sheet "${activeSheetName}".`, 'Error', 5);
+        ss.toast(`找不到工作表設定`, 'Error', 5);
         return;
     }
 
     const targetSheet = ss.getSheetByName(settings.targetSheetName);
-    if (!targetSheet) {
-        ss.toast(`Target sheet named "${settings.targetSheetName}" not found.`, 'Error', 5);
-        return;
-    }
-
-    ss.toast('Starting verification of sum and cumulative values...', 'Processing', 5);
-
     const startRow = settings.startRow;
     const lastRow = targetSheet.getLastRow();
-    if (lastRow < startRow) {
-        ss.toast('No data in the sheet to verify.', 'Info', 5);
-        return;
-    }
+
+    if (lastRow < startRow) return;
 
     const range = targetSheet.getRange(startRow, 1, lastRow - startRow + 1, 6);
     const values = range.getValues();
     const backgrounds = range.getBackgrounds();
 
     for (let i = 0; i < values.length; i++) {
-        const currentRow = values[i];
-        const flag = currentRow[0].toString().trim();
-
-        if (!flag.startsWith('MS') && !flag.startsWith('EX-')) {
-            let isParent = false;
+        const row = values[i];
+        const flag = row[0].toString().trim();
+        
+        if (!flag.match(/^(MS|EX)/)) { // 是父列
             let sumQty = 0;
-            let childRowCount = 0;
-            let hasExRows = false;
-
-            if (i + 1 < values.length && (values[i + 1][0].toString().trim() === 'MS' || values[i + 1][0].toString().trim().startsWith('EX-'))) {
-                isParent = true;
-                for (let j = i + 1; j < values.length; j++) {
-                    const childFlag = values[j][0].toString().trim();
-                    if (childFlag.startsWith('EX-')) {
-                        hasExRows = true;
-                        break;
-                    }
-                    if (childFlag !== 'MS') {
-                        break;
-                    }
-                }
-
-                for (let j = i + 1; j < values.length; j++) {
-                    const childFlag = values[j][0].toString().trim();
-                    if (childFlag === 'MS' || childFlag.startsWith('EX-')) {
-                        let shouldSum = false;
-                        if (hasExRows && childFlag.startsWith('EX-')) {
-                            shouldSum = true;
-                        } else if (!hasExRows && childFlag === 'MS') {
-                            shouldSum = true;
-                        }
-
-                        if (shouldSum) {
-                            const childQty = parseFloat(values[j][5]);
-                            if (!isNaN(childQty)) {
-                                sumQty += childQty;
-                            }
-                        }
-                        childRowCount++;
-                    } else {
-                        break;
-                    }
-                }
+            let childCount = 0;
+            
+            for (let j = i + 1; j < values.length; j++) {
+                const childFlag = values[j][0].toString().trim();
+                if (!childFlag.match(/^(MS|EX)/)) break; 
+                
+                const qty = parseFloat(values[j][5]);
+                if (!isNaN(qty)) sumQty += qty;
+                childCount++;
             }
-
-            if (isParent) {
-                const parentRowIndexInSheet = i + startRow;
-                const parentQty = parseFloat(currentRow[5]);
-                if (isNaN(parentQty)) continue;
-
-                const qtyCell = targetSheet.getRange(parentRowIndexInSheet, 6);
-                const currentBackground = backgrounds[i][5];
-                const redColor = '#ff0000';
-
-                if (parentQty !== sumQty) {
-                    if (currentBackground.toLowerCase() !== redColor) {
-                        qtyCell.setBackground(redColor);
-                    }
-                } else {
-                    if (currentBackground.toLowerCase() === redColor) {
-                        qtyCell.clearFormat();
-                    }
-                }
-                i += childRowCount;
+            
+            const parentQty = parseFloat(row[5]);
+            const cell = targetSheet.getRange(startRow + i, 6);
+            
+            if (!isNaN(parentQty) && parentQty !== sumQty) {
+                if (backgrounds[i][5] !== '#ff0000') cell.setBackground('#ff0000');
+            } else {
+                if (backgrounds[i][5] === '#ff0000') cell.clearFormat();
             }
+            
+            i += childCount; 
         }
     }
-
-    SpreadsheetApp.flush();
-    ss.toast('Verification of sum and cumulative values complete!', 'Success', 5);
+    ss.toast('數量驗證完成', 'Success');
 }

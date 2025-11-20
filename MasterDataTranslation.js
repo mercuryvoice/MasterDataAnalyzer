@@ -951,7 +951,7 @@ MasterData.TRANSLATIONS = {
         headerTotalSales: '總銷售額',
         headerMonthlyTarget: '目標月銷售額',
         headerAchievementRate: '業績達成率',
-        headerQuantity: '数量',
+        headerQuantity: '數量',
         headerUnitPrice: '單價',
         // Error Messages
         errorNoImportSettingsFound: '找不到工作表 "{SHEET_NAME}" 的資料匯入設定，請先設定。',
@@ -976,7 +976,7 @@ MasterData.TRANSLATIONS = {
         errorSheetNotFound: "在指定的試算表中找不到名為「{SHEET_NAME}」的工作表。",
         errorInvalidRange: "無效的範圍「{RANGE}」。請檢查您的輸入。",
         errorAccessUrl: "無法存取提供的 URL。請檢查網址並確認您有權限。",
-        errorNoHeaders: "在指定的範圍 {RANGE} 中找不到任何標頭資料。請檢查您的資料範圍是否正確，且第一行包含欄位名称。",
+        errorNoHeaders: "在指定的範圍 {RANGE} 中找不到任何標頭資料。請檢查您的資料範圍是否正確，且第一行包含欄位名稱。",
         errorNoAnalysisFields: "請設定至少一個分析欄位。",
         errorNoDimensions: "請設定至少一個「維度」。",
         errorNoMetrics: "請設定至少一個「指標」。",
