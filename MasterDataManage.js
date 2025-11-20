@@ -267,7 +267,7 @@ function checkAndNotify() {
                        .replace(/{CHANGE_DETAILS}/g, fullChangeDetails)
                        .replace(/{SHEET_URL}/g, SpreadsheetApp.getActiveSpreadsheet().getUrl());
 
-            GmailApp.sendEmail(recipientEmail, subject, body);
+            MailApp.sendEmail(recipientEmail, subject, body);
 
             PropertiesService.getScriptProperties().setProperty(NOTIFY_PROPERTY_KEY, JSON.stringify(newValues));
             Logger.log(`Detected ${changes.length} changes and sent email to ${recipientEmail}`);
