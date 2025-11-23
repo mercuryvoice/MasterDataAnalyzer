@@ -798,7 +798,33 @@ function processSingleTask(task, extMap, settings, mode, targetSsId, T) {
 
             settings.outputMappings.forEach(map => {
                 const idx = columnToNumber(map.targetCol) - 1;
-                if (idx >= 0) newRow[idx] = m.values[map.sourceCol];
+                if (idx >= 0) {
+                    const val = m.values[map.sourceCol];
+                    if (val === '' || val === null || val === undefined) {
+                        const sourceCol = map.sourceCol;
+                        const sourceRow = m.originalRowNum;
+                        const suffix = T.noSourceDataSuffix || '_No source data';
+                        const text = `${sourceCol}${sourceRow}${suffix}`;
+                        newRow[idx] = text; 
+                        
+                        const isInternal = (m.sourceFileId === targetSsId);
+                        const linkFragment = `#gid=${m.sourceGid}&range=${sourceCol}${sourceRow}`;
+                        const linkUrl = isInternal ? linkFragment : `https://docs.google.com/spreadsheets/d/${m.sourceFileId}/${linkFragment}`;
+                        
+                        const builder = SpreadsheetApp.newRichTextValue();
+                        builder.setText(text);
+                        builder.setLinkUrl(0, text.length, linkUrl);
+                        
+                        fmt.push({
+                            type: 'richText',
+                            col: idx + 1,
+                            value: builder.build()
+                        });
+
+                    } else {
+                        newRow[idx] = val;
+                    }
+                }
             });
 
             let mismatches = [];
