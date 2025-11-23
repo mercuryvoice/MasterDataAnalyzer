@@ -326,6 +326,23 @@ function runDataValidation(mode) {
             return;
         }
 
+        // [NEW] Integrity Check
+        const integrityResult = verify_checkTargetColumnsForIntegrity(settings);
+        if (!integrityResult.isValid) {
+            const response = ui.alert(
+                integrityResult.title || "資料完整性警告",
+                integrityResult.warning,
+                ui.ButtonSet.YES_NO
+            );
+            
+            // 如果使用者選擇「否」 (NO)，則中止
+            if (response === ui.Button.NO) {
+                ss.toast('已取消驗證程序。', 'Info', 3);
+                return;
+            }
+            // 如果選擇「是」 (YES)，則繼續往下執行
+        }
+
         const sheet = ss.getSheetByName(settings.targetSheetName);
         if (!sheet) throw new Error(`找不到目標分頁 "${settings.targetSheetName}"。`);
         
@@ -659,6 +676,75 @@ function checkAllSourceColumnsForEmptyValues(settings) {
     }
 }
 
+/**
+ * 檢查目標工作表中的資料驗證欄位是否包含「無來源資料」的標記 (如 '_No source data' 或 '_無來源資料')。
+ * 這些標記通常來自之前的資料匯入失敗。
+ */
+function verify_checkTargetColumnsForIntegrity(settings) {
+    const T = MasterData.getTranslations();
+    const { targetSheetName, startRow, validationMappings } = settings;
+    
+    // 檢查兩種語言的後綴
+    const suffixes = ['_No source data', '_無來源資料'];
+
+    if (!targetSheetName || !startRow || !validationMappings || validationMappings.length === 0) {
+        return { isValid: true };
+    }
+
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
+        if (!sheet) return { isValid: true };
+
+        const lastRow = sheet.getLastRow();
+        if (lastRow < startRow) return { isValid: true };
+
+        // 取得所有需要檢查的目標欄位 (去除重複)
+        const targetCols = [...new Set(validationMappings.map(m => m.targetCol).filter(Boolean))];
+        
+        if (targetCols.length === 0) return { isValid: true };
+
+        const errorCells = [];
+        const numRowsToCheck = lastRow - startRow + 1;
+        const CELL_LIMIT = 20;
+
+        for (const colLetter of targetCols) {
+            // Check if we've already hit the limit to avoid unnecessary processing
+            if (errorCells.length >= CELL_LIMIT) break;
+
+            const colIdx = columnToNumber(colLetter);
+            const range = sheet.getRange(startRow, colIdx, numRowsToCheck, 1);
+            const values = range.getDisplayValues(); 
+
+            for (let i = 0; i < values.length; i++) {
+                const cellVal = values[i][0];
+                if (cellVal) {
+                    // 只要包含任一種後綴即視為異常
+                    if (suffixes.some(s => cellVal.toString().includes(s))) {
+                        errorCells.push(`${colLetter}${startRow + i}`);
+                        if (errorCells.length >= CELL_LIMIT) break;
+                    }
+                }
+            }
+        }
+
+        if (errorCells.length > 0) {
+            const warningTitle = T.dataIntegrityWarningTitle || "資料完整性警告";
+            const msgTemplate = T.dataIntegrityWarningBody || "在以下欄位中發現資料不完整標記 ('_No source data' 或 '_無來源資料')：\n\n[ {COLS} ]\n\n這表示之前的資料匯入可能不完整，若繼續執行，將導致驗證結果錯誤。\n\n請問是否忽略此警告並繼續執行？";
+            
+            const displayCells = errorCells.join(', ') + (errorCells.length >= CELL_LIMIT ? '...' : '');
+            // Using the same placeholder {COLS} to minimize translation changes, but it now contains cells
+            const warningMsg = msgTemplate.replace('{COLS}', displayCells);
+            
+            return { isValid: false, warning: warningMsg, title: warningTitle };
+        }
+
+        return { isValid: true };
+
+    } catch (e) {
+        Logger.log(`Integrity check failed: ${e.message}`);
+        return { isValid: true }; 
+    }
+}
 
 function fetchExternalData(settings) {
     const fileId = settings.sourceFileId || (settings.sourceDataUrl ? settings.sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
