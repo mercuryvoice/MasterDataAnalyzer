@@ -1223,6 +1223,7 @@ function runImportProcess() {
         if (valuesForBulkWrite.length > 0) {
             ss.toast(`Writing ${allTasks.length} records...`, 'Processing', 10);
             const rangeToWrite = targetSheet.getRange(settings.targetStartRow, 1, valuesForBulkWrite.length, valuesForBulkWrite[0].length);
+            rangeToWrite.clear({contentsOnly: true, formatOnly: true}); // [FIX] Clear residual formats (like hyperlinks)
             rangeToWrite.setValues(valuesForBulkWrite);
 
             for (let i = 0; i < allTasks.length; i++) {

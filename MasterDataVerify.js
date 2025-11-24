@@ -287,16 +287,19 @@ function runValidationMsOnly() {
 function runReset() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const activeSheetName = ss.getActiveSheet().getName();
+    const T = MasterData.getTranslations();
     try {
-        ss.toast('正在重置驗證資料...', 'Processing', 5);
+        ss.toast(T.resetValidationStart || 'Starting verification data reset...', 'Processing', 5);
         const settings = getVerifySettings(activeSheetName);
         if (!settings.targetSheetName) {
-          throw new Error(`找不到工作表 "${activeSheetName}" 的設定。`);
+            const errorMsg = (T.errorSettingsNotFound || 'Settings not found for sheet "{SHEET_NAME}".').replace('{SHEET_NAME}', activeSheetName);
+            throw new Error(errorMsg);
         }
         resetValidationData(settings);
-        ss.toast('驗證資料已重置。', 'Success', 5);
+        ss.toast(T.resetValidationComplete || 'Verification data reset complete.', 'Success', 5);
     } catch (e) {
-        ss.toast(`重置時發生錯誤: ${e.message}`, 'Error', 10);
+        const errorTemplate = T.resetValidationError || 'Error during reset: {MESSAGE}';
+        ss.toast(errorTemplate.replace('{MESSAGE}', e.message), 'Error', 10);
         Logger.log('Error during reset: ' + e.stack);
     }
 }
@@ -310,8 +313,9 @@ function runDataValidation(mode) {
 
      try {
         const T = MasterData.getTranslations();
-        const modeText = mode === 'MS_ONLY' ? '(MS Mode)' : '(EX Expanded Mode)';
-        ss.toast(`開始執行 "Data Validation" ${modeText}...`, 'Processing', 3);
+        const modeText = mode === 'MS_ONLY' ? (T.validationModeMs || '(MS Mode)') : (T.validationModeEx || '(EX Expanded Mode)');
+        const startMsg = (T.validationStartToast || 'Starting "Data Validation" {MODE}...').replace('{MODE}', modeText);
+        ss.toast(startMsg, T.toastTitleProcessing || 'Processing', 3);
         
         const settings = getVerifySettings(activeSheetName);
 
@@ -429,6 +433,7 @@ function runDataValidation(mode) {
 
         if (finalSheetLayout.length > 0) {
             const outputRange = sheet.getRange(settings.startRow, 1, finalSheetLayout.length, sheet.getMaxColumns());
+            outputRange.clear({contentsOnly: true, formatOnly: true}); // [FIX] Clear residual formats (like hyperlinks)
             outputRange.setValues(finalSheetLayout);
         }
 
@@ -442,7 +447,7 @@ function runDataValidation(mode) {
             }
         });
 
-        ss.toast('資料驗證完成！', 'Success', 5);
+        ss.toast(T.validationCompleteToast || 'Data validation complete!', T.toastTitleSuccess || 'Success', 5);
 
     } catch (e) {
         ss.toast(`錯誤: ${e.message}`, 'Error', 10);
