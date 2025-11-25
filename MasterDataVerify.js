@@ -20,11 +20,11 @@
  */
 
 // ================================================================
-// SECTION 0: 基礎設置與輔助函式 (API & Auth)
+// SECTION 0: Basic Settings & Helper Functions (API & Auth)
 // ================================================================
 
 /**
- * 獲取 Google Picker 所需的 API Key 與 Token。
+ * Gets the API Key and Token required for Google Picker.
  */
 function verify_getPickerKeys() {
   try {
@@ -49,14 +49,14 @@ function verify_getPickerKeys() {
 }
 
 /**
- * 獲取當前活動的工作表名稱。
+ * Gets the name of the currently active sheet.
  */
 function verify_getActiveSheetName() {
   return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
 }
 
 /**
- * [核心函式] 透過 Google Sheets API v4 讀取資料。
+ * [Core Function] Reads data via the Google Sheets API v4.
  */
 function verify_fetchDataFromApi_(fileId, sheetName, rangeA1) {
     if (!fileId || !sheetName || !rangeA1) {
@@ -94,7 +94,7 @@ function verify_fetchDataFromApi_(fileId, sheetName, rangeA1) {
 }
 
 /**
- * 透過 API 獲取指定分頁名稱的 Sheet ID (GID)。
+ * Gets the Sheet ID (GID) for a specified sheet name via API.
  */
 function verify_getSheetGidByName_(fileId, sheetName) {
     const T = MasterData.getTranslations();
@@ -128,12 +128,12 @@ function verify_getSheetGidByName_(fileId, sheetName) {
 }
 
 /**
- * 獲取分頁名稱。
+ * Gets sheet names.
  */
 function verify_getSheetNames(fileId) {
     const T = MasterData.getTranslations();
     
-    // 情況 1: 目標試算表 (當前檔案)
+    // Case 1: Target spreadsheet (current file)
     if (!fileId) {
         try {
             const activeSs = SpreadsheetApp.getActiveSpreadsheet();
@@ -144,7 +144,7 @@ function verify_getSheetNames(fileId) {
         }
     }
     
-    // 情況 2: 來源試算表 (外部檔案，透過 API)
+    // Case 2: Source spreadsheet (external file, via API)
     try {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${fileId}?fields=sheets.properties.title`;
         const options = {
@@ -175,7 +175,7 @@ function verify_getSheetNames(fileId) {
 }
 
 /**
- * 驗證使用者輸入的來源與目標資訊是否有效。
+ * Validates if the user's source and target input is valid.
  */
 function verify_validateInputs(fileId, sourceSheetName, targetSheetName) {
     const T = MasterData.getTranslations();
@@ -213,7 +213,7 @@ function verify_validateInputs(fileId, sourceSheetName, targetSheetName) {
 }
 
 // ================================================================
-// SECTION 1: 設定檔存取
+// SECTION 1: Settings Access
 // ================================================================
 
 function saveVerifySettings(settings, sheetName) {
@@ -277,7 +277,7 @@ function getVerifySettings(sheetName) {
 }
 
 // ================================================================
-// SECTION 2: 執行入口
+// SECTION 2: Execution Entry Point
 // ================================================================
 
 function runValidationMsOnly() { 
@@ -339,12 +339,12 @@ function runDataValidation(mode) {
                 ui.ButtonSet.YES_NO
             );
             
-            // 如果使用者選擇「否」 (NO)，則中止
+            // If the user selects "NO", abort the process.
             if (response === ui.Button.NO) {
                 ss.toast('已取消驗證程序。', 'Info', 3);
                 return;
             }
-            // 如果選擇「是」 (YES)，則繼續往下執行
+            // If "YES" is selected, continue execution.
         }
 
         const sheet = ss.getSheetByName(settings.targetSheetName);
@@ -458,7 +458,7 @@ function runDataValidation(mode) {
 }
 
 // ================================================================
-// SECTION 3: 核心邏輯 (API 與 演算法)
+// SECTION 3: Core Logic (API & Algorithms)
 // ================================================================
 
 function levenshteinDistance(a, b) {
@@ -682,14 +682,14 @@ function checkAllSourceColumnsForEmptyValues(settings) {
 }
 
 /**
- * 檢查目標工作表中的資料驗證欄位是否包含「無來源資料」的標記 (如 '_No source data' 或 '_無來源資料')。
- * 這些標記通常來自之前的資料匯入失敗。
+ * Checks if the data validation columns in the target sheet contain "No source data" markers (e.g., '_No source data').
+ * These markers usually indicate a failed previous data import.
  */
 function verify_checkTargetColumnsForIntegrity(settings) {
     const T = MasterData.getTranslations();
     const { targetSheetName, startRow, validationMappings } = settings;
     
-    // 檢查兩種語言的後綴
+    // Check for suffixes in both languages
     const suffixes = ['_No source data', '_無來源資料'];
 
     if (!targetSheetName || !startRow || !validationMappings || validationMappings.length === 0) {
@@ -703,7 +703,7 @@ function verify_checkTargetColumnsForIntegrity(settings) {
         const lastRow = sheet.getLastRow();
         if (lastRow < startRow) return { isValid: true };
 
-        // 取得所有需要檢查的目標欄位 (去除重複)
+        // Get all target columns to be checked (deduplicated)
         const targetCols = [...new Set(validationMappings.map(m => m.targetCol).filter(Boolean))];
         
         if (targetCols.length === 0) return { isValid: true };
@@ -723,7 +723,7 @@ function verify_checkTargetColumnsForIntegrity(settings) {
             for (let i = 0; i < values.length; i++) {
                 const cellVal = values[i][0];
                 if (cellVal) {
-                    // 只要包含任一種後綴即視為異常
+                    // Any row containing either suffix is considered an anomaly
                     if (suffixes.some(s => cellVal.toString().includes(s))) {
                         errorCells.push(`${colLetter}${startRow + i}`);
                         if (errorCells.length >= CELL_LIMIT) break;
@@ -796,7 +796,7 @@ function fetchExternalData(settings) {
 }
 
 // ================================================================
-// SECTION 4: 通用工具函式
+// SECTION 4: General Utility Functions
 // ================================================================
 
 function resetValidationData(settings) {
@@ -1044,7 +1044,7 @@ function verifySumAndCumulativeValues() {
         const row = values[i];
         const flag = row[0].toString().trim();
         
-        if (!flag.match(/^(MS|EX)/)) { // 是父列
+        if (!flag.match(/^(MS|EX)/)) { // It's a parent row
             let sumQty = 0;
             let childCount = 0;
             
