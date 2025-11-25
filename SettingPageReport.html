@@ -163,8 +163,8 @@
                 <div>
                     <label for="select-source-file-btn"><?!= T.sourceSpreadsheetUrlLabel ?></label>
                     <div class="input-group">
-                        <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="尚未選擇任何檔案">
-                        <button type="button" id="select-source-file-btn" disabled>載入中...</button>
+                        <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="<?!= T.noFileSelected ?>">
+                        <button type="button" id="select-source-file-btn" disabled><?!= T.loading ?></button>
                     </div>
                     <input type="hidden" id="sourceFileId" name="sourceFileId">
                     <p id="sourceFileId-validation" class="validation-message help-text"></p>
@@ -295,18 +295,18 @@
             loadAndPopulateSettings();
             
             console.log("DOMContentLoaded 事件觸發。正在動態載入 GAPI...");
-            statusDiv.textContent = "狀態：正在載入 Google API...";
+            statusDiv.textContent = T.gapiLoading;
             
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/api.js';
             script.onload = () => {
               console.log("GAPI 指令碼已載入。正在呼叫 gapi.load('picker', ...)");
-              statusDiv.textContent = "狀態：GAPI 已載入。正在載入 Picker API...";
+              statusDiv.textContent = T.gapiLoaded;
               gapi.load('picker', { 'callback': onPickerApiLoad });
             };
             script.onerror = () => {
               console.error("GAPI 指令碼載入失敗。");
-              statusDiv.textContent = "錯誤：無法載入 Google API。請檢查您的網路連線。";
+              statusDiv.textContent = T.gapiLoadError;
             };
             document.head.appendChild(script);
         });
@@ -317,7 +317,7 @@
             pickerApiLoaded = true;
             
             console.log("正在呼叫 google.script.run.getPickerKeys()");
-            statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
+            statusDiv.textContent = T.pickerApiLoaded;
             
             google.script.run
               .withSuccessHandler(serverKeys => {
@@ -327,8 +327,8 @@
               })
               .withFailureHandler(err => {
                 console.error("getPickerKeys() 失敗：", err);
-                statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
-                selectSourceFileBtn.textContent = "初始化失敗";
+                statusDiv.textContent = T.keyFetchError + err.message;
+                selectSourceFileBtn.textContent = T.initFailed;
               })
               .report_getPickerKeys();
         }
@@ -337,7 +337,7 @@
         function checkIfReady() {
             if (keys && pickerApiLoaded) {
               console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
-              statusDiv.textContent = "狀態：準備就緒。";
+              statusDiv.textContent = T.statusReady;
               selectSourceFileBtn.disabled = false;
               selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
             }
@@ -377,11 +377,11 @@
                 const doc = data.docs[0];
                 sourceFileIdInput.value = doc.id;
                 sourceFileNameInput.value = doc.name;
-                statusDiv.textContent = '已選擇檔案: ' + doc.name;
+                statusDiv.textContent = T.fileSelected + doc.name;
                 validateAndFetchHeaders();
               }
             } else if (data.action == google.picker.Action.CANCEL) {
-              statusDiv.textContent = '操作已取消。';
+              statusDiv.textContent = T.operationCancelled;
             }
         }
 
@@ -470,7 +470,7 @@
         // --- Export Modal Logic ---
         function openExportModal() {
             if (!currentResultData) {
-                showModal(T.errorTitle, '請先生成報表後再進行匯出。'); //TODO: Translate
+                showModal(T.errorTitle, T.noDataToExport);
                 return;
             }
             populateExportModal();
@@ -735,7 +735,7 @@
                     }
                 })
                 .withFailureHandler(err => {
-                    showModal(T.backendValidationError, `無法與伺服器通訊以驗證您的輸入，請檢查 Apps Script 腳本是否儲存且無誤。\n\n錯誤訊息: ${err.message}`);
+                    showModal(T.backendValidationError, `${T.backendValidationError}\n\n${T.errorTitle}: ${err.message}`);
                     statusDiv.textContent = '';
                     mappingContainer.style.display = 'none';
                 })
@@ -869,17 +869,17 @@
                     const pieBtn = document.createElement('span');
                     pieBtn.className = 'material-icons active-chart';
                     pieBtn.textContent = 'pie_chart';
-                    pieBtn.title = '圓餅圖';
+                    pieBtn.title = T.pieChartTitle;
                     
                     const barBtn = document.createElement('span');
                     barBtn.className = 'material-icons';
                     barBtn.textContent = 'bar_chart';
-                    barBtn.title = '長條圖';
+                    barBtn.title = T.barChartTitle;
 
                     const visibilityBtn = document.createElement('span');
                     visibilityBtn.className = 'material-icons';
                     visibilityBtn.textContent = 'visibility';
-                    visibilityBtn.title = '切換數值顯示';
+                    visibilityBtn.title = T.toggleValuesHint;
 
                     controls.appendChild(pieBtn);
                     controls.appendChild(barBtn);

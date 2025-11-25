@@ -342,8 +342,8 @@
         
         <label for="select-source-file-btn"><?!= T.verifySourceUrlLabel ?></label>
         <div class="input-group">
-          <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="尚未選擇任何檔案">
-          <button type="button" id="select-source-file-btn" disabled>載入中...</button>
+          <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="<?!= T.noFileSelected ?>">
+          <button type="button" id="select-source-file-btn" disabled><?!= T.loading ?></button>
         </div>
         <input type="hidden" id="sourceFileId" name="sourceFileId">
         <p id="sourceFileId-validation" class="validation-message help-text"></p>
@@ -456,6 +456,7 @@
     </div>
 
     <script>
+      const T = <?!= JSON.stringify(T) ?>;
       // --- Global Variables ---
       let keys = null;
       let pickerApiLoaded = false;
@@ -547,15 +548,15 @@
         }).verify_getActiveSheetName();
 
         // Load GAPI
-        statusDiv.textContent = "狀態：正在載入 Google API...";
+        statusDiv.textContent = T.gapiLoading;
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.onload = () => {
-          statusDiv.textContent = "狀態：GAPI 已載入。正在載入 Picker API...";
+          statusDiv.textContent = T.gapiLoaded;
           gapi.load('picker', { 'callback': onPickerApiLoad });
         };
         script.onerror = () => {
-          statusDiv.textContent = "錯誤：無法載入 Google API。請檢查您的網路連線。";
+          statusDiv.textContent = T.gapiLoadError;
         };
         document.head.appendChild(script);
       });
@@ -563,15 +564,15 @@
       // --- 2. Picker API Load & Key Fetch ---
       function onPickerApiLoad() {
         pickerApiLoaded = true;
-        statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
+        statusDiv.textContent = T.pickerApiLoaded;
         google.script.run
           .withSuccessHandler(serverKeys => {
              keys = serverKeys;
              checkIfReady();
           })
           .withFailureHandler(err => {
-             statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
-             selectSourceFileBtn.textContent = "初始化失敗";
+             statusDiv.textContent = T.keyFetchError + err.message;
+             selectSourceFileBtn.textContent = T.initFailed;
           })
           .verify_getPickerKeys();
       }
@@ -579,7 +580,7 @@
       // --- 3. Check Readiness ---
       function checkIfReady() {
         if (keys && pickerApiLoaded) {
-           statusDiv.textContent = "狀態：準備就緒。";
+           statusDiv.textContent = T.statusReady;
            selectSourceFileBtn.disabled = false;
            selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
         }
@@ -616,7 +617,7 @@
             const doc = data.docs[0];
             sourceFileIdInput.value = doc.id;
             sourceFileNameInput.value = doc.name;
-            statusDiv.textContent = '已選擇檔案: ' + doc.name;
+            statusDiv.textContent = T.fileSelected + doc.name;
             
             // Trigger validations and enable sheet selection
             checkVerifyUrlAndEnableButton();
@@ -624,7 +625,7 @@
             setDirty();
           }
         } else if (data.action == google.picker.Action.CANCEL) {
-          statusDiv.textContent = '操作已取消。';
+          statusDiv.textContent = T.operationCancelled;
         }
       }
 
@@ -668,7 +669,7 @@
           </div>` : '';
 
         div.innerHTML = `
-          <button type="button" class="delete-btn-circle" onclick="document.getElementById('${rowId}').remove()" title="移除對應">
+          <button type="button" class="delete-btn-circle" onclick="document.getElementById('${rowId}').remove()" title="<?!= T.removeButton ?>">
             <span class="material-icons">close</span>
           </button>
           <div class="field-block">
@@ -1082,7 +1083,7 @@
         }
 
         if (!body.innerHTML) {
-          body.innerHTML = '<p>找不到任何可用的匹配或建議欄位。</p>';
+          body.innerHTML = '<p>' + T.noMappingSuggestions + '</p>';
         }
 
         mappingResultsModal.style.display = 'flex';
@@ -1121,7 +1122,7 @@
             dataStartRowInput.value = settings.startRow || '';
             
             sourceFileIdInput.value = settings.sourceFileId || '';
-            sourceFileNameInput.value = settings.sourceFileName || (settings.sourceDataUrl ? settings.sourceDataUrl : '尚未選擇任何檔案');
+            sourceFileNameInput.value = settings.sourceFileName || (settings.sourceDataUrl ? settings.sourceDataUrl : T.noFileSelected);
             
             // Backward compatibility for URL-only saves
             if (!settings.sourceFileId && settings.sourceDataUrl) {

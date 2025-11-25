@@ -306,8 +306,8 @@
         <h4><?!= T.sectionSourceAndTarget ?></h4>
         <label for="select-source-file-btn"><?!= T.sourceSpreadsheetUrlLabel ?></label>
         <div class="input-group">
-          <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="尚未選擇任何檔案">
-          <button type="button" id="select-source-file-btn" disabled>載入中...</button>
+          <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="<?!= T.noFileSelected ?>">
+          <button type="button" id="select-source-file-btn" disabled><?!= T.loading ?></button>
         </div>
         <input type="hidden" id="sourceFileId" name="sourceFileId">
         <p id="sourceFileId-validation" class="validation-message help-text"></p>
@@ -404,6 +404,7 @@
     </div>
 
     <script>
+      const T = <?!= JSON.stringify(T) ?>;
       // --- V15 狀態變數 ---
       let keys = null;
       let pickerApiLoaded = false;
@@ -444,18 +445,18 @@
         loadAndPopulateSettings();
         
         console.log("DOMContentLoaded 事件觸發。正在動態載入 GAPI...");
-        statusDiv.textContent = "狀態：正在載入 Google API...";
+        statusDiv.textContent = T.gapiLoading;
         
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.onload = () => {
           console.log("GAPI 指令碼已載入。正在呼叫 gapi.load('picker', ...)");
-          statusDiv.textContent = "狀態：GAPI 已載入。正在載入 Picker API...";
+          statusDiv.textContent = T.gapiLoaded;
           gapi.load('picker', { 'callback': onPickerApiLoad });
         };
         script.onerror = () => {
           console.error("GAPI 指令碼載入失敗。");
-          statusDiv.textContent = "錯誤：無法載入 Google API。請檢查您的網路連線。";
+          statusDiv.textContent = T.gapiLoadError;
         };
         document.head.appendChild(script);
       });
@@ -466,7 +467,7 @@
         pickerApiLoaded = true;
         
         console.log("正在呼叫 google.script.run.import_getPickerKeys()");
-        statusDiv.textContent = "狀態：Picker API 已載入。正在從伺服器獲取金鑰...";
+        statusDiv.textContent = T.pickerApiLoaded;
         
         google.script.run
           .withSuccessHandler(serverKeys => {
@@ -476,8 +477,8 @@
           })
           .withFailureHandler(err => {
             console.error("import_getPickerKeys() 失敗：", err);
-            statusDiv.textContent = "錯誤：無法獲取金鑰：" + err.message;
-            selectSourceFileBtn.textContent = "初始化失敗";
+            statusDiv.textContent = T.keyFetchError + err.message;
+            selectSourceFileBtn.textContent = T.initFailed;
           })
           .import_getPickerKeys();
       }
@@ -486,7 +487,7 @@
       function checkIfReady() {
         if (keys && pickerApiLoaded) {
           console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
-          statusDiv.textContent = "狀態：準備就緒。";
+          statusDiv.textContent = T.statusReady;
           selectSourceFileBtn.disabled = false;
           selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
         }
@@ -529,13 +530,13 @@
             
             sourceFileIdInput.value = fileId;
             sourceFileNameInput.value = fileName;
-            statusDiv.textContent = '已選擇檔案: ' + fileName;
+            statusDiv.textContent = T.fileSelected + fileName;
             
             validateCoreInputs();
             selectSourceSheetBtn.disabled = false;
           }
         } else if (data.action == google.picker.Action.CANCEL) {
-          statusDiv.textContent = '操作已取消。';
+          statusDiv.textContent = T.operationCancelled;
         }
       }
 
