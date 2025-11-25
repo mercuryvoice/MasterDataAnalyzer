@@ -590,11 +590,11 @@ MasterData.TRANSLATIONS = {
         reportSettingsTitle: '資料生成報表設定',
         sheetSelectionTitle: '選擇分頁',
         privacyPolicyTitle: '隱私權政策',
-        // --- 資料監控通知 ---
+        // --- Data Monitoring Notifications ---
         changeDetailTemplate: '- 儲存格 {cell}: 從 "{from}" 變為 "{to}"',
         moreChanges: '...還有 {count} 項其他變更。\\n',
         blankCell: '(空白)',
-        // --- Toast 訊息 ---
+        // --- Toast Messages ---
         enableNotificationsSuccess: '已啟用自動通知功能。',
         disableNotificationsSuccess: '已停用自動通知功能。',
         noNotificationsActive: '目前沒有已啟用的自動通知。',
