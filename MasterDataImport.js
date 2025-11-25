@@ -225,6 +225,40 @@ function import_saveImportSettings(settings, sheetName) {
 }
 
 /**
+ * Deletes Import Settings for a specific sheet.
+ * @param {string} sheetName The target sheet name.
+ * @returns {string} Result message.
+ */
+function import_deleteImportSettings(sheetName) {
+    const T = MasterData.getTranslations();
+    try {
+        if (!sheetName) {
+            throw new Error("Sheet name is required to delete settings.");
+        }
+        const properties = PropertiesService.getDocumentProperties();
+        const key = `importSettings_${sheetName}`;
+
+        // Check if the property exists before attempting to delete
+        if (properties.getProperty(key) === null) {
+            return "沒有找到可刪除的設定。";
+        }
+
+        properties.deleteProperty(key);
+
+        // Verify deletion
+        if (properties.getProperty(key) === null) {
+            return "設定已成功刪除。";
+        } else {
+            throw new Error("刪除設定失敗，請重試。");
+        }
+
+    } catch (e) {
+        Logger.log(`Error deleting import settings for sheet ${sheetName}: ${e.message}`);
+        throw new Error(`刪除失敗: ${e.message}`);
+    }
+}
+
+/**
  * Gets Import Settings for a specific sheet.
  * @param {string} sheetName The target sheet name.
  * @returns {object} The saved settings object.
