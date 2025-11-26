@@ -21,7 +21,7 @@
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
@@ -39,6 +39,7 @@
  * @returns {{apiKey: string, appId: string, oauthToken: string}}
  */
 function import_getPickerKeys() {
+  const T = MasterData.getTranslations();
   try {
     const userProperties = PropertiesService.getScriptProperties();
     const apiKey = userProperties.getProperty('GOOGLE_API_KEY');
@@ -46,11 +47,11 @@ function import_getPickerKeys() {
     const oauthToken = ScriptApp.getOAuthToken();
 
     if (!apiKey || !appId) {
-      throw new Error("API Key or App ID not found in Script Properties. Please set 'GOOGLE_API_KEY' and 'GOOGLE_APP_ID'.");
+      throw new Error(T.errorApiKeyOrAppIdNotFound || "API Key or App ID not found in Script Properties. Please set 'GOOGLE_API_KEY' and 'GOOGLE_APP_ID'.");
     }
 
     if (!oauthToken) {
-      throw new Error("Could not retrieve OAuth token. Please ensure the add-on is authorized.");
+      throw new Error(T.errorOAuthToken || "Could not retrieve OAuth token. Please ensure the add-on is authorized.");
     }
 
     return {
@@ -139,7 +140,7 @@ function onOpen() {
     mainMenu.addToUi();
 }
 
-// function showHrGuide() { SpreadsheetApp.getUi().alert('人資管理範例即將推出！'); }
+// function showHrGuide() { SpreadsheetApp.getUi().alert(T.hrGuideComingSoon || 'Human Resources Management example is coming soon!'); }
 /**
  * Shows the Privacy Policy UI.
  */
@@ -199,10 +200,10 @@ function import_saveImportSettings(settings, sheetName) {
     const T = MasterData.getTranslations();
     try {
         if (!sheetName) {
-            throw new Error("Sheet name is required to save settings.");
+            throw new Error(T.errorSheetNameRequiredForSave || "Sheet name is required to save settings.");
         }
         if (!settings.sourceFileId || !settings.sourceSheetName || !settings.targetSheetName) {
-            throw new Error(T.errorUrlRequired); // You might want to change this error message to be more generic
+            throw new Error(T.errorUrlRequired); 
         }
 
         // Validation logic can be adapted here if needed
@@ -282,14 +283,14 @@ function import_saveCompareSettings(settings, sheetName) {
     const T = MasterData.getTranslations();
     try {
         if (!sheetName) {
-            throw new Error("Sheet name is required to save settings.");
+            throw new Error(T.errorSheetNameRequiredForSave || "Sheet name is required to save settings.");
         }
         // Use sourceFileId for the primary check
         if (!settings.sourceFileId || !settings.sourceSheetName || !settings.targetSheetName) {
-            throw new Error("Source File, Source Sheet Name, and Target Sheet Name are required.");
+            throw new Error(T.errorUrlRequired || "Source File, Source Sheet Name, and Target Sheet Name are required.");
         }
         if (!settings.sourceCompareRange || !settings.targetLookupCol || !settings.sourceLookupCol || !settings.sourceReturnCol || !settings.targetWriteCol) {
-            throw new Error("All comparison and mapping fields are required.");
+            throw new Error(T.errorMissingCompareFields || "All comparison and mapping fields are required.");
         }
 
         const properties = PropertiesService.getDocumentProperties();
@@ -388,7 +389,7 @@ function import_getSheetNames(fileId) {
             if (activeSs) {
                 return activeSs.getSheets().map(sheet => sheet.getName());
             }
-            throw new Error("No active spreadsheet found.");
+            throw new Error(T.errorNoActiveSpreadsheet || "No active spreadsheet found.");
         }
 
         // Use the Sheets API for files selected via Picker
@@ -449,7 +450,7 @@ function import_getNotificationDefaultTemplates() {
 function import_fetchDataFromApi_(fileId, sheetName, rangeA1) {
     const T = MasterData.getTranslations();
     if (!fileId || !sheetName || !rangeA1) {
-        throw new Error("Missing required parameters for fetching data.");
+        throw new Error(T.errorMissingRequiredParams || "Missing required parameters for fetching data.");
     }
 
     const token = ScriptApp.getOAuthToken();
@@ -773,7 +774,7 @@ function import_checkSourceCompareField(settings) {
     if (!sourceFileId || !sourceSheetName || !sourceCompareRange || !sourceLookupCol) {
         return {
             isValid: false,
-            message: "請先填寫來源檔案、分頁、比對範圍與比對欄位。"
+            message: T.errorPreflightCheck || "Please fill in source file, sheet, comparison range, and comparison field first."
         };
     }
 
@@ -849,7 +850,7 @@ function import_checkSourceCompareField(settings) {
         Logger.log(`Error in checkSourceCompareField: ${e.message}`);
         return {
             isValid: false,
-            message: `檢查時發生錯誤: ${e.message}`
+            message: (T.errorDuringCheck || "An error occurred during check: ") + e.message
         };
     }
 }
@@ -871,7 +872,7 @@ function import_checkTargetLookupField(settings) {
     if (!targetSheetName || !targetStartRow || !targetLookupCol) {
         return {
             isValid: false,
-            message: "請先填寫目標分頁、起始列與查找欄位。"
+            message: T.errorPreflightCheck || "Please fill in target sheet, start row, and lookup column first."
         };
     }
 
@@ -891,7 +892,7 @@ function import_checkTargetLookupField(settings) {
         if (lastRow < startRow) {
             return {
                 isValid: true,
-                message: "目標欄位無資料可檢查。"
+                message: T.noDataInTargetToast || "No data to check in the target column."
             }; // Not an error, just empty.
         }
 
@@ -949,26 +950,30 @@ function import_checkTargetLookupField(settings) {
     } catch (e) {
         Logger.log(`Error in checkTargetLookupField: ${e.message}`);
         const errorMessage = T.targetLookupFieldCheckError.replace('{COLUMN}', targetLookupCol);
+        const detailedError = T.detailedError.replace('{MESSAGE}', e.message);
         return {
             isValid: false,
-            message: `${errorMessage}\n詳細錯誤: ${e.message}`
+            message: `${errorMessage}\n${detailedError}`
         };
     }
 }
 
 
 function requestStopImport() {
+    const T = MasterData.getTranslations();
     PropertiesService.getScriptProperties().setProperty('stopImportRequested', 'true');
-    SpreadsheetApp.getActiveSpreadsheet().toast('Stop request sent. The script will stop after finishing the current item.', 'Info', 5);
+    SpreadsheetApp.getActiveSpreadsheet().toast(T.stopRequestSent || 'Stop request sent. The script will stop after finishing the current item.', T.toastTitleInfo || 'Info', 5);
 }
 
 function requestStopValidation() {
+    const T = MasterData.getTranslations();
     PropertiesService.getScriptProperties().setProperty('stopValidationRequested', 'true');
-    SpreadsheetApp.getActiveSpreadsheet().toast('Stop request sent. The script will stop after finishing the current item.', 'Info', 5);
+    SpreadsheetApp.getActiveSpreadsheet().toast(T.stopRequestSent || 'Stop request sent. The script will stop after finishing the current item.', T.toastTitleInfo || 'Info', 5);
 }
 
 function resetAllState() {
     const ui = SpreadsheetApp.getUi();
+    const T = MasterData.getTranslations();
     const scriptProperties = PropertiesService.getScriptProperties();
     try {
         scriptProperties.deleteProperty('lastCompletedAllocationKey');
@@ -976,10 +981,10 @@ function resetAllState() {
         const settings = getSettings(activeSheetName).importSettings;
         clearTargetSheetData(settings);
         SpreadsheetApp.flush();
-        SpreadsheetApp.getActiveSpreadsheet().toast('Reset complete! All progress and sheet data have been cleared.', 'Success', 5);
+        SpreadsheetApp.getActiveSpreadsheet().toast(T.resetComplete || 'Reset complete! All progress and sheet data have been cleared.', T.toastTitleSuccess || 'Success', 5);
     } catch (e) {
         Logger.log(`Reset failed: ${e.message}`);
-        ui.alert('Reset Failed', e.message, ui.ButtonSet.OK);
+        ui.alert(T.resetFailed || 'Reset Failed', e.message, ui.ButtonSet.OK);
     }
 }
 
@@ -1004,7 +1009,7 @@ function runCompareProcess() {
                 .replace('{MESSAGE}', sourceValidation.message);
             const response = ui.alert(T.preCheckWarningTitle, confirmationMessage, ui.ButtonSet.YES_NO);
             if (response !== ui.Button.YES) {
-                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, 'Cancelled', 5);
+                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, T.toastTitleInfo || 'Cancelled', 5);
                 return;
             }
         }
@@ -1017,7 +1022,7 @@ function runCompareProcess() {
                 .replace('{MESSAGE}', targetValidation.message);
             const response = ui.alert(T.preCheckWarningTitle, confirmationMessage, ui.ButtonSet.YES_NO);
             if (response !== ui.Button.YES) {
-                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, 'Cancelled', 5);
+                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, T.toastTitleInfo || 'Cancelled', 5);
                 return;
             }
         }
@@ -1027,7 +1032,7 @@ function runCompareProcess() {
         const targetSs = SpreadsheetApp.getActiveSpreadsheet();
         const targetSsId = targetSs.getId();
         const targetSheet = targetSs.getSheetByName(settings.targetSheetName);
-        if (!targetSheet) throw new Error(`找不到目標分頁: ${settings.targetSheetName}`);
+        if (!targetSheet) throw new Error((T.errorTargetSheetNotFoundImport || "Target sheet not found: {SHEET_NAME}").replace('{SHEET_NAME}', settings.targetSheetName));
 
         const sourceSsId = settings.sourceFileId;
         const sourceGid = import_getSheetGidByName_(sourceSsId, settings.sourceSheetName);
@@ -1046,7 +1051,7 @@ function runCompareProcess() {
         const numColsInData = rangeInfo.endCol - rangeInfo.startCol + 1;
 
         if (lookupColIndex < 0 || returnColIndex < 0 || lookupColIndex >= numColsInData || returnColIndex >= numColsInData) {
-            throw new Error("來源比對欄位或返回欄位不在指定的比對範圍內。");
+            throw new Error(T.errorSourceCompareFieldNotInRange || "Source compare field or return field is not within the specified compare range.");
         }
 
         const lookupMap = new Map();
@@ -1176,7 +1181,7 @@ function runImportProcess() {
             const prompt = `${T.preflightWarning}\n\n${warningMessages.join('\n')}\n\n${T.preflightSuggestion}\n\n${T.preflightConfirmation}`;
             const response = ui.alert(T.preflightTitle, prompt, ui.ButtonSet.YES_NO);
             if (response !== ui.Button.YES) {
-                ss.toast(T.importCancelled, 'Cancelled', 5);
+                ss.toast(T.importCancelled, T.toastTitleInfo || 'Cancelled', 5);
                 return;
             }
         }
@@ -1187,12 +1192,12 @@ function runImportProcess() {
 
         const targetSheet = ss.getSheetByName(settings.targetSheetName);
         if (!targetSheet) {
-            throw new Error(`Target sheet named "${settings.targetSheetName}" not found.`);
+            throw new Error((T.errorTargetSheetNotFoundImport || "Target sheet not found: {SHEET_NAME}").replace('{SHEET_NAME}', settings.targetSheetName));
         }
 
         const isFlatteningMode = !!(settings.sourceHeaderRange && settings.sourceValueMatrixRange);
-        const modeMessage = isFlatteningMode ? "Data Flattening Mode" : "Direct Import Mode";
-        ss.toast(`Reading source data in ${modeMessage}...`, 'Processing', 5);
+        const modeMessage = isFlatteningMode ? T.importModeFlattening : T.importModeDirect;
+        ss.toast((T.readingSourceData || "Reading source data in {MODE}...").replace('{MODE}', modeMessage), T.toastTitleProcessing || 'Processing', 5);
 
         const {
             allTasks,
@@ -1201,27 +1206,27 @@ function runImportProcess() {
         } = buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid);
 
         if (!hasSourceData) {
-            ss.toast('No data to import in the source. The target sheet will be cleared.', 'Info', 8);
+            ss.toast(T.noDataToImport || 'No data to import in the source. The target sheet will be cleared.', T.toastTitleInfo || 'Info', 8);
             clearTargetSheetData(settings);
-            ss.toast('Target sheet has been cleared.', 'Complete', 5);
+            ss.toast(T.targetSheetCleared || 'Target sheet has been cleared.', 'Complete', 5);
             return;
         }
 
         if (allTasks.length === 0) {
-            const alertBody = T.filterMismatchBody.replace('{FILTER_HEADER}', 'your conditions');
+            const alertBody = T.filterMismatchBodyImport || "Source data was found, but no rows matched your filter criteria. Please check your filter conditions. The target sheet will now be cleared.";
             ui.alert(T.filterMismatchTitle, alertBody, ui.ButtonSet.OK);
             clearTargetSheetData(settings);
-            ss.toast('Target sheet has been cleared.', 'Complete', 5);
+            ss.toast(T.targetSheetCleared || 'Target sheet has been cleared.', 'Complete', 5);
             return;
         }
 
-        ss.toast('Clearing target sheet for synchronization...', 'Processing', 5);
+        ss.toast(T.clearingTargetSheet || 'Clearing target sheet for synchronization...', T.toastTitleProcessing || 'Processing', 5);
         clearTargetSheetData(settings);
 
         const valuesForBulkWrite = allTasks.map(task => task.valuesToWrite);
 
         if (valuesForBulkWrite.length > 0) {
-            ss.toast(`Writing ${allTasks.length} records...`, 'Processing', 10);
+            ss.toast((T.writingRecords || "Writing {COUNT} records...").replace('{COUNT}', allTasks.length), T.toastTitleProcessing || 'Processing', 10);
             const rangeToWrite = targetSheet.getRange(settings.targetStartRow, 1, valuesForBulkWrite.length, valuesForBulkWrite[0].length);
             rangeToWrite.clear({contentsOnly: true, formatOnly: true}); // [FIX] Clear residual formats (like hyperlinks)
             rangeToWrite.setValues(valuesForBulkWrite);
@@ -1230,7 +1235,7 @@ function runImportProcess() {
                 if (scriptProperties.getProperty('stopImportRequested') === 'true') {
                     scriptProperties.deleteProperty('stopImportRequested');
                     Logger.log('Import script was manually stopped by the user.');
-                    ss.toast('Import process was manually stopped. Data may be incomplete.', 'Stopped', 8);
+                    ss.toast(T.importStopped || 'Import process was manually stopped. Data may be incomplete.', T.toastTitleInfo || 'Stopped', 8);
                     return;
                 }
 
@@ -1260,15 +1265,15 @@ function runImportProcess() {
                 targetSheet.getRange(settings.targetStartRow, commitColIndex, commitColumnValues.length, 1).setValues(commitColumnValues);
                 targetSheet.hideColumns(commitColIndex);
             } else {
-                Logger.log("Warning: 'Commit' header not found in target sheet. Cannot write commit status.");
+                Logger.log(T.commitHeaderNotFound || "Warning: 'Commit' header not found in target sheet. Cannot write commit status.");
             }
         }
 
-        ss.toast('Data synchronization complete!', 'Success', 5);
+        ss.toast(T.importComplete || 'Data synchronization complete!', T.toastTitleSuccess || 'Success', 5);
 
     } catch (e) {
         Logger.log(`Data synchronization failed: ${e.stack}`);
-        ui.alert('Data Synchronization Failed', e.message, ui.ButtonSet.OK);
+        ui.alert(T.importFailed || 'Data Synchronization Failed', e.message, ui.ButtonSet.OK);
     } finally {
         scriptProperties.deleteProperty('stopImportRequested');
     }
@@ -1312,9 +1317,10 @@ function import_getSheetGidByName_(fileId, sheetName) {
 
 
 function clearTargetSheetData(settings) {
+    const T = MasterData.getTranslations();
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const targetSheet = ss.getSheetByName(settings.targetSheetName);
-    if (!targetSheet) throw new Error(`Target sheet named "${settings.targetSheetName}" not found.`);
+    if (!targetSheet) throw new Error((T.errorTargetSheetNotFoundImport || "Target sheet not found: {SHEET_NAME}").replace('{SHEET_NAME}', settings.targetSheetName));
     const commitColIndex = findColumnIndexByHeader(targetSheet.getRange(settings.targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0], 'Commit');
     if (commitColIndex !== -1) {
         targetSheet.showColumns(commitColIndex);
@@ -1329,12 +1335,13 @@ function clearTargetSheetData(settings) {
  * Applies all configured keyword filters to a single row of data.
  */
 function applyAllFilters(rowData, sourceHeaders, filters) {
+    const T = MasterData.getTranslations();
     if (!filters || filters.length === 0) return true;
     return filters.every(filter => {
         if (!filter.header) return true;
         const colIndex = sourceHeaders.findIndex(h => h === filter.header);
         if (colIndex === -1) {
-            Logger.log(`Warning: Filter header "${filter.header}" not found in imported data. Ignoring this filter condition.`);
+            Logger.log((T.warningFilterHeaderNotFound || "Warning: Filter header \"{HEADER}\" not found in imported data. Ignoring this filter condition.").replace('{HEADER}', filter.header));
             return true;
         }
         const keywords = (filter.keywords || '').split(/,|，/g).map(kw => kw.trim()).filter(kw => kw);
@@ -1349,6 +1356,7 @@ function applyAllFilters(rowData, sourceHeaders, filters) {
  * Builds the full list of tasks based on the determined import mode.
  */
 function buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid) {
+    const T = MasterData.getTranslations();
     const targetHeaderRow = settings.targetHeaderRow;
     if (targetHeaderRow <= 0) throw new Error(`'Target Header Row' in Settings must be a positive number.`);
     const targetHeaders = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
@@ -1371,7 +1379,12 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid) {
             if (!header) return;
             const colIndex = findColumnIndexByHeader(targetHeaders, header);
             if (colIndex === -1) {
-                const message = `Required header "${header}" (from source sheet) was not found in the target sheet "${settings.targetSheetName}" on row ${targetHeaderRow}.\n\nPlease ensure all required headers exist: ${allRequiredHeaders.join(', ')}.`;
+                const message = (T.errorRequiredHeaderNotFound || "Required header \"{HEADER}\" (from source sheet) was not found in the target sheet \"{TARGET_SHEET}\" on row {ROW}.")
+                    .replace('{HEADER}', header)
+                    .replace('{TARGET_SHEET}', settings.targetSheetName)
+                    .replace('{ROW}', targetHeaderRow) +
+                    '\n\n' +
+                    (T.errorRequiredHeadersMissing || "Please ensure all required headers exist: {HEADERS}.").replace('{HEADERS}', allRequiredHeaders.join(', '));
                 throw new Error(message);
             }
             headerMap[header] = colIndex;
@@ -1381,7 +1394,10 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid) {
         const hasSourceData = identifierValues.some(row => row.some(cell => cell.toString().trim() !== ''));
         const loopLength = Math.min(identifierValues.length, matrixValues.length);
         if (identifierValues.length !== matrixValues.length) {
-            Logger.log(`Warning: Identifier range has ${identifierValues.length} rows, but matrix range has ${matrixValues.length} rows. Processing the first ${loopLength} common rows.`);
+            Logger.log((T.warningMismatchedRows || "Warning: Identifier range has {ID_ROWS} rows, but matrix range has {MATRIX_ROWS} rows. Processing the first {COUNT} common rows.")
+                .replace('{ID_ROWS}', identifierValues.length)
+                .replace('{MATRIX_ROWS}', matrixValues.length)
+                .replace('{COUNT}', loopLength));
         }
 
         for (let i = 0; i < loopLength; i++) {
@@ -1476,7 +1492,10 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid) {
         headersToImport.forEach(header => {
             const colIndex = findColumnIndexByHeader(targetHeaders, header);
             if (colIndex === -1) {
-                throw new Error(`Required header "${header}" (from source sheet) was not found in the target sheet "${settings.targetSheetName}" on row ${settings.targetHeaderRow}.`);
+                throw new Error((T.errorRequiredHeaderNotFound || "Required header \"{HEADER}\" (from source sheet) was not found in the target sheet \"{TARGET_SHEET}\" on row {ROW}.")
+                    .replace('{HEADER}', header)
+                    .replace('{TARGET_SHEET}', settings.targetSheetName)
+                    .replace('{ROW}', settings.targetHeaderRow));
             }
             headerMap[header] = colIndex;
         });
@@ -1530,20 +1549,21 @@ function buildFullTaskList(settings, targetSheet, isFlatteningMode, sourceGid) {
  * Fetches data based on the new hybrid logic and tracks original column indices.
  */
 function fetchImportData(settings, sourceGid) {
+    const T = MasterData.getTranslations();
     const { sourceFileId, sourceSheetName, sourceIdentifierRange, sourceHeaderRange, sourceValueMatrixRange, importFilterHeaders } = settings;
 
     if (!sourceIdentifierRange) {
-        throw new Error("Required setting 'Source Data Import Range' is missing.");
+        throw new Error(T.errorSourceDataRangeMissing || "Required setting 'Source Data Import Range' is missing.");
     }
     const isFlatteningMode = !!(sourceHeaderRange && sourceValueMatrixRange);
     if (isFlatteningMode) {
         if (!sourceHeaderRange || !sourceValueMatrixRange) {
-            throw new Error("For Data Flattening Mode, both Header and Value Matrix ranges are required.");
+            throw new Error(T.errorFlatteningRangesMissing || "For Data Flattening Mode, both Header and Value Matrix ranges are required.");
         }
     }
 
     const idRangeInfo = parseA1Notation(sourceIdentifierRange);
-    if (!idRangeInfo) throw new Error("Invalid Source Data Import Range A1 notation.");
+    if (!idRangeInfo) throw new Error(T.errorInvalidA1Notation.replace('{RANGE}', sourceIdentifierRange));
 
     let headerValues, matrixValues, masterHeaderName;
 
@@ -1557,7 +1577,7 @@ function fetchImportData(settings, sourceGid) {
 
         const originalHeaderValues = import_fetchDataFromApi_(sourceFileId, sourceSheetName, sourceHeaderRange);
         const firstHeaderIndex = originalHeaderValues[0].findIndex(h => h.toString().trim() !== '');
-        if (firstHeaderIndex === -1) throw new Error(`Could not find headers in range ${sourceHeaderRange}.`);
+        if (firstHeaderIndex === -1) throw new Error(T.errorNoHeadersInRange.replace('{RANGE}', sourceHeaderRange));
         
         const masterHeaderColumn = headerDefRangeInfo.startCol + firstHeaderIndex;
         const masterHeaderCellRange = `${columnToLetter(masterHeaderColumn)}${headerDefRangeInfo.startRow - 1}`;
@@ -1577,7 +1597,7 @@ function fetchImportData(settings, sourceGid) {
 
         const colIndicesToKeep = sourceIdentifierHeaders.map(header => {
             const index = fullHeaders.indexOf(header);
-            if (index === -1) throw new Error(`Header "${header}" not found in the source sheet.`);
+            if (index === -1) throw new Error((T.errorHeaderNotFoundInSource || "Header \"{HEADER}\" not found in the source sheet.").replace('{HEADER}', header));
             return index;
         });
         originalColumnIndices = colIndicesToKeep;
@@ -1687,6 +1707,7 @@ function parseA1Notation(a1Notation) {
  * @returns {{importSettings: object, verifySettings: object, monitorSettings: object}}
  */
 function getSettings(sheetName) {
+    const T = MasterData.getTranslations();
     const currentSheetName = sheetName || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
 
     const importSettings = import_getImportSettings(currentSheetName);
@@ -1695,7 +1716,6 @@ function getSettings(sheetName) {
 
     // Post-process header filter range
     if (importSettings.rawImportFilterHeaders && importSettings.sourceUrl && importSettings.sourceSheetName) {
-        const T = MasterData.getTranslations();
         if (importSettings.rawImportFilterHeaders.includes(':') || importSettings.rawImportFilterHeaders.includes('：')) {
             try {
                 const rangeString = importSettings.rawImportFilterHeaders.replace(/：/g, ':');

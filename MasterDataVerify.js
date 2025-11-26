@@ -27,6 +27,7 @@
  * Gets the API Key and Token required for Google Picker.
  */
 function verify_getPickerKeys() {
+  const T = MasterData.getTranslations();
   try {
     const userProperties = PropertiesService.getScriptProperties();
     const apiKey = userProperties.getProperty('GOOGLE_API_KEY');
@@ -34,7 +35,7 @@ function verify_getPickerKeys() {
     const oauthToken = ScriptApp.getOAuthToken();
 
     if (!apiKey || !appId) {
-      throw new Error("未在指令碼屬性中找到 'GOOGLE_API_KEY' 或 'GOOGLE_APP_ID'。請檢查專案設定。");
+      throw new Error(T.errorApiKeyNotFound || "'GOOGLE_API_KEY' or 'GOOGLE_APP_ID' not found in script properties. Please check project settings.");
     }
 
     return {
@@ -59,8 +60,9 @@ function verify_getActiveSheetName() {
  * [Core Function] Reads data via the Google Sheets API v4.
  */
 function verify_fetchDataFromApi_(fileId, sheetName, rangeA1) {
+    const T = MasterData.getTranslations();
     if (!fileId || !sheetName || !rangeA1) {
-        throw new Error("API 呼叫失敗：缺少必要的檔案 ID、分頁名稱或範圍。");
+        throw new Error(T.errorApiCallFailed || "API call failed: Missing required file ID, sheet name, or range.");
     }
 
     const token = ScriptApp.getOAuthToken();
@@ -82,7 +84,8 @@ function verify_fetchDataFromApi_(fileId, sheetName, rangeA1) {
         
         if (responseCode !== 200) {
             Logger.log(`API Error fetching ${url}: ${responseCode} - ${responseBody}`);
-            throw new Error(`無法讀取外部檔案 (API 錯誤代碼: ${responseCode})。請確認您已選取該檔案。`);
+            const errorTemplate = T.errorCannotReadExternalFile || "Cannot read external file (API Error Code: {CODE}). Please ensure you have selected the file.";
+            throw new Error(errorTemplate.replace('{CODE}', responseCode));
         }
         
         const result = JSON.parse(responseBody);
@@ -123,7 +126,8 @@ function verify_getSheetGidByName_(fileId, sheetName) {
 
     } catch (e) {
         Logger.log(`Error in verify_getSheetGidByName_: ${e.message}`);
-        throw new Error(`無法獲取分頁 ID: ${e.message}`);
+        const errorTemplate = T.errorGetGidFailed || "Failed to get sheet GID: {MESSAGE}";
+        throw new Error(errorTemplate.replace('{MESSAGE}', e.message));
     }
 }
 
@@ -140,7 +144,7 @@ function verify_getSheetNames(fileId) {
             return activeSs.getSheets().map(sheet => sheet.getName());
         } catch (e) {
             Logger.log(`Error getting active sheets: ${e.message}`);
-            throw new Error("無法讀取當前試算表的分頁。");
+            throw new Error(T.errorCannotReadCurrentSheets || "Cannot read sheets from the current spreadsheet.");
         }
     }
     
@@ -166,11 +170,12 @@ function verify_getSheetNames(fileId) {
             return [];
         } else {
             Logger.log(`Sheets API Error (GetNames) for fileId ${fileId}: ${responseCode}`);
-            throw new Error((T.errorInvalidUrl || "無效的 URL") + ` (API Error: ${responseCode})`);
+            throw new Error((T.errorInvalidUrl || "Invalid URL") + ` (API Error: ${responseCode})`);
         }
     } catch (e) {
         Logger.log(`Error in verify_getSheetNames: ${e.message}`);
-        throw new Error(`無法讀取檔案分頁: ${e.message}`);
+        const errorTemplate = T.errorCannotReadExternalSheets || "Failed to read file sheets: {MESSAGE}";
+        throw new Error(errorTemplate.replace('{MESSAGE}', e.message));
     }
 }
 
@@ -188,7 +193,7 @@ function verify_validateInputs(fileId, sourceSheetName, targetSheetName) {
     if (targetSheetName) {
         const activeSs = SpreadsheetApp.getActiveSpreadsheet();
         if (!activeSs.getSheetByName(targetSheetName)) {
-            const msgTemplate = T.errorTargetSheetNotFound || "找不到目標分頁 '{SHEET_NAME}'";
+            const msgTemplate = T.errorTargetSheetNotFound || "Target sheet '{SHEET_NAME}' not found";
             errors.targetSheetError = msgTemplate.replace('{SHEET_NAME}', targetSheetName);
         }
     }
@@ -197,15 +202,15 @@ function verify_validateInputs(fileId, sourceSheetName, targetSheetName) {
         try {
             const sheetNames = verify_getSheetNames(fileId);
             if (sourceSheetName && !sheetNames.includes(sourceSheetName)) {
-                const msgTemplate = T.errorSheetNotFoundInUrl || "在來源檔案中找不到分頁 '{SHEET_NAME}'";
+                const msgTemplate = T.errorSheetNotFoundInUrl || "Sheet '{SHEET_NAME}' not found in the source file";
                 errors.sourceSheetError = msgTemplate.replace('{SHEET_NAME}', sourceSheetName);
             }
         } catch (e) {
-            errors.sourceFileIdError = "無法存取此檔案或 ID 無效 (請確認您已透過 Picker 選擇此檔案)。";
+            errors.sourceFileIdError = T.errorSourceFileAccess || "Cannot access this file or the ID is invalid (Please ensure you have selected it via Picker).";
         }
     } else {
         if (sourceSheetName) {
-             errors.sourceFileIdError = "請先選擇來源檔案。";
+             errors.sourceFileIdError = T.errorSourceFileNotSelected || "Please select a source file first.";
         }
     }
 
@@ -220,20 +225,20 @@ function saveVerifySettings(settings, sheetName) {
   const T = MasterData.getTranslations();
   try {
     if (!sheetName) {
-      throw new Error("工作表名稱為必填項，無法儲存設定。");
+      throw new Error(T.errorSheetNameRequiredForSave || "Sheet name is required. Cannot save settings.");
     }
     
     if ((!settings.sourceFileId && !settings.sourceDataUrl) || !settings.sourceDataSheetName || !settings.targetSheetName) {
-      throw new Error(T.errorVerifyUrlRequired || "請填寫完整的來源與目標資訊。");
+      throw new Error(T.errorVerifyUrlRequired || "Please fill in all source and target information.");
     }
     
     const properties = PropertiesService.getDocumentProperties();
     const key = `verifySettings_${sheetName}`;
     properties.setProperty(key, JSON.stringify(settings));
-    return { success: true, message: T.saveSuccess || "設定已儲存" };
+    return { success: true, message: T.saveSuccess || "Settings saved" };
   } catch (e) {
     Logger.log(`Error saving verify settings for sheet ${sheetName}: ${e.message}`);
-    const failMsg = T.saveFailure || "儲存失敗";
+    const failMsg = T.saveFailure || "Save failed";
     return { success: false, message: `${failMsg}: ${e.message}` };
   }
 }
@@ -289,17 +294,17 @@ function runReset() {
     const activeSheetName = ss.getActiveSheet().getName();
     const T = MasterData.getTranslations();
     try {
-        ss.toast(T.resetValidationStart || 'Starting verification data reset...', 'Processing', 5);
+        ss.toast(T.resetValidationStart || 'Starting verification data reset...', T.toastTitleProcessing || 'Processing', 5);
         const settings = getVerifySettings(activeSheetName);
         if (!settings.targetSheetName) {
             const errorMsg = (T.errorSettingsNotFound || 'Settings not found for sheet "{SHEET_NAME}".').replace('{SHEET_NAME}', activeSheetName);
             throw new Error(errorMsg);
         }
         resetValidationData(settings);
-        ss.toast(T.resetValidationComplete || 'Verification data reset complete.', 'Success', 5);
+        ss.toast(T.resetValidationComplete || 'Verification data reset complete.', T.toastTitleSuccess || 'Success', 5);
     } catch (e) {
         const errorTemplate = T.resetValidationError || 'Error during reset: {MESSAGE}';
-        ss.toast(errorTemplate.replace('{MESSAGE}', e.message), 'Error', 10);
+        ss.toast(errorTemplate.replace('{MESSAGE}', e.message), T.errorTitle || 'Error', 10);
         Logger.log('Error during reset: ' + e.stack);
     }
 }
@@ -320,13 +325,13 @@ function runDataValidation(mode) {
         const settings = getVerifySettings(activeSheetName);
 
         if (!settings.sourceFileId && !settings.sourceDataUrl) {
-            const msgTemplate = T.errorNoValidationSettingsFound || "找不到工作表 '{SHEET_NAME}' 的驗證設定。";
+            const msgTemplate = T.errorNoValidationSettingsFound || "Validation settings for sheet '{SHEET_NAME}' not found.";
             const errorMessage = msgTemplate.replace('{SHEET_NAME}', activeSheetName);
-            ui.alert(T.validationFailedTitle || "驗證失敗", errorMessage, ui.ButtonSet.OK);
+            ui.alert(T.validationFailedTitle || "Validation Failed", errorMessage, ui.ButtonSet.OK);
             return;
         }
         if (!settings.validationMappings || settings.validationMappings.length === 0) {
-            ui.alert(T.validationFailedTitle || "驗證失敗", T.errorNoValidationMappings || "未設定驗證對應欄位。", ui.ButtonSet.OK);
+            ui.alert(T.validationFailedTitle || "Validation Failed", T.errorNoValidationMappings || "Validation mappings are not set.", ui.ButtonSet.OK);
             return;
         }
 
@@ -334,33 +339,36 @@ function runDataValidation(mode) {
         const integrityResult = verify_checkTargetColumnsForIntegrity(settings);
         if (!integrityResult.isValid) {
             const response = ui.alert(
-                integrityResult.title || "資料完整性警告",
+                integrityResult.title || T.dataIntegrityWarningTitle || "Data Integrity Warning",
                 integrityResult.warning,
                 ui.ButtonSet.YES_NO
             );
             
             // If the user selects "NO", abort the process.
             if (response === ui.Button.NO) {
-                ss.toast('已取消驗證程序。', 'Info', 3);
+                ss.toast(T.validationCancelled || 'Validation process cancelled.', T.toastTitleInfo || 'Info', 3);
                 return;
             }
             // If "YES" is selected, continue execution.
         }
 
         const sheet = ss.getSheetByName(settings.targetSheetName);
-        if (!sheet) throw new Error(`找不到目標分頁 "${settings.targetSheetName}"。`);
+        if (!sheet) {
+            const errorTemplate = T.errorSheetNotFoundGeneric || 'Sheet "{SHEET_NAME}" not found.';
+            throw new Error(errorTemplate.replace('{SHEET_NAME}', settings.targetSheetName));
+        }
         
         const headerCheckResult = checkSourceHeaderMapping(settings);
         if (!headerCheckResult.isPerfect) {
             const mismatchMessage = headerCheckResult.mismatches.map(m => m.message).join('\n');
-            let alertMsg = (T.checkResultMismatches || "發現標頭不符：") + '\n' + mismatchMessage + '\n\n';
-            ui.alert(T.checkResultTitle || "檢查結果", alertMsg, ui.ButtonSet.OK);
+            let alertMsg = (T.checkResultMismatches || "Header mismatches found:") + '\n' + mismatchMessage + '\n\n';
+            ui.alert(T.checkResultTitle || "Check Results", alertMsg, ui.ButtonSet.OK);
             return;
         }
 
         const lastRow = sheet.getLastRow();
         if (lastRow < settings.startRow) {
-            ui.alert('無資料', '在設定的起始列之後找不到任何資料。', ui.ButtonSet.OK);
+            ui.alert(T.noDataTitle || 'No Data', T.noDataAfterStartRow || 'No data found after the configured start row.', ui.ButtonSet.OK);
             return;
         }
         
@@ -372,7 +380,7 @@ function runDataValidation(mode) {
         const taskMap = new Map(tasksToProcess.map(t => [t.originalRowIndex, t]));
         
         if (tasksToProcess.length === 0) {
-            ui.alert('無可處理資料', '找不到包含驗證欄位資料的列。', ui.ButtonSet.OK);
+            ui.alert(T.noProcessableDataTitle || 'No Processable Data', T.noProcessableRowsFoundGeneric || 'No rows containing validation field data were found.', ui.ButtonSet.OK);
             return;
         }
 
@@ -384,7 +392,7 @@ function runDataValidation(mode) {
 
         for (const task of tasksToProcess) {
             if (scriptProperties.getProperty('stopValidationRequested') === 'true') {
-                throw new Error('使用者手動停止了驗證程序。');
+                throw new Error(T.errorValidationStoppedByUser || 'Validation process was manually stopped by the user.');
             }
             // [UPDATED] Pass targetSsId to processSingleTask
             const childResult = processSingleTask(task, externalDataMap, settings, mode, targetSsId, T);
@@ -450,7 +458,7 @@ function runDataValidation(mode) {
         ss.toast(T.validationCompleteToast || 'Data validation complete!', T.toastTitleSuccess || 'Success', 5);
 
     } catch (e) {
-        ss.toast(`錯誤: ${e.message}`, 'Error', 10);
+        ss.toast(`${T.errorPrefix || 'Error'}: ${e.message}`, T.errorTitle || 'Error', 10);
         Logger.log('Error during data validation: ' + e.stack);
     } finally {
         scriptProperties.deleteProperty('stopValidationRequested');
@@ -484,17 +492,21 @@ function levenshteinDistance(a, b) {
 }
 
 function getSmartMappingResults(settings, mappingsToExclude = []) {
+    const T = MasterData.getTranslations();
     const { targetHeaderRow, sourceHeaderRow, targetSheetName, sourceFileId, sourceDataUrl, sourceDataSheetName } = settings;
     
     const fileId = sourceFileId || (sourceDataUrl ? sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
 
     if (!targetHeaderRow || !sourceHeaderRow || !fileId || !sourceDataSheetName) {
-        throw new Error("請先完整填寫來源檔案、分頁名稱與標頭起始列。");
+        throw new Error(T.errorIncompleteSourceInfo || "Please complete the source file, sheet, and header row information first.");
     }
 
     try {
         const targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
-        if (!targetSheet) throw new Error(`找不到目標分頁 "${targetSheetName}"。`);
+        if (!targetSheet) {
+            const errorTemplate = T.errorSheetNotFoundGeneric || 'Sheet "{SHEET_NAME}" not found.';
+            throw new Error(errorTemplate.replace('{SHEET_NAME}', targetSheetName));
+        }
         
         const targetHeadersRaw = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
         
@@ -503,7 +515,7 @@ function getSmartMappingResults(settings, mappingsToExclude = []) {
         const sourceHeadersRaw = sourceValues && sourceValues.length > 0 ? sourceValues[0] : [];
 
         if (sourceHeadersRaw.length === 0) {
-             throw new Error("無法從來源檔案讀取到標頭列資料。");
+             throw new Error(T.errorSourceHeaderRead || "Could not read header data from the source file.");
         }
 
         const excludedTargetCols = new Set(mappingsToExclude.map(m => m.targetCol));
@@ -566,7 +578,7 @@ function getSmartMappingResults(settings, mappingsToExclude = []) {
 
     } catch (e) {
         Logger.log(`Smart mapping failed: ${e.stack}`);
-        throw new Error(`智慧對應時發生錯誤: ${e.message}`);
+        throw new Error((T.errorSmartMapping || "An error occurred during smart mapping: ") + e.message);
     }
 }
 
@@ -576,7 +588,7 @@ function checkSourceHeaderMapping(settings) {
     const fileId = sourceFileId || (sourceDataUrl ? sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
 
     if (!targetHeaderRow || !sourceHeaderRow || !fileId || !sourceDataSheetName) {
-        return { isPerfect: false, mismatches: [{ message: "請先完整填寫設定。" }] };
+        return { isPerfect: false, mismatches: [{ message: T.errorIncompleteSettings || "Please complete all settings first." }] };
     }
 
     const allMappings = [...(validationMappings || []), ...(outputMappings || [])];
@@ -586,7 +598,10 @@ function checkSourceHeaderMapping(settings) {
 
     try {
         const targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
-        if (!targetSheet) return { isPerfect: false, mismatches: [{ message: `找不到目標分頁 "${targetSheetName}"。` }] };
+        if (!targetSheet) {
+            const errorTemplate = T.errorSheetNotFoundGeneric || 'Sheet "{SHEET_NAME}" not found.';
+            return { isPerfect: false, mismatches: [{ message: errorTemplate.replace('{SHEET_NAME}', targetSheetName) }] };
+        }
         
         const targetHeadersRaw = targetSheet.getRange(targetHeaderRow, 1, 1, targetSheet.getMaxColumns()).getValues()[0];
         
@@ -595,6 +610,7 @@ function checkSourceHeaderMapping(settings) {
         const sourceHeadersRaw = sourceValues && sourceValues.length > 0 ? sourceValues[0] : [];
 
         const mismatches = [];
+        const blank = T.blankHeader || 'Blank';
         allMappings.forEach(mapping => {
             if (!mapping.targetCol || !mapping.sourceCol) return;
             const targetColNum = columnToNumber(mapping.targetCol);
@@ -605,17 +621,17 @@ function checkSourceHeaderMapping(settings) {
             const sourceHeader = (sourceHeadersRaw[sourceColNum - 1] || '').toString().trim();
 
             if (targetHeader.normalize('NFC') !== sourceHeader.normalize('NFC')) {
-                const msgTemplate = T.headerMismatchDetail || "目標 '{TARGET_COL}' ({TARGET_HEADER}) 與來源 '{SOURCE_COL}' ({SOURCE_HEADER}) 不符";
+                const msgTemplate = T.headerMismatchDetail || "Target '{TARGET_COL}' ({TARGET_HEADER}) does not match Source '{SOURCE_COL}' ({SOURCE_HEADER})";
                 mismatches.push({
                   targetCol: mapping.targetCol,
                   sourceCol: mapping.sourceCol,
-                  targetHeader: targetHeader || '空白',
-                  sourceHeader: sourceHeader || '空白',
+                  targetHeader: targetHeader || blank,
+                  sourceHeader: sourceHeader || blank,
                   message: msgTemplate
                     .replace('{TARGET_COL}', mapping.targetCol)
-                    .replace('{TARGET_HEADER}', targetHeader || '空白')
+                    .replace('{TARGET_HEADER}', targetHeader || blank)
                     .replace('{SOURCE_COL}', mapping.sourceCol)
-                    .replace('{SOURCE_HEADER}', sourceHeader || '空白')
+                    .replace('{SOURCE_HEADER}', sourceHeader || blank)
                 });
             }
         });
@@ -624,7 +640,7 @@ function checkSourceHeaderMapping(settings) {
 
     } catch (e) {
         Logger.log(`Header check failed: ${e.stack}`);
-        return { isPerfect: false, mismatches: [{ message: `檢查時發生錯誤: ${e.message}` }] };
+        return { isPerfect: false, mismatches: [{ message: (T.errorDuringCheck || "An error occurred during check: ") + e.message }] };
     }
 }
 
@@ -635,14 +651,14 @@ function checkAllSourceColumnsForEmptyValues(settings) {
     const fileId = sourceFileId || (sourceDataUrl ? sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
 
     if (!fileId || !sourceDataSheetName || !sourceHeaderRow) {
-        return { isValid: false, message: "請先完整填寫來源檔案、分頁與標頭列。" };
+        return { isValid: false, message: T.errorIncompleteSourceInfo || "Please complete the source file, sheet, and header row information first." };
     }
 
     const allMappings = [...(validationMappings || []), ...(outputMappings || [])];
     const sourceColumns = [...new Set(allMappings.map(m => m.sourceCol).filter(Boolean))];
 
     if (sourceColumns.length === 0) {
-        return { isValid: true, message: T.noMappingsToCheck || "沒有需要檢查的對應欄位。" };
+        return { isValid: true, message: T.noMappingsToCheck || "No mapped columns to check." };
     }
 
     try {
@@ -662,7 +678,7 @@ function checkAllSourceColumnsForEmptyValues(settings) {
 
             if (emptyRows.length > 0) {
                 const displayRows = emptyRows.slice(0, 15).join(', ') + (emptyRows.length > 15 ? '...' : '');
-                const msgTemplate = T.emptyValuesInRows || "{COLUMN} 欄: 第 {ROWS} 列發現空值";
+                const msgTemplate = T.emptyValuesInRows || "Empty values found in column {COLUMN} in rows: {ROWS}";
                 errorMessages.push(msgTemplate
                     .replace('{COLUMN}', colLetter)
                     .replace('{ROWS}', displayRows));
@@ -670,14 +686,14 @@ function checkAllSourceColumnsForEmptyValues(settings) {
         }
 
         if (errorMessages.length > 0) {
-            const failTitle = T.emptyCheckFailure || "檢查發現空值";
+            const failTitle = T.emptyCheckFailure || "Empty Values Found";
             return { isValid: false, message: `${failTitle}\n- ${errorMessages.join('\n- ')}` };
         }
 
-        return { isValid: true, message: T.emptyCheckSuccess || "檢查通過，來源欄位無空值。" };
+        return { isValid: true, message: T.emptyCheckSuccess || "Check passed, no empty values in source columns." };
     } catch (e) {
         Logger.log(`Empty check failed: ${e.message}`);
-        return { isValid: false, message: `檢查時發生錯誤: ${e.message}` };
+        return { isValid: false, message: (T.errorDuringCheck || "An error occurred during check: ") + e.message };
     }
 }
 
@@ -690,7 +706,7 @@ function verify_checkTargetColumnsForIntegrity(settings) {
     const { targetSheetName, startRow, validationMappings } = settings;
     
     // Check for suffixes in both languages
-    const suffixes = ['_No source data', '_無來源資料'];
+    const suffixes = ['_No source data', T.noSourceDataSuffix];
 
     if (!targetSheetName || !startRow || !validationMappings || validationMappings.length === 0) {
         return { isValid: true };
@@ -724,7 +740,7 @@ function verify_checkTargetColumnsForIntegrity(settings) {
                 const cellVal = values[i][0];
                 if (cellVal) {
                     // Any row containing either suffix is considered an anomaly
-                    if (suffixes.some(s => cellVal.toString().includes(s))) {
+                    if (suffixes.some(s => s && cellVal.toString().includes(s))) {
                         errorCells.push(`${colLetter}${startRow + i}`);
                         if (errorCells.length >= CELL_LIMIT) break;
                     }
@@ -733,8 +749,8 @@ function verify_checkTargetColumnsForIntegrity(settings) {
         }
 
         if (errorCells.length > 0) {
-            const warningTitle = T.dataIntegrityWarningTitle || "資料完整性警告";
-            const msgTemplate = T.dataIntegrityWarningBody || "在以下欄位中發現資料不完整標記 ('_No source data' 或 '_無來源資料')：\n\n[ {COLS} ]\n\n這表示之前的資料匯入可能不完整，若繼續執行，將導致驗證結果錯誤。\n\n請問是否忽略此警告並繼續執行？";
+            const warningTitle = T.dataIntegrityWarningTitle || "Data Integrity Warning";
+            const msgTemplate = T.dataIntegrityWarningBody || "Incomplete data markers ('_No source data') were found in the following cells:\n\n[ {COLS} ]\n\nThis indicates that the previous data import might be incomplete. Continuing may lead to incorrect validation results.\n\nDo you want to ignore this warning and continue?";
             
             const displayCells = errorCells.join(', ') + (errorCells.length >= CELL_LIMIT ? '...' : '');
             // Using the same placeholder {COLS} to minimize translation changes, but it now contains cells
@@ -752,12 +768,13 @@ function verify_checkTargetColumnsForIntegrity(settings) {
 }
 
 function fetchExternalData(settings) {
+    const T = MasterData.getTranslations();
     const fileId = settings.sourceFileId || (settings.sourceDataUrl ? settings.sourceDataUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)[1] : null);
     const sheetName = settings.sourceDataSheetName;
     const startRow = parseInt(settings.sourceHeaderRow, 10) + 1;
 
     const cols = [...settings.validationMappings, ...settings.outputMappings].map(m => m.sourceCol);
-    if (cols.length === 0) throw new Error("未設定任何來源欄位。");
+    if (cols.length === 0) throw new Error(T.errorNoSourceColumns || "No source columns have been configured.");
 
     const maxColNum = Math.max(...cols.map(c => columnToNumber(c)));
     const maxColLetter = columnToLetter(maxColNum);
@@ -875,7 +892,7 @@ function processSingleTask(task, extMap, settings, mode, targetSsId, T) {
         if (settings.mismatchColumn) {
             const idx = columnToNumber(settings.mismatchColumn) - 1;
             if (idx >= 0) {
-                const msgTemplate = T.firstColumnMismatch || "首欄不符";
+                const msgTemplate = T.firstColumnMismatch || "First column mismatch";
                 newRow[idx] = `${msgTemplate}_${keyMaps[0].targetCol}${settings.startRow + task.originalRowIndex}_${task.values[keyMaps[0].targetCol]}`;
             }
         }
@@ -1023,10 +1040,11 @@ function columnToLetter(col) {
 function verifySumAndCumulativeValues() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const activeSheetName = ss.getActiveSheet().getName();
+    const T = MasterData.getTranslations();
     const settings = getVerifySettings(activeSheetName);
 
     if (!settings.targetSheetName) {
-        ss.toast(`找不到工作表設定`, 'Error', 5);
+        ss.toast(T.toastErrorSettingsNotFound || 'Sheet settings not found', T.errorTitle || 'Error', 5);
         return;
     }
 
@@ -1069,5 +1087,5 @@ function verifySumAndCumulativeValues() {
             i += childCount; 
         }
     }
-    ss.toast('數量驗證完成', 'Success');
+    ss.toast(T.toastSumVerificationComplete || 'Sum verification complete', T.toastTitleSuccess || 'Success');
 }
