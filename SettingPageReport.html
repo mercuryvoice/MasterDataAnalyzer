@@ -269,7 +269,7 @@
         let currentResultData = null; 
         let drawnCharts = {}; // Object to store drawn chart instances
         
-        // --- V15 狀態變數 ---
+        // --- V15 State Variables ---
         let keys = null;
         let pickerApiLoaded = false;
         
@@ -290,7 +290,7 @@
         const exportConfirmBtn = document.getElementById('export-confirm-btn');
         const exportStatus = document.getElementById('export-status');
 
-        // --- 1. 動態載入 GAPI ---
+        // --- 1. Dynamic GAPI Loading ---
         document.addEventListener('DOMContentLoaded', () => {
             loadAndPopulateSettings();
             
@@ -311,7 +311,7 @@
             document.head.appendChild(script);
         });
 
-        // --- 2. Picker API 載入回呼 & 獲取金鑰 ---
+        // --- 2. Picker API Load Callback & Key Fetching ---
         function onPickerApiLoad() {
             console.log("onPickerApiLoad() 已執行。Picker API 已載入。");
             pickerApiLoaded = true;
@@ -333,7 +333,7 @@
               .report_getPickerKeys();
         }
 
-        // --- 3. 檢查是否兩者都已就緒 ---
+        // --- 3. Check if Both are Ready ---
         function checkIfReady() {
             if (keys && pickerApiLoaded) {
               console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
@@ -343,10 +343,10 @@
             }
         }
 
-        // --- 4. 按鈕點擊 ---
+        // --- 4. Button Click ---
         selectSourceFileBtn.addEventListener('click', createPicker);
       
-        // --- 5. 建立 Picker ---
+        // --- 5. Create Picker ---
         function createPicker() {
             try {
               const docsView = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
@@ -370,7 +370,7 @@
             }
         }
 
-        // --- 6. Picker 回呼 ---
+        // --- 6. Picker Callback ---
         function pickerCallback(data) {
             if (data.action == google.picker.Action.PICKED) {
               if (data.docs && data.docs.length > 0) {
