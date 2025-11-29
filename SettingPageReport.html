@@ -164,7 +164,7 @@
                     <label for="select-source-file-btn"><?!= T.sourceSpreadsheetUrlLabel ?></label>
                     <div class="input-group">
                         <input type="text" id="sourceFileName" name="sourceFileName" readonly placeholder="<?!= T.noFileSelected ?>">
-                        <button type="button" id="select-source-file-btn" disabled><?!= T.loading ?></button>
+                        <button type="button" id="select-source-file-btn" disabled><?!= T.sourceDataSelectLabel ?></button>
                     </div>
                     <input type="hidden" id="sourceFileId" name="sourceFileId">
                     <p id="sourceFileId-validation" class="validation-message help-text"></p>
@@ -339,7 +339,7 @@
               console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
               statusDiv.textContent = T.statusReady;
               selectSourceFileBtn.disabled = false;
-              selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
+              selectSourceFileBtn.textContent = '<?!= T.sourceDataSelectLabel ?>';
             }
         }
 
