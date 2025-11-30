@@ -366,7 +366,6 @@
     <p id="current-sheet-hint" class="current-sheet-hint"></p>
     <div id="form-body" style="padding-bottom: 80px;">
 
-    <div id="form-body" style="padding-bottom: 80px;">
       <!-- Section: Source & Target -->
       <div class="section">
         <h4><?!= T.sectionSourceAndTarget ?></h4>
@@ -546,18 +545,14 @@
         expandToggle.title = '<?!= T.expandWindowTooltip ?>';
         loadAndPopulateSettings();
         
-        console.log("DOMContentLoaded event triggered. Dynamically loading GAPI...");
         statusDiv.textContent = T.gapiLoading;
-        
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.onload = () => {
-          console.log("GAPI script loaded. Calling gapi.load('picker', ...)");
           statusDiv.textContent = T.gapiLoaded;
           gapi.load('picker', { 'callback': onPickerApiLoad });
         };
         script.onerror = () => {
-          console.error("GAPI script failed to load.");
           statusDiv.textContent = T.gapiLoadError;
         };
         document.head.appendChild(script);
@@ -565,22 +560,16 @@
 
       // --- 2. Picker API Load Callback & Key Fetching ---
       function onPickerApiLoad() {
-        console.log("onPickerApiLoad() executed. Picker API is loaded.");
         pickerApiLoaded = true;
-        
-        console.log("Calling google.script.run.import_getPickerKeys()");
         statusDiv.textContent = T.pickerApiLoaded;
-        
         google.script.run
           .withSuccessHandler(serverKeys => {
-            console.log("import_getPickerKeys() successful.");
-            keys = serverKeys;
-            checkIfReady();
+             keys = serverKeys;
+             checkIfReady();
           })
           .withFailureHandler(err => {
-            console.error("import_getPickerKeys() failed: ", err);
-            statusDiv.textContent = T.keyFetchError + err.message;
-            selectSourceFileBtn.textContent = T.initFailed;
+             statusDiv.textContent = T.keyFetchError + err.message;
+             selectSourceFileBtn.textContent = T.initFailed;
           })
           .import_getPickerKeys();
       }
@@ -588,10 +577,9 @@
       // --- 3. Check if Both are Ready ---
       function checkIfReady() {
         if (keys && pickerApiLoaded) {
-          console.log("Picker API and keys are ready. Enabling button.");
-          statusDiv.textContent = T.statusReady;
-          selectSourceFileBtn.disabled = false;
-          selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
+           statusDiv.textContent = T.statusReady;
+           selectSourceFileBtn.disabled = false;
+           selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
         }
       }
 
@@ -601,48 +589,35 @@
       // --- 5. Create Picker ---
       function createPicker() {
         try {
-          // DocsView allows users to pick spreadsheets from their Google Drive.
-          // It natively supports finding files by pasting a URL into the search box.
-          const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
-            .setIncludeFolders(true);
-
+          const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true);
           const builder = new google.picker.PickerBuilder()
             .setDeveloperKey(keys.apiKey)
             .setAppId(keys.appId)
             .setOAuthToken(keys.oauthToken)
-            .addView(docsView) // Just add the DocsView
+            .addView(docsView)
             .setCallback(pickerCallback)
             .setOrigin(google.script.host.origin);
           
-          // We only need the user to select one file
           builder.enableFeature(google.picker.Feature.NAV_HIDDEN);
           builder.disableFeature(google.picker.Feature.MULTISELECT_ENABLED);
           
           const picker = builder.build();
           picker.setVisible(true);
         } catch (e) {
-          console.error("Failed inside createPicker(): ", e);
-          statusDiv.textContent = "Error: " + e.message;
+          statusDiv.textContent = T.pickerCreationError + e.message;
         }
       }
 
       // --- 6. Picker Callback ---
       function pickerCallback(data) {
         if (data.action == google.picker.Action.PICKED) {
-          // Whether picked by clicking or searching via URL, the response comes from data.docs
           if (data.docs && data.docs.length > 0) {
             const doc = data.docs[0];
-            const fileId = doc.id;
-            const fileName = doc.name;
+            sourceFileIdInput.value = doc.id;
+            sourceFileNameInput.value = doc.name;
+            statusDiv.textContent = T.fileSelected + doc.name;
             
-            // Directly update the UI and trigger subsequent processes
-            sourceFileIdInput.value = fileId;
-            sourceFileNameInput.value = fileName;
-            statusDiv.textContent = T.fileSelected + fileName;
-            
-            // When a file is selected, trigger validation and header option population
-            fetchAndPopulateHeaderOptions();
-            // Enable the source sheet selection button
+            validateAll();
             selectSourceSheetBtn.disabled = false;
           }
         } else if (data.action == google.picker.Action.CANCEL) {
