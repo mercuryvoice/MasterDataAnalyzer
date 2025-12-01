@@ -173,7 +173,7 @@
                     <label for="sourceSheetName"><?!= T.sourceDataSheetNameLabel ?></label>
                     <div class="input-group">
                         <input type="text" id="sourceSheetName">
-                        <button type="button" id="select-sheet-btn"><?!= T.selectButton ?></button>
+                        <button type="button" id="select-sheet-btn" disabled><?!= T.selectButton ?></button>
                     </div>
                     <p id="sourceSheetName-validation" class="validation-message help-text"></p>
                 </div>
@@ -294,18 +294,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadAndPopulateSettings();
             
-            console.log("DOMContentLoaded 事件觸發。正在動態載入 GAPI...");
             statusDiv.textContent = T.gapiLoading;
-            
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/api.js';
             script.onload = () => {
-              console.log("GAPI 指令碼已載入。正在呼叫 gapi.load('picker', ...)");
               statusDiv.textContent = T.gapiLoaded;
               gapi.load('picker', { 'callback': onPickerApiLoad });
             };
             script.onerror = () => {
-              console.error("GAPI 指令碼載入失敗。");
               statusDiv.textContent = T.gapiLoadError;
             };
             document.head.appendChild(script);
@@ -313,76 +309,67 @@
 
         // --- 2. Picker API Load Callback & Key Fetching ---
         function onPickerApiLoad() {
-            console.log("onPickerApiLoad() 已執行。Picker API 已載入。");
-            pickerApiLoaded = true;
-            
-            console.log("正在呼叫 google.script.run.getPickerKeys()");
-            statusDiv.textContent = T.pickerApiLoaded;
-            
-            google.script.run
-              .withSuccessHandler(serverKeys => {
-                console.log("getPickerKeys() 成功。");
-                keys = serverKeys;
-                checkIfReady();
-              })
-              .withFailureHandler(err => {
-                console.error("getPickerKeys() 失敗：", err);
-                statusDiv.textContent = T.keyFetchError + err.message;
-                selectSourceFileBtn.textContent = T.initFailed;
-              })
-              .report_getPickerKeys();
+          pickerApiLoaded = true;
+          statusDiv.textContent = T.pickerApiLoaded;
+          google.script.run
+            .withSuccessHandler(serverKeys => {
+               keys = serverKeys;
+               checkIfReady();
+            })
+            .withFailureHandler(err => {
+               statusDiv.textContent = T.keyFetchError + err.message;
+               selectSourceFileBtn.textContent = T.initFailed;
+            })
+            .report_getPickerKeys();
         }
 
-        // --- 3. Check if Both are Ready ---
+        // --- 3. Check Readiness ---
         function checkIfReady() {
-            if (keys && pickerApiLoaded) {
-              console.log("Picker API 和 金鑰 都已準備就緒。啟用按鈕。");
-              statusDiv.textContent = T.statusReady;
-              selectSourceFileBtn.disabled = false;
-              selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
-            }
+          if (keys && pickerApiLoaded) {
+             statusDiv.textContent = T.statusReady;
+             selectSourceFileBtn.disabled = false;
+             selectSourceFileBtn.textContent = '<?!= T.selectButton ?>';
+          }
         }
 
-        // --- 4. Button Click ---
+        // --- 4. Picker Creation ---
         selectSourceFileBtn.addEventListener('click', createPicker);
-      
-        // --- 5. Create Picker ---
+        
         function createPicker() {
-            try {
-              const docsView = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
-
-              const builder = new google.picker.PickerBuilder()
-                .setDeveloperKey(keys.apiKey)
-                .setAppId(keys.appId)
-                .setOAuthToken(keys.oauthToken)
-                .addView(docsView)
-                .setCallback(pickerCallback)
-                .setOrigin(google.script.host.origin);
-              
-              builder.enableFeature(google.picker.Feature.NAV_HIDDEN);
-              builder.disableFeature(google.picker.Feature.MULTISELECT_ENABLED);
-              
-              const picker = builder.build();
-              picker.setVisible(true);
-            } catch (e) {
-              console.error("createPicker() 內部失敗：", e);
-              statusDiv.textContent = "錯誤: " + e.message;
-            }
+          try {
+            const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true);
+            const builder = new google.picker.PickerBuilder()
+              .setDeveloperKey(keys.apiKey)
+              .setAppId(keys.appId)
+              .setOAuthToken(keys.oauthToken)
+              .addView(docsView)
+              .setCallback(pickerCallback)
+              .setOrigin(google.script.host.origin);
+            
+            builder.enableFeature(google.picker.Feature.NAV_HIDDEN);
+            builder.disableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+            
+            const picker = builder.build();
+            picker.setVisible(true);
+          } catch (e) {
+          statusDiv.textContent = T.pickerCreationError + e.message;
+          }
         }
 
-        // --- 6. Picker Callback ---
+        // --- 5. Picker Callback ---
         function pickerCallback(data) {
-            if (data.action == google.picker.Action.PICKED) {
-              if (data.docs && data.docs.length > 0) {
-                const doc = data.docs[0];
-                sourceFileIdInput.value = doc.id;
-                sourceFileNameInput.value = doc.name;
-                statusDiv.textContent = T.fileSelected + doc.name;
-                validateAndFetchHeaders();
-              }
-            } else if (data.action == google.picker.Action.CANCEL) {
-              statusDiv.textContent = T.operationCancelled;
+          if (data.action == google.picker.Action.PICKED) {
+            if (data.docs && data.docs.length > 0) {
+              const doc = data.docs[0];
+              sourceFileIdInput.value = doc.id;
+              sourceFileNameInput.value = doc.name;
+              statusDiv.textContent = T.fileSelected + doc.name;
+              
+              validateAndFetchHeaders();
             }
+          } else if (data.action == google.picker.Action.CANCEL) {
+            statusDiv.textContent = T.operationCancelled;
+          }
         }
 
         // --- UI Interaction Logic ---
@@ -1147,7 +1134,11 @@
                     vAxis: { title: dimension },
                     legend: { position: "none" },
                     annotations: {
-                        textStyle: { fontSize: 16, color: 'white', auraColor: 'none' },
+                        textStyle: {
+                            fontSize: 16,
+                            color: 'white', 
+                            auraColor: 'none'
+                        },
                         alwaysOutside: false 
                     }
                 };
