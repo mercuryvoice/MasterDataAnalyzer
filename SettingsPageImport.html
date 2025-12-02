@@ -356,6 +356,8 @@
   <body>
     <div class="header">
       <div class="header-icons">
+        <span id="restore-settings-btn" class="material-icons">restore</span>
+        <span id="delete-settings-btn" class="material-icons">delete</span>
         <span id="expand-toggle" class="material-icons">open_in_full</span>
         <span id="pin-toggle" class="material-icons">push_pin</span>
       </div>
@@ -510,10 +512,14 @@
       let activeSheetInput = null;
       let masterHeaderOptions = []; // Global store for all available headers
       let currentSheetName = ''; // [NEW] Store the active sheet name
+      let initialSettingsState = '';
+
 
       // --- DOM Elements ---
       const pinToggle = document.getElementById('pin-toggle');
       const expandToggle = document.getElementById('expand-toggle');
+      const deleteSettingsBtn = document.getElementById('delete-settings-btn');
+      const restoreSettingsBtn = document.getElementById('restore-settings-btn');
       const saveBtn = document.getElementById('save-btn');
       const closeBtn = document.getElementById('close-btn');
       const statusDiv = document.getElementById('status');
@@ -543,6 +549,9 @@
       document.addEventListener('DOMContentLoaded', () => {
         pinToggle.title = '<?!= T.pinWindowTooltip ?>';
         expandToggle.title = '<?!= T.expandWindowTooltip ?>';
+        deleteSettingsBtn.title = '刪除當前工作表的匯入設定';
+        restoreSettingsBtn.title = '重新載入上次儲存的設定';
+
         loadAndPopulateSettings();
         
         statusDiv.textContent = T.gapiLoading;
@@ -649,6 +658,8 @@
       // --- Button Handlers ---
       closeBtn.addEventListener('click', () => google.script.host.close());
       saveBtn.addEventListener('click', handleSave);
+      deleteSettingsBtn.addEventListener('click', handleDeleteSettings);
+      restoreSettingsBtn.addEventListener('click', handleRestoreSettings);
       
       // --- Dynamic Filter Handlers ---
       addFilterBtn.addEventListener('click', () => addFilterRow());
@@ -1080,6 +1091,77 @@
         saveBtn.disabled = false;
       }
 
+      /**
+       * Gets the current state of the form as a serialized string.
+       */
+      function getFormState() {
+        const settings = {};
+        formFields.forEach(id => {
+          settings[id] = document.getElementById(id).value;
+        });
+        settings.rawImportFilterHeaders = document.getElementById('importFilterHeaders').value;
+        settings.keywordFilters = [];
+        document.querySelectorAll('.filter-row').forEach(row => {
+          settings.keywordFilters.push({
+            header: row.querySelector('.filter-header').value,
+            keywords: row.querySelector('.filter-keywords').value
+          });
+        });
+        return JSON.stringify(settings);
+      }
+
+      /**
+       * Checks if the form has been modified since it was last loaded.
+       */
+      function isFormDirty() {
+        return getFormState() !== initialSettingsState;
+      }
+
+      /**
+       * Resets the form to its default/empty state.
+       */
+      function resetForm() {
+        formFields.forEach(id => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.value = '';
+          }
+        });
+        document.getElementById('importFilterHeaders').value = '';
+        document.getElementById('sourceFileName').value = '尚未選擇任何檔案';
+        filterContainer.innerHTML = '';
+        selectSourceSheetBtn.disabled = true;
+        validateAll();
+        initialSettingsState = getFormState(); // Reset state after clearing
+      }
+
+      function handleDeleteSettings() {
+        const confirmed = confirm("您確定要刪除目前工作表的資料匯入設定嗎？此操作無法復原。");
+        if (confirmed) {
+          statusDiv.textContent = '正在刪除設定...';
+          google.script.run
+            .withSuccessHandler((response) => {
+              statusDiv.textContent = response;
+              resetForm();
+              setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+            })
+            .withFailureHandler(onSaveFailure) // Re-use the save failure handler for errors
+            .import_deleteImportSettings(currentSheetName);
+        }
+      }
+
+      function handleRestoreSettings() {
+        if (isFormDirty()) {
+          const confirmed = confirm("您有尚未儲存的變更。載入設定將會覆寫您目前的輸入，確定要繼續嗎？");
+          if (!confirmed) {
+            return; // Abort if user cancels
+          }
+        }
+        // If confirmed or form is not dirty, reload the settings.
+        statusDiv.textContent = '正在重新載入設定...';
+        loadAndPopulateSettings();
+      }
+
       // --- Initial Load ---
       function loadAndPopulateSettings() {
         google.script.run.withSuccessHandler(sheetName => {
@@ -1107,6 +1189,8 @@
               selectSourceSheetBtn.disabled = !settings.sourceFileId;
               fetchAndPopulateHeaderOptions();
             }
+            initialSettingsState = getFormState(); // Store the initial state after loading
+            statusDiv.textContent = ''; // Clear "loading" message
           }).import_getImportSettings(currentSheetName);
         }).import_getActiveSheetName();
       }
