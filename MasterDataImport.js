@@ -578,6 +578,23 @@ function import_validateSourceAndTarget(fileId, sourceSheetName, targetSheetName
 }
 
 /**
+ * Gets the API Key, App ID, and OAuth Token for Compare feature.
+ * @returns {{apiKey: string, appId: string, oauthToken: string}}
+ */
+function compare_getPickerKeys() {
+    return import_getPickerKeys();
+}
+
+/**
+ * Gets all sheet names from a given spreadsheet ID for Compare feature.
+ * @param {string} fileId The ID of the spreadsheet.
+ * @returns {string[]} An array of sheet names.
+ */
+function compare_getSheetNames(fileId) {
+    return import_getSheetNames(fileId);
+}
+
+/**
  * Validates the core source and target fields for the Compare UI.
  */
 function compare_validateCoreInputs(fileId, sourceSheetName, targetSheetName) {
