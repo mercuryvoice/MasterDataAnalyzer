@@ -150,10 +150,10 @@
         let checkpointIndex = -1;
         let checkpoint2Index = -1;
         let businessCheckpoint2Index = -1;
-        const tutorialType = "<?= tutorialType ?>"; 
+        const tutorialType = "business";
 
         try {
-            T = JSON.parse('<?= translations ?>');
+            T = JSON.parse('{"tutorialPrev": "Previous", "tutorialNext": "Next", "tutorialClose": "Close", "tutorialYes": "Yes, continue", "tutorialNo": "No, I\'m done for now", "tutorialProgressText": "Step {CURRENT} / {TOTAL}", "endTutorialTitle": "Tutorial Paused", "endTutorialInstruction": "Great! You have completed the \'Data Import\' section.\nYou can reopen this tutorial at any time or continue exploring other features.", "endTutorialReturnButton": "Return to \'Task 1 Complete\' step", "businessReturnToStep13": "Return to Step 13 Congratulations, Analysis Complete!", "businessWelcomeTitle": "Welcome! (Business & Sales)", "businessWelcomeInstruction": "Welcome to the interactive tutorial for the <code>Business & Sales Example</code>.\n\nOur goal is to transform an incomplete sales record into a complete analysis report using the features of MasterDataAnalyzer.\n\nClick <code>Next</code> to start our first task!", "businessTask1Step1Title": "Task 1: Data Import (1/6)", "businessTask1Step1Instruction": "First, please ensure you have activated the <code>{SHEET_NAME}</code> sheet.\n\nOur goal is to filter and import sales records from <code>{SOURCE_SHEET_NAME}</code> into the current dashboard.", "businessTask1Step2Title": "Task 1: Data Import (2/6)", "businessTask1Step2Instruction": "Please click on <code>MasterDataAnalyzer > Data Import Tool > \u2699\ufe0f Data Import Settings</code> in the top menu.", "businessTask1Step3Title": "Task 1: Data Import (3/6)", "businessTask1Step3Instruction": "In the settings window, please configure the following:\n1. <code>Source Data Select</code>: Click the <code>Select</code> button and choose the current spreadsheet file from the file picker.\n2. <code>Source Data Sheet Name</code>: Select <code>{SOURCE_SHEET_NAME}</code>\n3. <code>Target Data Sheet Name</code>: Should be auto-filled with <code>{TARGET_SHEET_NAME}</code>", "businessTask1Step4Title": "Task 1: Data Import (4/6)", "businessTask1Step4Instruction": "Next, set the data ranges:\n1. <code>Header Start Row for Data Import</code>: <code>1</code>\n2. <code>Data Import Start Row</code>: <code>2</code>\n3. <code>Source Data Import Range</code>: <code>A2:E9</code>", "businessTask1Step5Title": "Task 1: Data Import (5/6)", "businessTask1Step5Instruction": "Please add a filter condition:<br>1. <code>Header Name</code>: <br>Customer ID<br>2. <code>Keywords</code>: <br>Click <code>Select</code> then check <code>Select All</code><br>Reminder: It is recommended to import all data here to facilitate the application of report generation later.<br><br>In <code>Source Header Import Range Settings</code>, you can enter a header range to limit the scope of header detection. If left blank, all headers will be used by default.", "businessTask1Step6Title": "Task 1: Data Import (6/6)", "businessTask1Step6Instruction": "Great! All settings are complete.\n\nPlease click <code>Save Settings</code>, close the window, and then run <code>MasterDataAnalyzer > Data Import Tool > \u25b6\ufe0f Run Import</code> from the menu.", "businessCheckpointTitle": "Task 1 Complete!", "businessCheckpointInstruction": "Congratulations! You have successfully imported the raw data into the dashboard.\n\nWould you like to continue learning about the next core feature, <code>Data Validation</code>?", "businessTask2Step1Title": "Task 2: Enrich Customer Data (1/3)", "businessTask2Step1Instruction": "Excellent! The dashboard now has raw data but lacks detailed customer information.\n\nNext, we\'ll use the <code>Data Comparison</code> feature to look up and fill in customer data from the <code>Source | Customer List</code>.\n\nOpen <code>Data Import Tool > \u2699\ufe0f Data Comparison Settings</code> and begin configuring Task 2:", "businessTask2Step2Title": "Task 2: Enrich Customer Data (2/3)", "businessTask2Step2Instruction": "Please apply the following settings:\n1. <code>Source Sheets</code>: Choose <code>Source Data Sheet Name</code> as <code>{SOURCE_SHEET_NAME}</code> and <code>Target Data Sheet Name</code> as <code>{TARGET_SHEET_NAME}</code>.\n2. <code>Ranges</code>: Set <code>Target Data Start Row</code> to <code>2</code> and <code>Source Data Compare Range</code> to <code>A2:D6</code>.\n3. <code>Field Mapping</code>: Set up the fields in the following order:\n  - <code>Target Lookup Column</code>: <code>B</code> (Customer ID)\n  - <code>Source Compare Column</code>: <code>A</code> (Customer ID)\n  - <code>Source Return Column</code>: <code>B</code> (Customer Name)\n  - <code>Target Write Column</code>: <code>C</code> (Customer Name)", "businessTask2Step3Title": "Task 2: Enrich Customer Data (3/3)", "businessTask2Step3Instruction": "After saving the settings, run <code>MasterDataAnalyzer > Data Import Tool > \u25b6\ufe0f Run Data Comparison</code>.\n\nYou will see the customer names have been successfully imported. Repeat this process to also fill in the <code>Region</code> and <code>Salesperson</code> to complete the dashboard.", "businessTask3Step1Title": "Task 3: Compare Sales Targets (1/2)", "businessTask3Step1Instruction": "The dashboard data is becoming more complete! For the final step, let\'s compare the sales targets for each product.\n\nPlease open the <code>Data Comparison Settings</code> again.", "businessTask3Step2Title": "Task 3: Compare Sales Targets (2/2)", "businessTask3Step2Instruction": "This time, use <code>Product Name</code> as the lookup key and select <code>\"Source | Product Targets\"</code> as the source sheet.<br>Set the <code>Source Data Compare Range</code> to <code>A2:B5</code>, and configure the field mapping as follows:<br>  - <code>Target Lookup Column</code>: <code>F</code> (Product Name)<br>  - <code>Source Compare Column</code>: <code>A</code> (Product Name)<br>  - <code>Source Return Column</code>: <code>B</code> (Monthly Target)<br>  - <code>Target Write Column</code>: <code>J</code> (Monthly Target)", "businessFinalStepTitle": "Congratulations, Analysis Complete!", "businessFinalStepInstruction": "Then, run the <code>Data Comparison</code> again.\n\nAll data is now in place! You now have a clean, complete dataset ready for analysis.\n\nNext, you can manually enter or click the button below to insert formulas in the corresponding columns to complete the final calculations:\n- **Total Sales**: <code>=H2*I2</code> (Quantity * Unit Price)\n- **Achievement Rate**: <code>=G2/J2</code> (Total Sales / Monthly Target)", "businessFinalStepButton": "Insert Formulas Automatically", "businessProcessingButton": "Processing...", "businessSuccessButton": "Formulas Inserted!", "businessErrorButton": "Error, please retry", "businessCheckpoint2Title": "Task 4: Data Report Generation Settings!", "businessCheckpoint2Instruction": "Congratulations! You have successfully transformed the raw data into an analyzable dashboard with the help of MasterDataAnalyzer.\n\nWould you like to continue learning about the next core feature, \'Data Report Generation Settings\'?", "businessTask4Step1Title": "Task 4: Data Report Generation Settings (1/4)", "businessTask4Step1Instruction": "Please click on <code>MasterDataAnalyzer > Data Management Tool > \u2699\ufe0f Report Generation Settings</code> in the top menu.", "businessTask4Step2Title": "Task 4: Report Data Source Settings (2/4)", "businessTask4Step2Instruction": "In the settings window, please configure the following:\n1. <code>Source Data Select</code>: Click the <code>Select</code> button and choose the current spreadsheet file from the file picker.\n2. <code>Source Data Sheet Name</code>: Select <code>{SHEET_NAME}</code>\n3. <code>Source Data Import Range</code>: Please enter the data range to be analyzed from <code>{SHEET_NAME}</code>, for example: <code>A1:K9</code>", "businessTask4Step3Title": "Task 4: Report Field Mapping Settings (3/4)", "businessTask4Step3Instruction": "1. To generate a report, at least one combination of a dimension (Y) and a metric (X) is required. You can click <code>+Add Analysis Field</code> to map multiple sets for numerical analysis.<br>2. You can follow the example settings:<br><strong>First Set</strong>: Dimension <code>Customer Name</code>, Metric <code>Total Sales</code><br><strong>Second Set</strong>: Dimension <code>Product Name</code>, Metric <code>Monthly Target</code><br><strong>Third Set</strong>: Dimension <code>Salesperson</code>, Metric <code>Achievement Rate</code><br>3. Click <code>Save Settings</code>, then click <code>Generate Report</code>.", "businessTask4Step4Title": "Task 4: Generate and Export Report (4/4)", "businessTask4Step4Instruction": "Great, you should now see the generated chart report with multiple dimensions and metrics. Please click <code>Confirm Export</code> to generate the report in a new Google Sheet tab.", "businessFinal2StepTitle": "Congratulations, Tutorial Complete!", "businessFinal2StepInstruction": "Congratulations, you have completed the interactive tutorial for report generation and export!<br>MasterDataAnalyzer has successfully exported the report for you. You can go to the new Google Sheet tab to view or start editing the native report.", "exampleDashboardSheet_Sales": "Dashboard | Sales Analysis", "exampleSalesLogSheet_Sales": "Source | Sales Log", "exampleCustomerMasterSheet_Sales": "Source | Customer List", "exampleProductTargetsSheet_Sales": "Source | Product Targets", "productLaptop": "High-Performance Laptop", "headerProductName": "Product Name"}');
         } catch (e) {
             console.error("無法解析翻譯資料:", e);
             T = { tutorialPrev: "Previous", tutorialNext: "Next", tutorialClose: "Close", tutorialYes: "Yes", tutorialNo: "No", tutorialProgressText: "Step {CURRENT} / {TOTAL}" };
@@ -193,7 +193,7 @@
         function initializeTutorial() {
             document.getElementById('prev-btn').textContent = T.tutorialPrev;
             document.getElementById('next-btn').textContent = T.tutorialNext;
-            
+
             defineTutorialSteps();
             populateStepSelector();
             renderStep(currentStep);
@@ -217,7 +217,7 @@
                 defineManufacturingSteps();
             }
         }
-        
+
         function defineBusinessSteps() {
             const importSteps = [
                 { title: T.businessWelcomeTitle, instruction: T.businessWelcomeInstruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleDashboardSheet_Sales] } },
@@ -273,7 +273,7 @@
                     ];
                 }
             } else if (tutorialType === 'manufacturing') {
-                 if (currentCheckpoint.title === T.mfgCheckpointTitle) { 
+                 if (currentCheckpoint.title === T.mfgCheckpointTitle) {
                     nextSteps = [
                         { title: T.mfgTask2Step1Title, instruction: T.mfgTask2Step1Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
                         { title: T.mfgTask2Step2Title, instruction: T.mfgTask2Step2Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleVerifySourceSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
@@ -282,7 +282,7 @@
                         { title: T.mfgTask2FinalStepTitle, instruction: T.mfgTask2FinalStepInstruction, action: { func: 'tutorial_highlightRange', args: [T.exampleTargetSheet, "K:K"] } },
                         { isCheckpoint: true, title: T.mfgCheckpoint2Title, instruction: T.mfgCheckpoint2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } }
                     ];
-                 } else if (currentCheckpoint.title === T.mfgCheckpoint2Title) { 
+                 } else if (currentCheckpoint.title === T.mfgCheckpoint2Title) {
                     nextSteps = [
                         { title: T.mfgTask3Step1Title, instruction: T.mfgTask3Step1Instruction.replace('{SOURCE_SHEET_NAME}', T.exampleCompareSourceSheet), action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
                         { title: T.mfgTask3Step2Title, instruction: T.mfgTask3Step2Instruction, action: { func: 'tutorial_highlightSheet', args: [T.exampleTargetSheet] } },
@@ -291,7 +291,7 @@
                     ];
                  }
             }
-            
+
             tutorialSteps.splice(currentStep, 1, ...nextSteps);
 
             if (tutorialType === 'business') {
@@ -301,11 +301,11 @@
                 checkpointIndex = tutorialSteps.findIndex(step => step.title === T.mfgCheckpointTitle);
                 checkpoint2Index = tutorialSteps.findIndex(step => step.title === T.mfgCheckpoint2Title);
             }
-            
+
             populateStepSelector();
             renderStep(currentStep);
         }
-        
+
         function returnToCheckpoint() {
             if (checkpointIndex !== -1) {
                 currentStep = checkpointIndex;
@@ -352,7 +352,7 @@
             if(btn) {
                 btn.disabled = true;
                 btn.textContent = T.businessProcessingButton || 'Processing...';
-                
+
                 // For manual action, we also show the loading indicator but maybe keep it separate from the auto-step actions
                 // Or we can reuse startLoadingAnimation but we need to ensure it doesn't conflict with step navigation.
                 // Given the context, this button is a manual user trigger within a step.
@@ -384,13 +384,13 @@
             if (indicator && bar && percentText) {
                 indicator.classList.remove('hidden');
                 loadingText.textContent = T.businessProcessingButton || 'Processing...';
-                
+
                 let percent = 0;
                 bar.style.width = '0%';
                 percentText.textContent = '0%';
 
                 if (loadingInterval) clearInterval(loadingInterval);
-                
+
                 loadingInterval = setInterval(() => {
                     if (percent < 95) {
                         // Slow down as it gets higher
@@ -418,7 +418,7 @@
                     indicator.classList.add('hidden');
                     bar.style.width = '0%';
                     percentText.textContent = '0%';
-                }, 500); 
+                }, 500);
             }
         }
 
@@ -461,7 +461,7 @@
 
             const progress = ((stepIndex + 1) / tutorialSteps.length) * 100;
             document.getElementById('progress-bar').style.width = progress + '%';
-            
+
             document.getElementById('progress-text').textContent = T.tutorialProgressText
                 .replace('{CURRENT}', stepIndex + 1)
                 .replace('{TOTAL}', tutorialSteps.length);
