@@ -307,10 +307,7 @@
         }
         
         function returnToCheckpoint() {
-            if (checkpointIndex !== -1) {
-                currentStep = checkpointIndex;
-                renderStep(currentStep);
-            }
+            renderStep(currentStep);
         }
 
         function returnToStep13() {
@@ -332,6 +329,8 @@
             // Dynamic button logic
             if (tutorialType === 'business' && currentStepTitle === T.businessCheckpoint2Title) {
                 returnButtonHtml = `<button onclick="returnToStep13()" class="choice-button bg-slate-200 hover:bg-slate-300 text-slate-700">${T.businessReturnToStep13}</button>`;
+            } else if (tutorialType === 'manufacturing' && currentStepTitle === T.mfgCheckpoint2Title) {
+                returnButtonHtml = `<button onclick="returnToCheckpoint()" class="choice-button bg-slate-200 hover:bg-slate-300 text-slate-700">${T.mfgReturnToTask2Complete}</button>`;
             } else {
                 returnButtonHtml = `<button onclick="returnToCheckpoint()" class="choice-button bg-slate-200 hover:bg-slate-300 text-slate-700">${T.endTutorialReturnButton}</button>`;
             }

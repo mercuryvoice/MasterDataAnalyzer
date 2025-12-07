@@ -191,6 +191,7 @@ MasterData.TRANSLATIONS = {
         endTutorialTitle: "Tutorial Paused",
         endTutorialInstruction: "Great! You have completed the 'Data Import' section.\nYou can reopen this tutorial at any time or continue exploring other features.",
         endTutorialReturnButton: "Return to 'Task 1 Complete' step",
+        mfgReturnToTask2Complete: "Return to 'Task 2 Complete!' step",
         businessReturnToStep13: "Return to Step 13 Congratulations, Analysis Complete!",
         // Business Tutorial
         businessWelcomeTitle: "Welcome! (Business & Sales)",
@@ -778,6 +779,7 @@ MasterData.TRANSLATIONS = {
         endTutorialTitle: "教學暫告一段落",
         endTutorialInstruction: "很棒！您已完成「資料匯入」的學習。\n\n您可以隨時重新打開此教學，或繼續探索其他功能。",
         endTutorialReturnButton: "返回「任務一完成」步驟",
+        mfgReturnToTask2Complete: "返回「任務二完成！」步驟",
         businessReturnToStep13: "返回 步驟13 『恭喜您，分析完成！』步驟",
         // Business Tutorial
         businessWelcomeTitle: "歡迎！ (業務統計)",
