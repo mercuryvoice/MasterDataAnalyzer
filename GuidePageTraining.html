@@ -485,7 +485,11 @@
                 };
 
                 const runner = google.script.run
-                    .withSuccessHandler(onActionComplete)
+                    .withSuccessHandler(() => {
+                        // Keep the UI locked for 1.5s to prevent fast clicking/abnormal switching,
+                        // matching the user's requirement for a delay while avoiding the server-side toast.
+                        setTimeout(onActionComplete, 1500);
+                    })
                     .withFailureHandler(onActionComplete);
 
                 runner[step.action.func].apply(null, step.action.args || []);
