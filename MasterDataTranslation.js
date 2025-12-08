@@ -624,12 +624,12 @@ MasterData.TRANSLATIONS = {
         // --- Main Menu ---
         mainMenuTitle: 'MasterDataAnalyzer',
         // --- Sub Menus ---
-        importMenuTitle: 'Data Import Tool',
-        validationMenuTitle: 'Data Validation Tool',
-        manageMenuTitle: 'Data Management Tool',
-        guideMenuTitle: 'Guides & Examples',
+        importMenuTitle: '資料匯入工具',
+        validationMenuTitle: '資料驗證工具',
+        manageMenuTitle: '資料管理工具',
+        guideMenuTitle: '教學與範例',
         // --- Items ---
-        settingsItem: '⚙️ Data Import Settings',
+        settingsItem: '⚙️ 資料匯入設定',
         manageSettingsItem: '⚙️ Data Monitoring Management Settings',
         quickDeleteItem: '🗑️ Quick Delete Sheets',
         reportSettingsItem: '📊 Report Generation Settings',

@@ -80,10 +80,8 @@ function tutorial_highlightRange(sheetName, rangeA1) {
       sheet.activate();
       const range = sheet.getRange(rangeA1);
       range.activate();
-      const originalColors = range.getBackgrounds();
-      range.setBackground("#fffde7"); 
-      Utilities.sleep(3000); 
-      range.setBackgrounds(originalColors);
+      // Removed sleep and background color change to prevent "Running script" toast
+      // and rely on client-side delay for UI locking.
     }
   } catch (e) {
     Logger.log(`Could not highlight range "${rangeA1}" on sheet "${sheetName}": ${e.message}`);
