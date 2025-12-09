@@ -52,7 +52,7 @@ function generateManufacturingExample() {
   }
 
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
+    // SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // Define configurations using translation keys
@@ -177,7 +177,7 @@ function generateBusinessExample() {
   }
 
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
+    // SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     const DASHBOARD_CONFIG = {
