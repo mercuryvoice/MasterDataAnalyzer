@@ -118,6 +118,13 @@
             </div>
         </div>
 
+        <div class="mt-2 flex items-center justify-between">
+            <label id="auto-nav-container" class="flex items-center space-x-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" id="auto-nav-toggle" class="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out">
+                <span id="auto-nav-label"></span>
+            </label>
+        </div>
+
         <div class="mt-2">
             <select id="step-selector" class="w-full p-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500">
             </select>
@@ -153,7 +160,9 @@
         const tutorialType = "<?= tutorialType ?>"; 
 
         try {
-            T = JSON.parse('<?= translations ?>');
+            // Using safe scriptlet to inject server-side object directly as a JavaScript object
+            // This avoids JSON.parse syntax errors with unescaped characters
+            T = <?!= translations ?>;
         } catch (e) {
             console.error("無法解析翻譯資料:", e);
             T = { tutorialPrev: "Previous", tutorialNext: "Next", tutorialClose: "Close", tutorialYes: "Yes", tutorialNo: "No", tutorialProgressText: "Step {CURRENT} / {TOTAL}" };
@@ -194,6 +203,12 @@
             document.getElementById('prev-btn').textContent = T.tutorialPrev;
             document.getElementById('next-btn').textContent = T.tutorialNext;
             
+            // Set Auto-navigation toggle text and tooltip client-side to prevent server-side evaluation errors
+            const autoNavLabel = document.getElementById('auto-nav-label');
+            const autoNavContainer = document.getElementById('auto-nav-container');
+            if (autoNavLabel) autoNavLabel.textContent = T.tutorialAutoNavigation;
+            if (autoNavContainer) autoNavContainer.title = T.tutorialAutoNavigationHelp;
+
             defineTutorialSteps();
             populateStepSelector();
             renderStep(currentStep);
@@ -470,7 +485,11 @@
             prevBtn.disabled = stepIndex === 0;
             nextBtn.disabled = step.isCheckpoint;
 
-            if (step.action && step.action.func) {
+            // Check the state of the toggle
+            const toggle = document.getElementById('auto-nav-toggle');
+            const isAutoNavEnabled = toggle ? toggle.checked : false;
+
+            if (step.action && step.action.func && isAutoNavEnabled) {
                 prevBtn.disabled = true;
                 nextBtn.disabled = true;
                 selector.disabled = true;
