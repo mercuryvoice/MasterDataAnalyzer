@@ -135,13 +135,13 @@ function generateManufacturingExample() {
     
     const createdSheets = sheetsToCreate.map(config => createAndFormatSheet_(ss, config, false));
     
-    SpreadsheetApp.flush();
+    // SpreadsheetApp.flush();
 
-    createdSheets.forEach(sheet => {
-      if (sheet && sheet.getLastColumn() > 0) {
-        sheet.autoResizeColumns(1, sheet.getLastColumn());
-      }
-    });
+    // createdSheets.forEach(sheet => {
+    //   if (sheet && sheet.getLastColumn() > 0) {
+    //     sheet.autoResizeColumns(1, sheet.getLastColumn());
+    //   }
+    // });
 
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generationSuccessBody, T.generationSuccessTitle, 5);
 
@@ -236,13 +236,13 @@ function generateBusinessExample() {
     
     const createdSheets = sheetsToCreate.map(config => createAndFormatSheet_(ss, config, false));
 
-    SpreadsheetApp.flush();
+    // SpreadsheetApp.flush();
 
-    createdSheets.forEach(sheet => {
-      if (sheet && sheet.getLastColumn() > 0) {
-        sheet.autoResizeColumns(1, sheet.getLastColumn());
-      }
-    });
+    // createdSheets.forEach(sheet => {
+    //   if (sheet && sheet.getLastColumn() > 0) {
+    //     sheet.autoResizeColumns(1, sheet.getLastColumn());
+    //   }
+    // });
 
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generationSuccessBodySales, T.generationSuccessTitle, 5);
 
