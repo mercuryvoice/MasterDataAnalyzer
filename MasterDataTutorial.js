@@ -77,11 +77,11 @@ function tutorial_highlightRange(sheetName, rangeA1) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(sheetName);
     if (sheet) {
-      sheet.activate();
+      // range.activate() automatically switches to the sheet,
+      // so explicit sheet.activate() is redundant.
+      // Keeping this function minimal helps reduce the duration of the "Running script" toast.
       const range = sheet.getRange(rangeA1);
       range.activate();
-      // Removed sleep and background color change to prevent "Running script" toast
-      // and rely on client-side delay for UI locking.
     }
   } catch (e) {
     Logger.log(`Could not highlight range "${rangeA1}" on sheet "${sheetName}": ${e.message}`);
