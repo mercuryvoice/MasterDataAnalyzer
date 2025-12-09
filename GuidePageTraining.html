@@ -131,20 +131,10 @@
             <button id="next-btn" class="nav-button bg-blue-600 hover:bg-blue-700 text-white"></button>
         </div>
 
-        <div id="loading-indicator" class="mt-3 hidden transition-opacity duration-300">
-            <div class="flex justify-between items-center mb-1">
-                <span id="loading-text" class="text-xs font-medium text-slate-500"></span>
-                <span id="loading-percent" class="text-xs font-medium text-slate-500">0%</span>
-            </div>
-            <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div id="loading-bar" class="h-full bg-blue-500 transition-all duration-300 ease-out" style="width: 0%"></div>
-            </div>
-        </div>
     </div>
 
     <script>
         let currentStep = 0;
-        let loadingInterval;
         let tutorialSteps = [];
         let T;
         let checkpointIndex = -1;
@@ -351,73 +341,18 @@
             if(btn) {
                 btn.disabled = true;
                 btn.textContent = T.businessProcessingButton || 'Processing...';
-                
-                // For manual action, we also show the loading indicator but maybe keep it separate from the auto-step actions
-                // Or we can reuse startLoadingAnimation but we need to ensure it doesn't conflict with step navigation.
-                // Given the context, this button is a manual user trigger within a step.
-                // Let's use the loading animation for consistency.
-                startLoadingAnimation();
 
                 google.script.run
                     .withSuccessHandler(() => {
-                        stopLoadingAnimation();
                         btn.textContent = T.businessSuccessButton || 'Formulas Inserted!';
                         google.script.run.tutorial_highlightRange(T.exampleDashboardSheet_Sales, "G:K");
                     })
                     .withFailureHandler((err) => {
-                        stopLoadingAnimation();
                         btn.textContent = T.businessErrorButton || 'Error, please retry';
                         btn.disabled = false;
                         alert(err);
                     })
                     .insertSalesMetricsFormulas();
-            }
-        }
-
-        function startLoadingAnimation() {
-            const indicator = document.getElementById('loading-indicator');
-            const bar = document.getElementById('loading-bar');
-            const percentText = document.getElementById('loading-percent');
-            const loadingText = document.getElementById('loading-text');
-
-            if (indicator && bar && percentText) {
-                indicator.classList.remove('hidden');
-                loadingText.textContent = T.businessProcessingButton || 'Processing...';
-                
-                let percent = 0;
-                bar.style.width = '0%';
-                percentText.textContent = '0%';
-
-                if (loadingInterval) clearInterval(loadingInterval);
-                
-                loadingInterval = setInterval(() => {
-                    if (percent < 95) {
-                        // Slow down as it gets higher
-                        const increment = Math.max(1, (95 - percent) / 10);
-                        percent += increment;
-                        bar.style.width = percent + '%';
-                        percentText.textContent = Math.round(percent) + '%';
-                    }
-                }, 100);
-            }
-        }
-
-        function stopLoadingAnimation() {
-            if (loadingInterval) clearInterval(loadingInterval);
-
-            const indicator = document.getElementById('loading-indicator');
-            const bar = document.getElementById('loading-bar');
-            const percentText = document.getElementById('loading-percent');
-
-            if (indicator && bar && percentText) {
-                bar.style.width = '100%';
-                percentText.textContent = '100%';
-
-                setTimeout(() => {
-                    indicator.classList.add('hidden');
-                    bar.style.width = '0%';
-                    percentText.textContent = '0%';
-                }, 500); 
             }
         }
 
@@ -475,10 +410,7 @@
                 nextBtn.disabled = true;
                 selector.disabled = true;
 
-                startLoadingAnimation();
-
                 const onActionComplete = () => {
-                    stopLoadingAnimation();
                     prevBtn.disabled = stepIndex === 0;
                     nextBtn.disabled = step.isCheckpoint;
                     selector.disabled = false;
