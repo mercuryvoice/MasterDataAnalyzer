@@ -52,7 +52,7 @@ function generateManufacturingExample() {
   }
 
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
+    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 1);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // Define configurations using translation keys
@@ -137,12 +137,13 @@ function generateManufacturingExample() {
     
     SpreadsheetApp.flush();
 
-    createdSheets.forEach(sheet => {
-      if (sheet && sheet.getLastColumn() > 0) {
-        sheet.autoResizeColumns(1, sheet.getLastColumn());
-      }
-    });
+    // createdSheets.forEach(sheet => {
+    //   if (sheet && sheet.getLastColumn() > 0) {
+    //     sheet.autoResizeColumns(1, sheet.getLastColumn());
+    //   }
+    // });
 
+    SpreadsheetApp.flush();
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generationSuccessBody, T.generationSuccessTitle, 5);
 
   } catch (e) {
@@ -177,7 +178,7 @@ function generateBusinessExample() {
   }
 
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
+    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 1);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     const DASHBOARD_CONFIG = {
@@ -238,12 +239,13 @@ function generateBusinessExample() {
 
     SpreadsheetApp.flush();
 
-    createdSheets.forEach(sheet => {
-      if (sheet && sheet.getLastColumn() > 0) {
-        sheet.autoResizeColumns(1, sheet.getLastColumn());
-      }
-    });
+    // createdSheets.forEach(sheet => {
+    //   if (sheet && sheet.getLastColumn() > 0) {
+    //     sheet.autoResizeColumns(1, sheet.getLastColumn());
+    //   }
+    // });
 
+    SpreadsheetApp.flush();
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generationSuccessBodySales, T.generationSuccessTitle, 5);
 
   } catch (e) {
@@ -383,9 +385,9 @@ function createAndFormatSheet_(ss, sheetConfig, autoResize = true) {
     }
   }
   
-  if (autoResize && sheet.getLastColumn() > 0) {
-    sheet.autoResizeColumns(1, sheet.getLastColumn());
-  }
+  // if (autoResize && sheet.getLastColumn() > 0) {
+  //   sheet.autoResizeColumns(1, sheet.getLastColumn());
+  // }
   
   return sheet;
 }
