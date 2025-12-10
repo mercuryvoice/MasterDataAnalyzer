@@ -34,22 +34,28 @@
 // ================================================================
 
 /**
- * Generates the complete set of sheets and data for the Manufacturing use case.
+ * [REFACTORED] Entry point: Shows confirmation dialog (non-blocking).
  */
 function generateManufacturingExample() {
-  const ui = SpreadsheetApp.getUi();
   const T = MasterData.getTranslations();
 
-  const response = ui.alert(
-    T.manufacturingGuide,
-    T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four'),
-    ui.ButtonSet.YES_NO
-  );
+  const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+  htmlTemplate.title = T.manufacturingGuide;
+  htmlTemplate.message = T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four');
+  htmlTemplate.type = 'confirm';
+  htmlTemplate.callback = 'generateManufacturingExample_Step2';
+  htmlTemplate.args = [];
+  htmlTemplate.T = T;
 
-  if (response !== ui.Button.YES) {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.operationCancelled);
-    return;
-  }
+  SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), T.manufacturingGuide);
+}
+
+/**
+ * [REFACTORED] Step 2: Generates the complete set of sheets and data for the Manufacturing use case.
+ */
+function generateManufacturingExample_Step2() {
+  const ui = SpreadsheetApp.getUi();
+  const T = MasterData.getTranslations();
 
   try {
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
@@ -155,8 +161,10 @@ function generateManufacturingExample() {
 // SECTION 2: BUSINESS & SALES EXAMPLE DATA & FUNCTIONS
 // ================================================================
 
+/**
+ * [REFACTORED] Entry point: Shows confirmation dialog (non-blocking).
+ */
 function generateBusinessExample() {
-  const ui = SpreadsheetApp.getUi();
   const T = MasterData.getTranslations();
 
   if (Session.getActiveUserLocale().startsWith('zh')) {
@@ -165,15 +173,28 @@ function generateBusinessExample() {
     T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   }
 
-  const response = ui.alert(
-    T.businessGuide,
-    T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four'),
-    ui.ButtonSet.YES_NO
-  );
+  const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+  htmlTemplate.title = T.businessGuide;
+  htmlTemplate.message = T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four');
+  htmlTemplate.type = 'confirm';
+  htmlTemplate.callback = 'generateBusinessExample_Step2';
+  htmlTemplate.args = [];
+  htmlTemplate.T = T;
 
-  if (response !== ui.Button.YES) {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.operationCancelled);
-    return;
+  SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), T.businessGuide);
+}
+
+/**
+ * [REFACTORED] Step 2: Generates the complete set of sheets and data for the Business use case.
+ */
+function generateBusinessExample_Step2() {
+  const ui = SpreadsheetApp.getUi();
+  const T = MasterData.getTranslations();
+
+  if (Session.getActiveUserLocale().startsWith('zh')) {
+    T.exampleCustomerMasterSheet_Sales = '[來源] 客戶清單';
+  } else {
+    T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   }
 
   try {

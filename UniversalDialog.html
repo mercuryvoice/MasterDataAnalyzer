@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans TC', sans-serif;
+        padding: 20px;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        background-color: white;
+      }
+      .message {
+        flex-grow: 1;
+        white-space: pre-wrap;
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-y: auto;
+        margin-bottom: 20px;
+      }
+      .buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #eee;
+      }
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+      }
+      .btn-primary {
+        background-color: #007bff;
+        color: white;
+      }
+      .btn-primary:hover {
+        background-color: #0056b3;
+      }
+      .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+      }
+      .btn-secondary:hover {
+        background-color: #545b62;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="message"><?= message ?></div>
+    <div class="buttons">
+      <? if (type === 'confirm') { ?>
+        <button class="btn-secondary" onclick="closeDialog()"><?= T.cancelButton || 'Cancel' ?></button>
+        <button class="btn-primary" onclick="confirmAction()"><?= T.tutorialYes || 'Yes, continue' ?></button>
+      <? } else { ?>
+        <button class="btn-primary" onclick="closeDialog()"><?= T.okButton || 'OK' ?></button>
+      <? } ?>
+    </div>
+    <script>
+      function closeDialog() {
+        google.script.host.close();
+      }
+
+      function confirmAction() {
+        var func = "<?= callback ?>";
+        // Safe injection of args array
+        var args = <?= JSON.stringify(args || []) ?>;
+
+        // Show loading state on button
+        var btn = document.querySelector('.btn-primary');
+        var originalText = btn.textContent;
+        btn.textContent = '...';
+        btn.disabled = true;
+
+        if (func && google.script.run[func]) {
+          google.script.run
+            .withSuccessHandler(function() {
+              google.script.host.close();
+            })
+            .withFailureHandler(function(e) {
+              alert('Error: ' + e.message);
+              google.script.host.close();
+            })
+            [func](...args);
+        } else {
+          console.error('Function not found: ' + func);
+          google.script.host.close();
+        }
+      }
+    </script>
+  </body>
+</html>

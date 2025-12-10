@@ -999,9 +999,67 @@ function resetAllState() {
 }
 
 /**
- * Main function to run the data comparison process.
+ * [REFACTORED] Step 1: Pre-check for blocking warnings.
+ */
+function compare_preCheck() {
+    const activeSheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
+    const T = MasterData.getTranslations();
+    const settings = import_getCompareSettings(activeSheetName);
+
+    if (!settings || !settings.sourceFileId) {
+        return { status: 'error', message: T.errorNoCompareSettingsFound };
+    }
+
+    // --- Pre-flight check for SOURCE ---
+    const sourceValidation = import_checkSourceCompareField(settings);
+    if (!sourceValidation.isValid) {
+        const confirmationMessage = T.preCheckWarningBody
+            .replace('{COLUMN}', settings.sourceLookupCol)
+            .replace('{MESSAGE}', sourceValidation.message);
+        return { status: 'warning', message: confirmationMessage, title: T.preCheckWarningTitle };
+    }
+
+    // --- Pre-flight check for TARGET ---
+    const targetValidation = import_checkTargetLookupField(settings);
+    if (!targetValidation.isValid) {
+        const confirmationMessage = T.preCheckWarningBodyTarget
+            .replace('{COLUMN}', settings.targetLookupCol)
+            .replace('{MESSAGE}', targetValidation.message);
+        return { status: 'warning', message: confirmationMessage, title: T.preCheckWarningTitle };
+    }
+
+    return { status: 'ok' };
+}
+
+/**
+ * [REFACTORED] Wrapper for runCompareProcess.
  */
 function runCompareProcess() {
+    const T = MasterData.getTranslations();
+    const checkResult = compare_preCheck();
+
+    if (checkResult.status === 'error') {
+        SpreadsheetApp.getUi().alert(T.compareFailedTitle || 'Failed', checkResult.message, SpreadsheetApp.getUi().ButtonSet.OK);
+    } else if (checkResult.status === 'warning') {
+        // Use UniversalDialog for non-blocking confirmation
+        const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+        htmlTemplate.title = checkResult.title;
+        htmlTemplate.message = checkResult.message;
+        htmlTemplate.type = 'confirm';
+        htmlTemplate.callback = 'runCompareProcess_Step2';
+        htmlTemplate.args = [];
+        htmlTemplate.T = T;
+
+        SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), checkResult.title);
+    } else {
+        runCompareProcess_Step2();
+    }
+}
+
+/**
+ * [REFACTORED] Main function to run the data comparison process (logic moved here).
+ */
+function runCompareProcess_Step2() {
     const ui = SpreadsheetApp.getUi();
     const activeSheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
     const T = MasterData.getTranslations();
@@ -1011,31 +1069,8 @@ function runCompareProcess() {
             throw new Error(T.errorNoCompareSettingsFound);
         }
 
-        // --- Pre-flight check for SOURCE ---
-        const sourceValidation = import_checkSourceCompareField(settings);
-        if (!sourceValidation.isValid) {
-            const confirmationMessage = T.preCheckWarningBody
-                .replace('{COLUMN}', settings.sourceLookupCol)
-                .replace('{MESSAGE}', sourceValidation.message);
-            const response = ui.alert(T.preCheckWarningTitle, confirmationMessage, ui.ButtonSet.YES_NO);
-            if (response !== ui.Button.YES) {
-                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, T.toastTitleInfo || 'Cancelled', 5);
-                return;
-            }
-        }
-
-        // --- Pre-flight check for TARGET ---
-        const targetValidation = import_checkTargetLookupField(settings);
-        if (!targetValidation.isValid) {
-            const confirmationMessage = T.preCheckWarningBodyTarget
-                .replace('{COLUMN}', settings.targetLookupCol)
-                .replace('{MESSAGE}', targetValidation.message);
-            const response = ui.alert(T.preCheckWarningTitle, confirmationMessage, ui.ButtonSet.YES_NO);
-            if (response !== ui.Button.YES) {
-                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, T.toastTitleInfo || 'Cancelled', 5);
-                return;
-            }
-        }
+        // Checks already done in Step 1, but keep safety checks here just in case direct call
+        // Not re-running deep validation to save time and avoid redundancy if called via Step 1.
 
         SpreadsheetApp.getActiveSpreadsheet().toast(T.compareStartToast, T.toastTitleProcessing, 10);
 
