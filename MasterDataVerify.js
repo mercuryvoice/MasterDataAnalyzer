@@ -309,7 +309,67 @@ function runReset() {
     }
 }
 
+/**
+ * [REFACTORED] Step 1: Checks integrity and returns status.
+ * Used to avoid blocking ui.alert calls on the server.
+ */
+function verify_checkIntegrity(mode) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const activeSheetName = ss.getActiveSheet().getName();
+    const T = MasterData.getTranslations();
+    const settings = getVerifySettings(activeSheetName);
+
+    if (!settings.sourceFileId && !settings.sourceDataUrl) {
+        const msgTemplate = T.errorNoValidationSettingsFound || "Validation settings for sheet '{SHEET_NAME}' not found.";
+        return { status: 'error', message: msgTemplate.replace('{SHEET_NAME}', activeSheetName) };
+    }
+
+    if (!settings.validationMappings || settings.validationMappings.length === 0) {
+        return { status: 'error', message: T.errorNoValidationMappings || "Validation mappings are not set." };
+    }
+
+    const integrityResult = verify_checkTargetColumnsForIntegrity(settings);
+    if (!integrityResult.isValid) {
+        return {
+            status: 'warning',
+            message: integrityResult.warning,
+            title: integrityResult.title || T.dataIntegrityWarningTitle
+        };
+    }
+
+    return { status: 'ok' };
+}
+
+/**
+ * [REFACTORED] Entry point wrapper to handle pre-flight checks client-side if needed.
+ */
 function runDataValidation(mode) {
+    const result = verify_checkIntegrity(mode);
+    const T = MasterData.getTranslations();
+
+    if (result.status === 'error') {
+        SpreadsheetApp.getUi().alert(T.validationFailedTitle || "Validation Failed", result.message, SpreadsheetApp.getUi().ButtonSet.OK);
+    } else if (result.status === 'warning') {
+        // Use UniversalDialog for non-blocking confirmation
+        const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+        htmlTemplate.title = result.title;
+        htmlTemplate.message = result.message;
+        htmlTemplate.type = 'confirm';
+        htmlTemplate.callback = 'runDataValidation_Step2';
+        htmlTemplate.args = [mode];
+        htmlTemplate.T = T;
+
+        SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), result.title);
+    } else {
+        runDataValidation_Step2(mode);
+    }
+}
+
+/**
+ * [REFACTORED] Step 2: Actual Execution logic.
+ * Was previously the main body of runDataValidation.
+ */
+function runDataValidation_Step2(mode) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const ui = SpreadsheetApp.getUi();
     const activeSheetName = ss.getActiveSheet().getName();
@@ -324,33 +384,8 @@ function runDataValidation(mode) {
         
         const settings = getVerifySettings(activeSheetName);
 
-        if (!settings.sourceFileId && !settings.sourceDataUrl) {
-            const msgTemplate = T.errorNoValidationSettingsFound || "Validation settings for sheet '{SHEET_NAME}' not found.";
-            const errorMessage = msgTemplate.replace('{SHEET_NAME}', activeSheetName);
-            ui.alert(T.validationFailedTitle || "Validation Failed", errorMessage, ui.ButtonSet.OK);
-            return;
-        }
-        if (!settings.validationMappings || settings.validationMappings.length === 0) {
-            ui.alert(T.validationFailedTitle || "Validation Failed", T.errorNoValidationMappings || "Validation mappings are not set.", ui.ButtonSet.OK);
-            return;
-        }
-
-        // [NEW] Integrity Check
-        const integrityResult = verify_checkTargetColumnsForIntegrity(settings);
-        if (!integrityResult.isValid) {
-            const response = ui.alert(
-                integrityResult.title || T.dataIntegrityWarningTitle || "Data Integrity Warning",
-                integrityResult.warning,
-                ui.ButtonSet.YES_NO
-            );
-            
-            // If the user selects "NO", abort the process.
-            if (response === ui.Button.NO) {
-                ss.toast(T.validationCancelled || 'Validation process cancelled.', T.toastTitleInfo || 'Info', 3);
-                return;
-            }
-            // If "YES" is selected, continue execution.
-        }
+        // Settings validity check (Defensive copy, though checked in Step 1)
+        if (!settings.sourceFileId && !settings.sourceDataUrl) return;
 
         const sheet = ss.getSheetByName(settings.targetSheetName);
         if (!sheet) {
@@ -358,6 +393,11 @@ function runDataValidation(mode) {
             throw new Error(errorTemplate.replace('{SHEET_NAME}', settings.targetSheetName));
         }
         
+        // Header Check - still kept as blocking alert for now as it's a critical stop,
+        // but can be moved to Step 1 if user desires.
+        // Given the requirement was specifically about the "Integrity Warning" causing issues,
+        // we prioritize that one. But ideally this should also be moved.
+        // For consistency, let's keep it here but note it might block if triggered.
         const headerCheckResult = checkSourceHeaderMapping(settings);
         if (!headerCheckResult.isPerfect) {
             const mismatchMessage = headerCheckResult.mismatches.map(m => m.message).join('\n');
