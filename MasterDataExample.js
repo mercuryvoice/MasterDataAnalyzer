@@ -52,7 +52,6 @@ function generateManufacturingExample() {
   }
 
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 1);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     // Define configurations using translation keys
@@ -133,17 +132,15 @@ function generateManufacturingExample() {
       TARGET_SHEET_CONFIG_MFG
     ];
     
-    const createdSheets = sheetsToCreate.map(config => createAndFormatSheet_(ss, config, false));
+    const createdSheets = [];
+    for (const config of sheetsToCreate) {
+      createdSheets.push(createAndFormatSheet_(ss, config, false));
+      SpreadsheetApp.flush();
+      Utilities.sleep(200);
+    }
     
     SpreadsheetApp.flush();
-
-    // createdSheets.forEach(sheet => {
-    //   if (sheet && sheet.getLastColumn() > 0) {
-    //     sheet.autoResizeColumns(1, sheet.getLastColumn());
-    //   }
-    // });
-
-    SpreadsheetApp.flush();
+    Utilities.sleep(500);
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generationSuccessBody, T.generationSuccessTitle, 5);
 
   } catch (e) {
@@ -178,7 +175,6 @@ function generateBusinessExample() {
   }
 
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 1);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     const DASHBOARD_CONFIG = {
@@ -235,17 +231,15 @@ function generateBusinessExample() {
       DASHBOARD_CONFIG
     ];
     
-    const createdSheets = sheetsToCreate.map(config => createAndFormatSheet_(ss, config, false));
+    const createdSheets = [];
+    for (const config of sheetsToCreate) {
+      createdSheets.push(createAndFormatSheet_(ss, config, false));
+      SpreadsheetApp.flush();
+      Utilities.sleep(200);
+    }
 
     SpreadsheetApp.flush();
-
-    // createdSheets.forEach(sheet => {
-    //   if (sheet && sheet.getLastColumn() > 0) {
-    //     sheet.autoResizeColumns(1, sheet.getLastColumn());
-    //   }
-    // });
-
-    SpreadsheetApp.flush();
+    Utilities.sleep(500);
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generationSuccessBodySales, T.generationSuccessTitle, 5);
 
   } catch (e) {
@@ -384,10 +378,6 @@ function createAndFormatSheet_(ss, sheetConfig, autoResize = true) {
         sheet.getRange(1, 1, 1, data[0].length).setFontWeight('bold');
     }
   }
-  
-  // if (autoResize && sheet.getLastColumn() > 0) {
-  //   sheet.autoResizeColumns(1, sheet.getLastColumn());
-  // }
   
   return sheet;
 }
