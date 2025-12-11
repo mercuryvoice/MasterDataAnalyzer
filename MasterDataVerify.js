@@ -402,13 +402,13 @@ function runDataValidation_Step2(mode) {
         if (!headerCheckResult.isPerfect) {
             const mismatchMessage = headerCheckResult.mismatches.map(m => m.message).join('\n');
             let alertMsg = (T.checkResultMismatches || "Header mismatches found:") + '\n' + mismatchMessage + '\n\n';
-            ui.alert(T.checkResultTitle || "Check Results", alertMsg, ui.ButtonSet.OK);
+            showVerifyErrorDialog(T.checkResultTitle || "Check Results", alertMsg);
             return;
         }
 
         const lastRow = sheet.getLastRow();
         if (lastRow < settings.startRow) {
-            ui.alert(T.noDataTitle || 'No Data', T.noDataAfterStartRow || 'No data found after the configured start row.', ui.ButtonSet.OK);
+            showVerifyErrorDialog(T.noDataTitle || 'No Data', T.noDataAfterStartRow || 'No data found after the configured start row.');
             return;
         }
         
@@ -420,7 +420,7 @@ function runDataValidation_Step2(mode) {
         const taskMap = new Map(tasksToProcess.map(t => [t.originalRowIndex, t]));
         
         if (tasksToProcess.length === 0) {
-            ui.alert(T.noProcessableDataTitle || 'No Processable Data', T.noProcessableRowsFoundGeneric || 'No rows containing validation field data were found.', ui.ButtonSet.OK);
+            showVerifyErrorDialog(T.noProcessableDataTitle || 'No Processable Data', T.noProcessableRowsFoundGeneric || 'No rows containing validation field data were found.');
             return;
         }
 
@@ -1037,6 +1037,18 @@ function processSingleTask(task, extMap, settings, mode, targetSsId, T) {
         });
     }
     return { childRows };
+}
+
+function showVerifyErrorDialog(title, message) {
+    const T = MasterData.getTranslations();
+    const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+    htmlTemplate.title = title;
+    htmlTemplate.message = message;
+    htmlTemplate.type = 'alert';
+    htmlTemplate.callback = null;
+    htmlTemplate.args = [];
+    htmlTemplate.T = T;
+    SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), title);
 }
 
 function cleanupMsRowGroups(processedResults, taskMap) {

@@ -153,7 +153,7 @@ function generateManufacturingExample_Step2() {
 
   } catch (e) {
     Logger.log(`Error generating manufacturing example: ${e.stack}`);
-    ui.alert('錯誤', `生成範例時發生錯誤: ${e.message}`);
+    showExampleErrorDialog('錯誤', `生成範例時發生錯誤: ${e.message}`);
   }
 }
 
@@ -269,7 +269,7 @@ function generateBusinessExample_Step2() {
 
   } catch (e) {
     Logger.log(`Error generating business example: ${e.stack}`);
-    ui.alert('錯誤', `生成範例時發生錯誤: ${e.message}`);
+    showExampleErrorDialog('錯誤', `生成範例時發生錯誤: ${e.message}`);
   }
 }
 
@@ -307,7 +307,7 @@ function deleteExampleSheets() {
   const sheetsToDelete = allSheets.filter(sheet => allPossibleExampleSheetNames.has(sheet.getName()));
 
   if (sheetsToDelete.length === 0) {
-    ui.alert(T.noExampleSheetsFound);
+    showExampleErrorDialog(T.toastTitleInfo || 'Info', T.noExampleSheetsFound);
     return;
   }
 
@@ -352,6 +352,18 @@ function deleteExampleSheets_Step2(sheetNames) {
 // ================================================================
 // SECTION 4: SHARED HELPER FUNCTIONS
 // ================================================================
+
+function showExampleErrorDialog(title, message) {
+    const T = MasterData.getTranslations();
+    const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+    htmlTemplate.title = title;
+    htmlTemplate.message = message;
+    htmlTemplate.type = 'alert';
+    htmlTemplate.callback = null;
+    htmlTemplate.args = [];
+    htmlTemplate.T = T;
+    SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), title);
+}
 
 function createAndFormatSheet_(ss, sheetConfig, autoResize = true) {
   let sheet = ss.getSheetByName(sheetConfig.name);
