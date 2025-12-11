@@ -589,7 +589,7 @@
       // --- 5. Create Picker ---
       function createPicker() {
         try {
-          const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true);
+          const docsView = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS).setIncludeFolders(true);
           const builder = new google.picker.PickerBuilder()
             .setDeveloperKey(keys.apiKey)
             .setAppId(keys.appId)
