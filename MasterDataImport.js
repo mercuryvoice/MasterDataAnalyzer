@@ -1041,8 +1041,8 @@ function runCompareProcess() {
     if (checkResult.status === 'error') {
         SpreadsheetApp.getUi().alert(T.compareFailedTitle || 'Failed', checkResult.message, SpreadsheetApp.getUi().ButtonSet.OK);
     } else if (checkResult.status === 'warning') {
-        // Use UniversalDialog for non-blocking confirmation
-        const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+        // Use MasterDataDialog for non-blocking confirmation
+        const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
         htmlTemplate.title = checkResult.title;
         htmlTemplate.message = checkResult.message;
         htmlTemplate.type = 'confirm';

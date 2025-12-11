@@ -350,8 +350,8 @@ function runDataValidation(mode) {
     if (result.status === 'error') {
         SpreadsheetApp.getUi().alert(T.validationFailedTitle || "Validation Failed", result.message, SpreadsheetApp.getUi().ButtonSet.OK);
     } else if (result.status === 'warning') {
-        // Use UniversalDialog for non-blocking confirmation
-        const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+        // Use MasterDataDialog for non-blocking confirmation
+        const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
         htmlTemplate.title = result.title;
         htmlTemplate.message = result.message;
         htmlTemplate.type = 'confirm';

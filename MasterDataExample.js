@@ -39,7 +39,7 @@
 function generateManufacturingExample() {
   const T = MasterData.getTranslations();
 
-  const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+  const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
   htmlTemplate.title = T.manufacturingGuide;
   htmlTemplate.message = T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four');
   htmlTemplate.type = 'confirm';
@@ -173,7 +173,7 @@ function generateBusinessExample() {
     T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   }
 
-  const htmlTemplate = HtmlService.createTemplateFromFile('UniversalDialog');
+  const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
   htmlTemplate.title = T.businessGuide;
   htmlTemplate.message = T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four');
   htmlTemplate.type = 'confirm';
