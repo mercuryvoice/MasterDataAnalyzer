@@ -34,22 +34,28 @@
 // ================================================================
 
 /**
- * Generates the complete set of sheets and data for the Manufacturing use case.
+ * [REFACTORED] Entry point: Shows confirmation dialog (non-blocking).
  */
 function generateManufacturingExample() {
+  const T = MasterData.getTranslations();
+  
+  const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+  htmlTemplate.title = T.manufacturingGuide;
+  htmlTemplate.message = T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four');
+  htmlTemplate.type = 'confirm';
+  htmlTemplate.callback = 'generateManufacturingExample_Step2';
+  htmlTemplate.args = [];
+  htmlTemplate.T = T;
+  
+  SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), T.manufacturingGuide);
+}
+
+/**
+ * [REFACTORED] Step 2: Generates the complete set of sheets and data for the Manufacturing use case.
+ */
+function generateManufacturingExample_Step2() {
   const ui = SpreadsheetApp.getUi();
   const T = MasterData.getTranslations();
-
-  const response = ui.alert(
-    T.manufacturingGuide,
-    T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four'),
-    ui.ButtonSet.YES_NO
-  );
-
-  if (response !== ui.Button.YES) {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.operationCancelled);
-    return;
-  }
 
   try {
     SpreadsheetApp.getActiveSpreadsheet().toast(T.generatingExampleBody, T.generatingExampleProcess, 10);
@@ -147,7 +153,7 @@ function generateManufacturingExample() {
 
   } catch (e) {
     Logger.log(`Error generating manufacturing example: ${e.stack}`);
-    ui.alert('錯誤', `生成範例時發生錯誤: ${e.message}`);
+    showExampleErrorDialog('錯誤', `生成範例時發生錯誤: ${e.message}`);
   }
 }
 
@@ -155,8 +161,10 @@ function generateManufacturingExample() {
 // SECTION 2: BUSINESS & SALES EXAMPLE DATA & FUNCTIONS
 // ================================================================
 
+/**
+ * [REFACTORED] Entry point: Shows confirmation dialog (non-blocking).
+ */
 function generateBusinessExample() {
-  const ui = SpreadsheetApp.getUi();
   const T = MasterData.getTranslations();
 
   if (Session.getActiveUserLocale().startsWith('zh')) {
@@ -165,15 +173,28 @@ function generateBusinessExample() {
     T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   }
 
-  const response = ui.alert(
-    T.businessGuide,
-    T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four'),
-    ui.ButtonSet.YES_NO
-  );
+  const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+  htmlTemplate.title = T.businessGuide;
+  htmlTemplate.message = T.exampleGenerationConfirmBody.replace('三個', '四個').replace('three', 'four');
+  htmlTemplate.type = 'confirm';
+  htmlTemplate.callback = 'generateBusinessExample_Step2';
+  htmlTemplate.args = [];
+  htmlTemplate.T = T;
+  
+  SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), T.businessGuide);
+}
 
-  if (response !== ui.Button.YES) {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.operationCancelled);
-    return;
+/**
+ * [REFACTORED] Step 2: Generates the complete set of sheets and data for the Business use case.
+ */
+function generateBusinessExample_Step2() {
+  const ui = SpreadsheetApp.getUi();
+  const T = MasterData.getTranslations();
+
+  if (Session.getActiveUserLocale().startsWith('zh')) {
+    T.exampleCustomerMasterSheet_Sales = '[來源] 客戶清單';
+  } else {
+    T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   }
 
   try {
@@ -248,7 +269,7 @@ function generateBusinessExample() {
 
   } catch (e) {
     Logger.log(`Error generating business example: ${e.stack}`);
-    ui.alert('錯誤', `生成範例時發生錯誤: ${e.message}`);
+    showExampleErrorDialog('錯誤', `生成範例時發生錯誤: ${e.message}`);
   }
 }
 
@@ -256,6 +277,9 @@ function generateBusinessExample() {
 // SECTION 3: DELETE EXAMPLE FUNCTION
 // ================================================================
 
+/**
+ * [REFACTORED] Entry point: Check sheets and show confirmation (non-blocking).
+ */
 function deleteExampleSheets() {
   const ui = SpreadsheetApp.getUi();
   const T = MasterData.getTranslations();
@@ -265,9 +289,9 @@ function deleteExampleSheets() {
   const en_T = MasterData.TRANSLATIONS.en;
   const zh_TW_T = MasterData.TRANSLATIONS.zh_TW;
   
+  // Ensure we check for all potential localized names
   en_T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   zh_TW_T.exampleCustomerMasterSheet_Sales = '[來源] 客戶清單';
-
 
   const allPossibleExampleSheetNames = new Set([
     en_T.exampleTargetSheet, zh_TW_T.exampleTargetSheet,
@@ -283,30 +307,63 @@ function deleteExampleSheets() {
   const sheetsToDelete = allSheets.filter(sheet => allPossibleExampleSheetNames.has(sheet.getName()));
 
   if (sheetsToDelete.length === 0) {
-    ui.alert(T.noExampleSheetsFound);
+    showExampleErrorDialog(T.toastTitleInfo || 'Info', T.noExampleSheetsFound);
     return;
   }
 
-  const sheetList = sheetsToDelete.map(sheet => `- ${sheet.getName()}`).join('\n');
+  const sheetNames = sheetsToDelete.map(sheet => sheet.getName());
+  const sheetList = sheetNames.map(name => `- ${name}`).join('\n');
   const confirmMessage = T.deleteExampleConfirmBody.replace('{SHEET_LIST}', sheetList);
   
-  const response = ui.alert(T.deleteExampleConfirmTitle, confirmMessage, ui.ButtonSet.YES_NO);
+  // Use MasterDataDialog for confirmation
+  const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+  htmlTemplate.title = T.deleteExampleConfirmTitle;
+  htmlTemplate.message = confirmMessage;
+  htmlTemplate.type = 'confirm';
+  htmlTemplate.callback = 'deleteExampleSheets_Step2';
+  htmlTemplate.args = [sheetNames];
+  htmlTemplate.T = T;
+  
+  SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(400), T.deleteExampleConfirmTitle);
+}
 
-  if (response === ui.Button.YES) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Deleting sheets...', T.generatingExampleProcess, 10);
-    sheetsToDelete.forEach(sheet => {
-      ss.deleteSheet(sheet);
+/**
+ * [REFACTORED] Step 2: Execute deletion.
+ */
+function deleteExampleSheets_Step2(sheetNames) {
+  const T = MasterData.getTranslations();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  SpreadsheetApp.getActiveSpreadsheet().toast('Deleting sheets...', T.generatingExampleProcess, 10);
+  
+  if (sheetNames && Array.isArray(sheetNames)) {
+    sheetNames.forEach(name => {
+      const sheet = ss.getSheetByName(name);
+      if (sheet) {
+        ss.deleteSheet(sheet);
+      }
     });
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.deleteExampleSuccess, T.generationSuccessTitle, 5);
-  } else {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.operationCancelled);
   }
+  
+  SpreadsheetApp.getActiveSpreadsheet().toast(T.deleteExampleSuccess, T.generationSuccessTitle, 5);
 }
 
 
 // ================================================================
 // SECTION 4: SHARED HELPER FUNCTIONS
 // ================================================================
+
+function showExampleErrorDialog(title, message) {
+    const T = MasterData.getTranslations();
+    const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+    htmlTemplate.title = title;
+    htmlTemplate.message = message;
+    htmlTemplate.type = 'alert';
+    htmlTemplate.callback = null;
+    htmlTemplate.args = [];
+    htmlTemplate.T = T;
+    SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), title);
+}
 
 function createAndFormatSheet_(ss, sheetConfig, autoResize = true) {
   let sheet = ss.getSheetByName(sheetConfig.name);

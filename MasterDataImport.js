@@ -982,7 +982,6 @@ function requestStopValidation() {
 }
 
 function resetAllState() {
-    const ui = SpreadsheetApp.getUi();
     const T = MasterData.getTranslations();
     const scriptProperties = PropertiesService.getScriptProperties();
     try {
@@ -994,14 +993,72 @@ function resetAllState() {
         SpreadsheetApp.getActiveSpreadsheet().toast(T.resetComplete || 'Reset complete! All progress and sheet data have been cleared.', T.toastTitleSuccess || 'Success', 5);
     } catch (e) {
         Logger.log(`Reset failed: ${e.message}`);
-        ui.alert(T.resetFailed || 'Reset Failed', e.message, ui.ButtonSet.OK);
+        showErrorDialog(T.resetFailed || 'Reset Failed', e.message);
     }
 }
 
 /**
- * Main function to run the data comparison process.
+ * [REFACTORED] Step 1: Pre-check for blocking warnings.
+ */
+function compare_preCheck() {
+    const activeSheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
+    const T = MasterData.getTranslations();
+    const settings = import_getCompareSettings(activeSheetName);
+    
+    if (!settings || !settings.sourceFileId) {
+        return { status: 'error', message: T.errorNoCompareSettingsFound };
+    }
+
+    // --- Pre-flight check for SOURCE ---
+    const sourceValidation = import_checkSourceCompareField(settings);
+    if (!sourceValidation.isValid) {
+        const confirmationMessage = T.preCheckWarningBody
+            .replace('{COLUMN}', settings.sourceLookupCol)
+            .replace('{MESSAGE}', sourceValidation.message);
+        return { status: 'warning', message: confirmationMessage, title: T.preCheckWarningTitle };
+    }
+
+    // --- Pre-flight check for TARGET ---
+    const targetValidation = import_checkTargetLookupField(settings);
+    if (!targetValidation.isValid) {
+        const confirmationMessage = T.preCheckWarningBodyTarget
+            .replace('{COLUMN}', settings.targetLookupCol)
+            .replace('{MESSAGE}', targetValidation.message);
+        return { status: 'warning', message: confirmationMessage, title: T.preCheckWarningTitle };
+    }
+
+    return { status: 'ok' };
+}
+
+/**
+ * [REFACTORED] Wrapper for runCompareProcess.
  */
 function runCompareProcess() {
+    const T = MasterData.getTranslations();
+    const checkResult = compare_preCheck();
+
+    if (checkResult.status === 'error') {
+        showErrorDialog(T.compareFailedTitle || 'Failed', checkResult.message);
+    } else if (checkResult.status === 'warning') {
+        // Use MasterDataDialog for non-blocking confirmation
+        const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+        htmlTemplate.title = checkResult.title;
+        htmlTemplate.message = checkResult.message;
+        htmlTemplate.type = 'confirm';
+        htmlTemplate.callback = 'runCompareProcess_Step2';
+        htmlTemplate.args = [];
+        htmlTemplate.T = T;
+        
+        SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), checkResult.title);
+    } else {
+        runCompareProcess_Step2();
+    }
+}
+
+/**
+ * [REFACTORED] Main function to run the data comparison process (logic moved here).
+ */
+function runCompareProcess_Step2() {
     const ui = SpreadsheetApp.getUi();
     const activeSheetName = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getName();
     const T = MasterData.getTranslations();
@@ -1011,31 +1068,8 @@ function runCompareProcess() {
             throw new Error(T.errorNoCompareSettingsFound);
         }
 
-        // --- Pre-flight check for SOURCE ---
-        const sourceValidation = import_checkSourceCompareField(settings);
-        if (!sourceValidation.isValid) {
-            const confirmationMessage = T.preCheckWarningBody
-                .replace('{COLUMN}', settings.sourceLookupCol)
-                .replace('{MESSAGE}', sourceValidation.message);
-            const response = ui.alert(T.preCheckWarningTitle, confirmationMessage, ui.ButtonSet.YES_NO);
-            if (response !== ui.Button.YES) {
-                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, T.toastTitleInfo || 'Cancelled', 5);
-                return;
-            }
-        }
-
-        // --- Pre-flight check for TARGET ---
-        const targetValidation = import_checkTargetLookupField(settings);
-        if (!targetValidation.isValid) {
-            const confirmationMessage = T.preCheckWarningBodyTarget
-                .replace('{COLUMN}', settings.targetLookupCol)
-                .replace('{MESSAGE}', targetValidation.message);
-            const response = ui.alert(T.preCheckWarningTitle, confirmationMessage, ui.ButtonSet.YES_NO);
-            if (response !== ui.Button.YES) {
-                SpreadsheetApp.getActiveSpreadsheet().toast(T.preCheckCancelled, T.toastTitleInfo || 'Cancelled', 5);
-                return;
-            }
-        }
+        // Checks already done in Step 1, but keep safety checks here just in case direct call
+        // Not re-running deep validation to save time and avoid redundancy if called via Step 1.
 
         SpreadsheetApp.getActiveSpreadsheet().toast(T.compareStartToast, T.toastTitleProcessing, 10);
 
@@ -1151,16 +1185,86 @@ function runCompareProcess() {
 
     } catch (e) {
         Logger.log(`Data comparison failed: ${e.stack}`);
-        ui.alert(T.compareFailedTitle, e.message, ui.ButtonSet.OK);
+        showErrorDialog(T.compareFailedTitle, e.message);
     }
 }
 
 
-function runImportProcess() {
+/**
+ * [REFACTORED] Step 1: Pre-checks for Import.
+ */
+function import_preCheck() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const targetSsId = ss.getId(); // Get target ID
     const activeSheetName = ss.getActiveSheet().getName();
-    const ui = SpreadsheetApp.getUi();
+    const T = MasterData.getTranslations();
+    const allSettings = getSettings(activeSheetName);
+    const settings = allSettings.importSettings;
+
+    if (!settings || !settings.sourceFileId) {
+        return { status: 'error', message: T.errorNoImportSettingsFound.replace('{SHEET_NAME}', activeSheetName) };
+    }
+
+    // --- Pre-flight check for GID ---
+    try {
+        const sourceGid = import_getSheetGidByName_(settings.sourceFileId, settings.sourceSheetName);
+        if (!sourceGid) {
+            return { status: 'error', message: T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', settings.sourceSheetName) };
+        }
+    } catch (e) {
+         return { status: 'error', message: e.message };
+    }
+    
+    const warningMessages = [];
+    const filters = settings.keywordFilters || [];
+    const incompleteFilter = filters.some(f => f.header && !f.keywords);
+    if (incompleteFilter) {
+        warningMessages.push(T.preflightFilterWarning);
+    }
+
+    if (warningMessages.length > 0) {
+        const prompt = `${T.preflightWarning}\n\n${warningMessages.join('\n')}\n\n${T.preflightSuggestion}\n\n${T.preflightConfirmation}`;
+        return { 
+            status: 'warning', 
+            message: prompt, 
+            title: T.preflightTitle 
+        };
+    }
+
+    return { status: 'ok' };
+}
+
+/**
+ * [REFACTORED] Wrapper for runImportProcess using MasterDataDialog.
+ */
+function runImportProcess() {
+    const T = MasterData.getTranslations();
+    const checkResult = import_preCheck();
+
+    if (checkResult.status === 'error') {
+        showErrorDialog(T.importFailed || 'Data Synchronization Failed', checkResult.message);
+    } else if (checkResult.status === 'warning') {
+        // Use MasterDataDialog for non-blocking confirmation
+        const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+        htmlTemplate.title = checkResult.title;
+        htmlTemplate.message = checkResult.message;
+        htmlTemplate.type = 'confirm';
+        htmlTemplate.callback = 'runImportProcess_Step2';
+        htmlTemplate.args = [];
+        htmlTemplate.T = T;
+        
+        SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(350), checkResult.title);
+    } else {
+        runImportProcess_Step2();
+    }
+}
+
+/**
+ * [REFACTORED] Main Import Logic (Step 2).
+ */
+function runImportProcess_Step2() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const targetSsId = ss.getId();
+    const activeSheetName = ss.getActiveSheet().getName();
     const scriptProperties = PropertiesService.getScriptProperties();
     const T = MasterData.getTranslations();
 
@@ -1170,31 +1274,11 @@ function runImportProcess() {
         const allSettings = getSettings(activeSheetName);
         const settings = allSettings.importSettings;
 
-        if (!settings || !settings.sourceFileId) {
-            throw new Error(T.errorNoImportSettingsFound.replace('{SHEET_NAME}', activeSheetName));
-        }
+        // Safety checks (redundant if called via Step 1, but necessary for direct calls)
+        if (!settings || !settings.sourceFileId) throw new Error(T.errorNoImportSettingsFound.replace('{SHEET_NAME}', activeSheetName));
 
-        // --- Pre-flight check for GID ---
         const sourceGid = import_getSheetGidByName_(settings.sourceFileId, settings.sourceSheetName);
-        if (!sourceGid) {
-            throw new Error(T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', settings.sourceSheetName));
-        }
-        
-        const warningMessages = [];
-        const filters = settings.keywordFilters || [];
-        const incompleteFilter = filters.some(f => f.header && !f.keywords);
-        if (incompleteFilter) {
-            warningMessages.push(T.preflightFilterWarning);
-        }
-
-        if (warningMessages.length > 0) {
-            const prompt = `${T.preflightWarning}\n\n${warningMessages.join('\n')}\n\n${T.preflightSuggestion}\n\n${T.preflightConfirmation}`;
-            const response = ui.alert(T.preflightTitle, prompt, ui.ButtonSet.YES_NO);
-            if (response !== ui.Button.YES) {
-                ss.toast(T.importCancelled, T.toastTitleInfo || 'Cancelled', 5);
-                return;
-            }
-        }
+        if (!sourceGid) throw new Error(T.errorSheetNotFoundInUrl.replace('{SHEET_NAME}', settings.sourceSheetName));
 
         if (settings.targetHeaderRow >= settings.targetStartRow) {
             throw new Error(T.headerLessThanStartError);
@@ -1224,7 +1308,7 @@ function runImportProcess() {
 
         if (allTasks.length === 0) {
             const alertBody = T.filterMismatchBodyImport || "Source data was found, but no rows matched your filter criteria. Please check your filter conditions. The target sheet will now be cleared.";
-            ui.alert(T.filterMismatchTitle, alertBody, ui.ButtonSet.OK);
+            showErrorDialog(T.filterMismatchTitle, alertBody); // Replaced ui.alert
             clearTargetSheetData(settings);
             ss.toast(T.targetSheetCleared || 'Target sheet has been cleared.', 'Complete', 5);
             return;
@@ -1238,7 +1322,7 @@ function runImportProcess() {
         if (valuesForBulkWrite.length > 0) {
             ss.toast((T.writingRecords || "Writing {COUNT} records...").replace('{COUNT}', allTasks.length), T.toastTitleProcessing || 'Processing', 10);
             const rangeToWrite = targetSheet.getRange(settings.targetStartRow, 1, valuesForBulkWrite.length, valuesForBulkWrite[0].length);
-            rangeToWrite.clear({contentsOnly: true, formatOnly: true}); // [FIX] Clear residual formats (like hyperlinks)
+            rangeToWrite.clear({contentsOnly: true, formatOnly: true});
             rangeToWrite.setValues(valuesForBulkWrite);
 
             for (let i = 0; i < allTasks.length; i++) {
@@ -1283,10 +1367,25 @@ function runImportProcess() {
 
     } catch (e) {
         Logger.log(`Data synchronization failed: ${e.stack}`);
-        ui.alert(T.importFailed || 'Data Synchronization Failed', e.message, ui.ButtonSet.OK);
+        showErrorDialog(T.importFailed || 'Data Synchronization Failed', e.message); // Replaced ui.alert
     } finally {
         scriptProperties.deleteProperty('stopImportRequested');
     }
+}
+
+/**
+ * Helper to show an Error Dialog using MasterDataDialog (Alert Mode).
+ */
+function showErrorDialog(title, message) {
+    const T = MasterData.getTranslations();
+    const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+    htmlTemplate.title = title;
+    htmlTemplate.message = message;
+    htmlTemplate.type = 'alert';
+    htmlTemplate.callback = null;
+    htmlTemplate.args = [];
+    htmlTemplate.T = T;
+    SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(300), title);
 }
 
 // =================================================================================================

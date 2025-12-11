@@ -35,10 +35,10 @@ function showTutorialSidebar(tutorialType) {
   let htmlFile = 'GuidePageTraining.html';
 
   if (tutorialType === 'business') {
-    generateBusinessExample(); 
+   // generateBusinessExample(); 
     title = T.businessGuideTutorialTitle;
   } else if (tutorialType === 'manufacturing') {
-    generateManufacturingExample();
+   // generateManufacturingExample();
     title = T.manufacturingGuideTutorialTitle;
   } else {
     throw new Error('Unknown tutorial type specified.');
