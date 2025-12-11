@@ -277,6 +277,9 @@ function generateBusinessExample_Step2() {
 // SECTION 3: DELETE EXAMPLE FUNCTION
 // ================================================================
 
+/**
+ * [REFACTORED] Entry point: Check sheets and show confirmation (non-blocking).
+ */
 function deleteExampleSheets() {
   const ui = SpreadsheetApp.getUi();
   const T = MasterData.getTranslations();
@@ -286,9 +289,9 @@ function deleteExampleSheets() {
   const en_T = MasterData.TRANSLATIONS.en;
   const zh_TW_T = MasterData.TRANSLATIONS.zh_TW;
   
+  // Ensure we check for all potential localized names
   en_T.exampleCustomerMasterSheet_Sales = 'Source | Customer List';
   zh_TW_T.exampleCustomerMasterSheet_Sales = '[來源] 客戶清單';
-
 
   const allPossibleExampleSheetNames = new Set([
     en_T.exampleTargetSheet, zh_TW_T.exampleTargetSheet,
@@ -308,20 +311,41 @@ function deleteExampleSheets() {
     return;
   }
 
-  const sheetList = sheetsToDelete.map(sheet => `- ${sheet.getName()}`).join('\n');
+  const sheetNames = sheetsToDelete.map(sheet => sheet.getName());
+  const sheetList = sheetNames.map(name => `- ${name}`).join('\n');
   const confirmMessage = T.deleteExampleConfirmBody.replace('{SHEET_LIST}', sheetList);
   
-  const response = ui.alert(T.deleteExampleConfirmTitle, confirmMessage, ui.ButtonSet.YES_NO);
+  // Use MasterDataDialog for confirmation
+  const htmlTemplate = HtmlService.createTemplateFromFile('MasterDataDialog');
+  htmlTemplate.title = T.deleteExampleConfirmTitle;
+  htmlTemplate.message = confirmMessage;
+  htmlTemplate.type = 'confirm';
+  htmlTemplate.callback = 'deleteExampleSheets_Step2';
+  htmlTemplate.args = [sheetNames];
+  htmlTemplate.T = T;
 
-  if (response === ui.Button.YES) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Deleting sheets...', T.generatingExampleProcess, 10);
-    sheetsToDelete.forEach(sheet => {
-      ss.deleteSheet(sheet);
+  SpreadsheetApp.getUi().showModalDialog(htmlTemplate.evaluate().setWidth(400).setHeight(400), T.deleteExampleConfirmTitle);
+}
+
+/**
+ * [REFACTORED] Step 2: Execute deletion.
+ */
+function deleteExampleSheets_Step2(sheetNames) {
+  const T = MasterData.getTranslations();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Deleting sheets...', T.generatingExampleProcess, 10);
+
+  if (sheetNames && Array.isArray(sheetNames)) {
+    sheetNames.forEach(name => {
+      const sheet = ss.getSheetByName(name);
+      if (sheet) {
+        ss.deleteSheet(sheet);
+      }
     });
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.deleteExampleSuccess, T.generationSuccessTitle, 5);
-  } else {
-    SpreadsheetApp.getActiveSpreadsheet().toast(T.operationCancelled);
   }
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(T.deleteExampleSuccess, T.generationSuccessTitle, 5);
 }
 
 
