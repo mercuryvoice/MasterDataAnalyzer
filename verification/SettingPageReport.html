@@ -84,16 +84,16 @@
       .validation-warning { color: #ffc107; font-size: 18px; display: none; }
       .loader { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      
+
       /* --- Results Area --- */
       .results-container { display: none; margin-top: 20px; }
       .tabs-nav { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ddd; }
       .tab { cursor: pointer; padding: 10px 15px; border-bottom: 3px solid transparent; color: #666; font-size: 0.9em; }
       .tab:hover { color: #333; }
       .tab.active { border-bottom-color: #007bff; color: #007bff; font-weight: 500; }
-      
-      #tab-content-container { position: relative; } 
-      .tab-content { 
+
+      #tab-content-container { position: relative; }
+      .tab-content {
           padding-top: 20px;
           visibility: hidden;
           position: absolute;
@@ -102,7 +102,7 @@
           left: 0;
           top: 0;
       }
-      .tab-content.active { 
+      .tab-content.active {
           visibility: visible;
           position: relative;
           opacity: 1;
@@ -110,19 +110,19 @@
 
       .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
       .kpi-card { background-color: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-align: center; border: 1px solid #e2e8f0; }
-      
+
       .kpi-title { color: #64748b; font-size: 1rem; }
       .kpi-value { color: #1e293b; font-size: 2rem; font-weight: 700; }
 
-      .chart-container { 
-          position: relative; 
-          background-color: white; 
-          padding: 1rem; 
-          border-radius: 0.5rem; 
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
-          border: 1px solid #e2e8f0; 
+      .chart-container {
+          position: relative;
+          background-color: white;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+          border: 1px solid #e2e8f0;
           min-height: 400px;
-          margin-bottom:20px; 
+          margin-bottom:20px;
           display: flex;
           flex-direction: column;
       }
@@ -133,7 +133,7 @@
       .results-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
       .results-table th, .results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
       .results-table th { background-color: #f2f2f2; font-weight: 500; }
-      
+
       /* --- Export Modal --- */
       .export-section { margin-bottom: 15px; }
       .export-section h5 { margin-top: 0; margin-bottom: 10px; font-size: 1em; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; }
@@ -266,13 +266,13 @@
 
         let showLabels = false;
         let overviewChartType = 'pie';
-        let currentResultData = null; 
+        let currentResultData = null;
         let drawnCharts = {}; // Object to store drawn chart instances
-        
+
         // --- V15 State Variables ---
         let keys = null;
         let pickerApiLoaded = false;
-        
+
         // DOM Elements
         const pinToggle = document.getElementById('pin-toggle'), expandToggle = document.getElementById('expand-toggle'), minimizeToggle = document.getElementById('minimize-toggle');
         const generateBtn = document.getElementById('generate-btn'), saveBtn = document.getElementById('save-btn'), closeBtn = document.getElementById('close-btn');
@@ -293,7 +293,7 @@
         // --- 1. Dynamic GAPI Loading ---
         document.addEventListener('DOMContentLoaded', () => {
             loadAndPopulateSettings();
-            
+
             statusDiv.textContent = T.gapiLoading;
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/api.js';
@@ -334,7 +334,7 @@
 
         // --- 4. Picker Creation ---
         selectSourceFileBtn.addEventListener('click', createPicker);
-        
+
         function createPicker() {
           try {
             const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true);
@@ -345,10 +345,10 @@
               .addView(docsView)
               .setCallback(pickerCallback)
               .setOrigin(google.script.host.origin);
-            
+
             builder.enableFeature(google.picker.Feature.NAV_HIDDEN);
             builder.disableFeature(google.picker.Feature.MULTISELECT_ENABLED);
-            
+
             const picker = builder.build();
             picker.setVisible(true);
           } catch (e) {
@@ -364,7 +364,7 @@
               sourceFileIdInput.value = doc.id;
               sourceFileNameInput.value = doc.name;
               statusDiv.textContent = T.fileSelected + doc.name;
-              
+
               validateAndFetchHeaders();
               selectSheetBtn.disabled = false;
             }
@@ -375,11 +375,11 @@
 
         // --- UI Interaction Logic ---
         pinToggle.addEventListener('click', () => { isPinned = !isPinned; pinToggle.classList.toggle('pinned'); pinToggle.title = isPinned ? T.unpinHint : T.pinHint; });
-        
+
         expandToggle.addEventListener('click', () => {
-            isExpanded = !isExpanded; 
+            isExpanded = !isExpanded;
             expandToggle.classList.toggle('expanded');
-            
+
             if (isExpanded && isMinimized) {
                 minimizeToggle.click(); // Un-minimize if we are expanding
             }
@@ -396,7 +396,7 @@
             minimizeToggle.classList.toggle('minimized', isMinimized);
             minimizeToggle.textContent = isMinimized ? 'unfold_more' : 'unfold_less';
             minimizeToggle.title = isMinimized ? T.unminimizeHint : T.minimizeHint;
-            
+
             if (isMinimized) {
                 google.script.host.setWidth(500);
                 google.script.host.setHeight(150);
@@ -422,9 +422,9 @@
         });
 
         // --- Modal Handling ---
-        document.querySelectorAll('.modal-close-btn, #modal-ok-btn, #export-cancel-btn').forEach(btn => btn.addEventListener('click', () => { 
-            alertModal.style.display = 'none'; 
-            sheetSelectModal.style.display = 'none'; 
+        document.querySelectorAll('.modal-close-btn, #modal-ok-btn, #export-cancel-btn').forEach(btn => btn.addEventListener('click', () => {
+            alertModal.style.display = 'none';
+            sheetSelectModal.style.display = 'none';
             exportModal.style.display = 'none';
             exportStatus.textContent = '';
         }));
@@ -467,18 +467,18 @@
 
         function populateExportModal() {
             const container = document.getElementById('export-selection-container');
-            container.innerHTML = ''; 
+            container.innerHTML = '';
 
             const tabNames = [T.overviewTab, ...currentResultData.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
 
             tabNames.forEach(tabName => {
                 const tabList = document.createElement('ul');
                 tabList.className = 'export-options-list';
-                
+
                 const tabItem = document.createElement('li');
                 const tabCheckboxId = `export-tab-${tabName.replace(/\s/g, '-')}`;
                 tabItem.innerHTML = `<label><input type="checkbox" id="${tabCheckboxId}" data-type="tab" data-tab-name="${tabName}"><b>${tabName}</b></label>`;
-                
+
                 const cardList = document.createElement('ul');
                 cardList.className = 'card-options';
 
@@ -520,7 +520,7 @@
                         child.checked = isChecked;
                     });
                 });
-                
+
                 container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.addEventListener('change', () => {
                         if (exportStatus.textContent === T.errorExportContent) {
@@ -537,7 +537,7 @@
             const format = document.querySelector('input[name="exportFormat"]:checked').value;
             const selections = {};
             const chartImages = {};
-            
+
             document.querySelectorAll('#export-selection-container input[type="checkbox"]:checked').forEach(cb => {
                 const tabName = cb.dataset.tabName;
                 const cardId = cb.dataset.cardId;
@@ -566,7 +566,7 @@
                     exportConfirmBtn.disabled = false;
                     exportModal.style.display = 'none';
                     exportStatus.textContent = '';
-                    
+
                     if (result.success) {
                         if (result.url) {
                             showModal(T.exportSuccess, result.url, true);
@@ -589,10 +589,10 @@
             const newRow = content.querySelector('.analysis-row');
             const typeSelect = newRow.querySelector('.field-type');
             const headerSelect = newRow.querySelector('.field-header');
-            
+
             typeSelect.value = field.type;
             headerSelect.innerHTML = allHeaders.map(h => `<option value="${h}">${h}</option>`).join('');
-            
+
             if (field.header && allHeaders.includes(field.header)) {
                 headerSelect.value = field.header;
             } else if (allHeaders.length > 0) {
@@ -605,7 +605,7 @@
             fieldsContainer.appendChild(newRow);
             validateFieldType(newRow);
         }
-        
+
         function handleSave() {
             statusDiv.textContent = T.savingMessage;
             [saveBtn, generateBtn].forEach(b => b.disabled = true);
@@ -711,7 +711,7 @@
                     rangeValEl.textContent = errors.rangeError || '';
                     rangeEl.classList.toggle('invalid', hasRangeError);
                     rangeValEl.className = hasRangeError ? 'validation-message error-message' : 'validation-message help-text';
-                    
+
                     const hasAnyError = hasFileError || hasSheetError || hasRangeError;
                     const inputsAreFilled = sheetName && rangeA1;
 
@@ -730,7 +730,7 @@
                 })
                 .report_validateReportInputs(sourceFileId, sheetName, rangeA1);
         }
-        
+
         function fetchHeaders(savedFields = []) {
             google.script.run.withSuccessHandler(headers => {
                 if (!headers || headers.length === 0) {
@@ -742,19 +742,19 @@
                 }
                 mappingContainer.style.display = 'block';
                 allHeaders = headers;
-                fieldsContainer.innerHTML = ''; 
-                
+                fieldsContainer.innerHTML = '';
+
                 if (savedFields && savedFields.length > 0) {
                      savedFields.forEach(field => addAnalysisField(field));
-                } else { 
+                } else {
                     addAnalysisField({ type: 'dimension', header: allHeaders[0] || '' });
                     addAnalysisField({ type: 'metric', header: allHeaders.length > 1 ? allHeaders[1] : (allHeaders[0] || '') });
                 }
                 statusDiv.textContent = T.saveSuccess;
                 setTimeout(() => statusDiv.textContent = '', 3000);
-            }).withFailureHandler(err => { 
-              showModal(T.errorTitle, err.message); 
-              mappingContainer.style.display = 'none'; 
+            }).withFailureHandler(err => {
+              showModal(T.errorTitle, err.message);
+              mappingContainer.style.display = 'none';
               statusDiv.textContent = T.loadSettingsFailure;
               setTimeout(() => statusDiv.textContent = '', 5000);
             }).report_getHeadersFromRange(sourceFileIdInput.value.trim(), sourceSheetNameInput.value, sourceRangeInput.value);
@@ -764,7 +764,7 @@
             const typeSelect = rowElement.querySelector('.field-type');
             const headerSelect = rowElement.querySelector('.field-header');
             const warningIcon = rowElement.querySelector('.validation-warning');
-            
+
             if (typeSelect.value === 'metric' && headerSelect.value) {
                 google.script.run.withSuccessHandler(nonNumericFields => {
                     if (nonNumericFields.includes(headerSelect.value)) {
@@ -784,7 +784,7 @@
             tabContentContainer.innerHTML = '';
 
             const tabNames = [T.overviewTab, ...result.dimensions.map(d => T.analysisTab.replace('{DIMENSION}', d)), T.rawDataTab];
-            
+
             tabNames.forEach((name, index) => {
                 const tab = document.createElement('div');
                 tab.className = 'tab' + (index === 0 ? ' active' : '');
@@ -804,7 +804,7 @@
                     content.classList.add('active');
                 });
             });
-            
+
             const populateAllTabs = () => {
                 tabNames.forEach(name => {
                     populateTabContent(name, result);
@@ -851,7 +851,7 @@
                 if (result.dimensions.length > 0 && result.metrics.length > 0) {
                     const outerChartContainer = document.createElement('div');
                     outerChartContainer.className = 'chart-container';
-                    
+
                     const controls = document.createElement('div');
                     controls.className = 'chart-controls';
 
@@ -859,7 +859,7 @@
                     pieBtn.className = 'material-icons active-chart';
                     pieBtn.textContent = 'pie_chart';
                     pieBtn.title = T.pieChartTitle;
-                    
+
                     const barBtn = document.createElement('span');
                     barBtn.className = 'material-icons';
                     barBtn.textContent = 'bar_chart';
@@ -887,17 +887,17 @@
                              drawOverviewBarChart(chartDiv, result);
                          }
                     };
-                    
+
                     const preRenderCharts = () => {
                         const hiddenContainer = document.createElement('div');
                         hiddenContainer.style.position = 'absolute';
                         hiddenContainer.style.left = '-9999px';
-                        hiddenContainer.style.width = '800px'; 
+                        hiddenContainer.style.width = '800px';
                         hiddenContainer.style.height = '400px';
                         document.body.appendChild(hiddenContainer);
-                        
+
                         drawOverviewPieChart(hiddenContainer, result, false);
-                        drawOverviewPieChart(hiddenContainer, result, true); 
+                        drawOverviewPieChart(hiddenContainer, result, true);
                         drawOverviewBarChart(hiddenContainer, result);
 
                         document.body.removeChild(hiddenContainer);
@@ -955,12 +955,12 @@
                 result.metrics.forEach(metric => {
                     const chartOuterContainer = document.createElement('div');
                     chartOuterContainer.className = 'chart-container';
-                    
+
                     const chartDiv = document.createElement('div');
                     chartDiv.style.flexGrow = '1';
                     chartOuterContainer.appendChild(chartDiv);
                     contentElement.appendChild(chartOuterContainer);
-                    
+
                     const groupedChartData = {};
                     result.data.forEach(row => {
                         const key = row[dimension];
@@ -970,18 +970,18 @@
                         groupedChartData[key].total += row[metric];
                         groupedChartData[key].count++;
                     });
-                    
+
                     const chartDataArray = [[dimension, metric, { role: 'style' }, { role: 'annotation' }]];
                     const isRateField = /率|%|百分比|Rate|Percentage/i.test(metric);
 
                     for (const key in groupedChartData) {
-                        let value = isRateField 
+                        let value = isRateField
                             ? groupedChartData[key].total / groupedChartData[key].count
                             : groupedChartData[key].total;
                         chartDataArray.push([key, value, chartColors[0], formatValue(value, metric)]);
                     }
-                    
-                    if (chartDataArray.length > 1) { 
+
+                    if (chartDataArray.length > 1) {
                         const header = chartDataArray.shift();
                         chartDataArray.sort((a,b) => b[1] - a[1]);
                         chartDataArray.unshift(header);
@@ -997,10 +997,10 @@
                             annotations: {
                                 textStyle: {
                                     fontSize: 16,
-                                    color: 'white', 
+                                    color: 'white',
                                     auraColor: 'none'
                                 },
-                                alwaysOutside: false 
+                                alwaysOutside: false
                             }
                         };
                         if (isRateField) {
@@ -1015,7 +1015,7 @@
                 });
             }
         }
-        
+
         function drawOverviewPieChart(chartDiv, result, useLabels) {
             const dimension = result.dimensions[0];
             const metric = result.metrics[0];
@@ -1028,13 +1028,13 @@
                 groupedData[key].total += row[metric];
                 groupedData[key].count++;
             });
-            
+
             const pieDataArray = [[dimension, metric]];
             for (const key in groupedData) {
                  let value = isRateField ? (groupedData[key].total / groupedData[key].count) : groupedData[key].total;
                  pieDataArray.push([key, value]);
             }
-            
+
             if (pieDataArray.length > 1) {
                 const header = pieDataArray.shift();
                 pieDataArray.sort((a, b) => b[1] - a[1]);
@@ -1042,19 +1042,19 @@
             }
 
             const pieData = google.visualization.arrayToDataTable(pieDataArray);
-            
-            let options; 
+
+            let options;
 
             if (useLabels) {
-                options = { 
+                options = {
                     colors: chartColors,
                     title: T.distributionChartTitle.replace('{DIMENSION}', dimension),
-                    titleTextStyle: { fontSize: 20, bold: true }, 
-                    pieHole: 0.4, 
-                    pieSliceText: 'none', 
-                    legend: { 
-                        position: 'labeled', 
-                        textStyle: { fontSize: 16 } 
+                    titleTextStyle: { fontSize: 20, bold: true },
+                    pieHole: 0.4,
+                    pieSliceText: 'none',
+                    legend: {
+                        position: 'labeled',
+                        textStyle: { fontSize: 16 }
                     },
                     chartArea: {
                         left: '10%',
@@ -1065,13 +1065,13 @@
                     }
                 };
             } else {
-                options = { 
+                options = {
                     colors: chartColors,
                     title: T.distributionChartTitle.replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20, bold: true },
-                    pieHole: 0.4, 
+                    pieHole: 0.4,
                     pieSliceText: 'none',
-                    legend: { 
+                    legend: {
                         position: 'right',
                         alignment: 'center',
                         textStyle: { fontSize: 16 }
@@ -1085,10 +1085,10 @@
                     }
                 };
             }
-            
+
             const chart = new google.visualization.PieChart(chartDiv);
             chart.draw(pieData, options);
-            
+
             if (useLabels) {
                 drawnCharts['chart-overview-pie-labeled'] = chart;
             } else {
@@ -1111,25 +1111,25 @@
 
             const chartDataArray = [[dimension, metric, { role: 'style' }, { role: 'annotation' }]];
             for (const key in groupedData) {
-                let value = isRateField 
+                let value = isRateField
                     ? groupedData[key].total / groupedData[key].count
                     : groupedData[key].total;
                 chartDataArray.push([key, value, chartColors[0], formatValue(value, metric)]);
             }
-            
-            if (chartDataArray.length > 1) { 
+
+            if (chartDataArray.length > 1) {
                 const header = chartDataArray.shift();
                 chartDataArray.sort((a,b) => b[1] - a[1]);
                 chartDataArray.unshift(header);
-                
+
                 const chartData = google.visualization.arrayToDataTable(chartDataArray);
                  const options = {
                     title: T.chartByTitle.replace('{METRIC}', metric).replace('{DIMENSION}', dimension),
                     titleTextStyle: { fontSize: 20 },
-                    chartArea: { 
-                        width: '65%', 
-                        left: 200, 
-                        top: 60, 
+                    chartArea: {
+                        width: '65%',
+                        left: 200,
+                        top: 60,
                         bottom: 40
                     },
                     hAxis: { title: metric, minValue: 0 },
@@ -1138,10 +1138,10 @@
                     annotations: {
                         textStyle: {
                             fontSize: 16,
-                            color: 'white', 
+                            color: 'white',
                             auraColor: 'none'
                         },
-                        alwaysOutside: false 
+                        alwaysOutside: false
                     }
                 };
                 if (isRateField) {
@@ -1154,7 +1154,7 @@
                 chartDiv.innerHTML = `<p style="text-align:center; padding-top: 20px;">${T.noDataForChart}</p>`;
             }
         }
-        
+
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
             google.script.run.withSuccessHandler(colors => {
