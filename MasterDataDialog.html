@@ -74,7 +74,7 @@
       function confirmAction() {
         var func = "<?= callback ?>";
         // Safe injection of args array
-        var args = <?= JSON.stringify(args || []) ?>;
+        var args = <?!= JSON.stringify(args || []) ?>;
 
         // Show loading state on button
         var btn = document.querySelector('.btn-primary');
