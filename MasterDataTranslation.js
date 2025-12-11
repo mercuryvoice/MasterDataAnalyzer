@@ -60,9 +60,9 @@ MasterData.TRANSLATIONS = {
         disableNotifyItem: '🔴 Disable Automatic Notifications',
         privacyPolicyItem: 'Privacy Policy',
         // --- Guide Sub-menu Items (Placeholders) ---
-        manufacturingGuide: 'Manufacturing Example',
+        manufacturingGuide: 'Create Manufacturing Example',
         manufacturingProductionTitle: 'Manufacturing Production',
-        businessGuide: 'Business & Sales Example',
+        businessGuide: 'Create Business & Sales Example',
         // hrGuide: 'Human Resources Example',
         startBusinessGuide: '▶️ Start Interactive Guide (Sales)',
         startManufacturingGuide: '▶️ Start Interactive Guide (Manufacturing)',
@@ -648,9 +648,9 @@ MasterData.TRANSLATIONS = {
         disableNotifyItem: '🔴 停用自動通知',
         privacyPolicyItem: '隱私權政策',
         // --- Guide Sub-menu Items (Placeholders) ---
-        manufacturingGuide: '生產製造範例',
+        manufacturingGuide: '創建生產製造範例',
         manufacturingProductionTitle: 'Manufacturing Production',
-        businessGuide: '業務統計範例',
+        businessGuide: '創建業務統計範例',
         // hrGuide: 'Human Resources Example',
         startBusinessGuide: '▶️ 開始互動教學 (業務)',
         startManufacturingGuide: '▶️ 開始互動教學 (製造)',
