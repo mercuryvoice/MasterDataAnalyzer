@@ -794,7 +794,7 @@ MasterData.TRANSLATIONS = {
         businessTask1Step4Title: "任務一：資料匯入 (4/6)",
         businessTask1Step4Instruction: "接著，設定資料範圍：\n1. <code>資料匯入的標頭之起始列數</code>: <code>1</code>\n2. <code>資料匯入的起始列數</code>: <code>2</code>\n3. <code>來源資料匯入範圍</code>: <code>A2:E9</code>",
         businessTask1Step5Title: "任務一：資料匯入 (5/6)",
-        businessTask1Step5Instruction: "請新增一筆篩選條件：<br>1. <code>標頭名稱</code>: <br>客戶全名<br>2. <code>關鍵字</code>: <br>點擊 <code>選取</code> 接著勾選 <code>全選</code><br>提醒：這邊建議先以全選匯入以利後續生成報表的應用<br><br><code>來源標頭匯入範圍設定</code> 您可以輸入標頭範圍來限定標頭的檢測範圍，若無輸入則會以預設的所有標頭做為檢測範圍。",
+        businessTask1Step5Instruction: "請新增一筆篩選條件：<br>1. <code>標頭名稱</code>: <br>客戶 ID<br>2. <code>關鍵字</code>: <br>點擊 <code>選取</code> 接著勾選 <code>全選</code><br>提醒：這邊建議先以全選匯入以利後續生成報表的應用<br><br><code>來源標頭匯入範圍設定</code> 您可以輸入標頭範圍來限定標頭的檢測範圍，若無輸入則會以預設的所有標頭做為檢測範圍。",
         businessTask1Step6Title: "任務一：資料匯入 (6/6)",
         businessTask1Step6Instruction: "太棒了！所有設定都已完成。\n\n請點擊<code>儲存設定</code>並關閉視窗，然後從選單執行 <code>MasterDataAnalyzer > 資料匯入工具 > ▶️ 資料匯入</code>。",
         businessCheckpointTitle: "任務一完成！",
