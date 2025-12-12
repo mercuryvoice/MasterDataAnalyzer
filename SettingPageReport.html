@@ -366,6 +366,7 @@
               statusDiv.textContent = T.fileSelected + doc.name;
               
               validateAndFetchHeaders();
+              selectSheetBtn.disabled = false;
             }
           } else if (data.action == google.picker.Action.CANCEL) {
             statusDiv.textContent = T.operationCancelled;
@@ -679,6 +680,7 @@
                         } else {
                           validateAndFetchHeaders();
                         }
+                        selectSheetBtn.disabled = !settings.sourceFileId;
                     } else {
                         validateAndFetchHeaders();
                     }
