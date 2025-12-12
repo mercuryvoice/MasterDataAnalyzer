@@ -1052,9 +1052,9 @@ MasterData.TRANSLATIONS = {
         regionCentral: '中部',
         regionSouth: '南部',
         // Sales Example Headers
-        headerOrderDate: 'Order Date',
-        headerCustomerID: 'Customer ID',
-        headerCustomerName: 'Customer Name',
+        headerOrderDate: '訂單日期',
+        headerCustomerID: '客戶 ID',
+        headerCustomerName: '客戶名稱',
         headerRegion: '所屬地區',
         headerSalesperson: '負責業務員',
         headerProductName: '產品名稱',
